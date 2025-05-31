@@ -55,37 +55,10 @@ function Evaluator.evaluateFunctionCall(expr, variables, builtins)
 	
 	-- Check if it's a built-in function
 	if builtins and builtins[funcName] then
-		-- Parse multiple arguments separated by commas
-		local args = {}
-		if argsStr ~= "" then
-			-- Split by commas but handle nested function calls
-			local currentArg = ""
-			local parenCount = 0
-			
-			for i = 1, #argsStr do
-				local char = argsStr:sub(i, i)
-				if char == "(" then
-					parenCount = parenCount + 1
-					currentArg = currentArg .. char
-				elseif char == ")" then
-					parenCount = parenCount - 1
-					currentArg = currentArg .. char
-				elseif char == "," and parenCount == 0 then
-					table.insert(args, Evaluator.evaluateExpression(currentArg:match("^%s*(.-)%s*$"), variables, builtins))
-					currentArg = ""
-				else
-					currentArg = currentArg .. char
-				end
-			end
-			
-			-- Add the last argument
-			if currentArg ~= "" then
-				table.insert(args, Evaluator.evaluateExpression(currentArg:match("^%s*(.-)%s*$"), variables, builtins))
-			end
-		end
-		
-		-- Call the built-in function with all arguments
-		return builtins[funcName](table.unpack(args))
+		-- Evaluate the argument
+		local argValue = Evaluator.evaluateExpression(argsStr, variables, builtins)
+		-- Call the built-in function
+		return builtins[funcName](argValue)
 	end
 	
 	return expr -- Unknown function

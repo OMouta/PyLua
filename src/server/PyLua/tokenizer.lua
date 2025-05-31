@@ -9,12 +9,6 @@ function Tokenizer.tokenize(code)
 	local current = ""
 	local i = 1
 	
-	-- Handle comments - remove everything after #
-	local commentPos = code:find("#")
-	if commentPos then
-		code = code:sub(1, commentPos - 1)
-	end
-	
 	while i <= #code do
 		local char = code:sub(i, i)
 		
@@ -156,15 +150,6 @@ function Tokenizer.tokenize(code)
 	
 	if current ~= "" then
 		table.insert(tokens, current)
-	end
-	
-	-- Post-process to handle keywords that might need special treatment
-	-- (like 'in' keyword for for loops)
-	for i, token in ipairs(tokens) do
-		if token == "in" then
-			-- Keep 'in' as a separate token for for loops
-			-- No change needed, it's already tokenized correctly
-		end
 	end
 	
 	return tokens

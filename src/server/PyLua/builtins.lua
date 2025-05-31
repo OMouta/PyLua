@@ -64,37 +64,6 @@ function builtins.type(obj)
 	end
 end
 
--- Built-in range function
-function builtins.range(...)
-	local args = {...}
-	local start, stop, step
-	
-	if #args == 1 then
-		start, stop, step = 0, args[1], 1
-	elseif #args == 2 then
-		start, stop, step = args[1], args[2], 1
-	elseif #args == 3 then
-		start, stop, step = args[1], args[2], args[3]
-	else
-		error("range() takes 1-3 arguments")
-	end
-	
-	local result = {}
-	if step > 0 then
-		for i = start, stop - 1, step do
-			table.insert(result, i)
-		end
-	elseif step < 0 then
-		for i = start, stop + 1, step do
-			table.insert(result, i)
-		end
-	else
-		error("range() step argument must not be zero")
-	end
-	
-	return result
-end
-
 -- Get all built-in functions
 function Builtins.getAll()
 	return builtins

@@ -69,16 +69,6 @@ function Parser.parseStatement(tokens)
 		}
 	end
 	
-	-- Check for for loop
-	if tokens[1] == "for" then
-		return Parser.parseForStatement(tokens)
-	end
-	
-	-- Check for while loop
-	if tokens[1] == "while" then
-		return Parser.parseWhileStatement(tokens)
-	end
-	
 	-- Check for assignment (variable = value)
 	for i, token in ipairs(tokens) do
 		if token == "=" and i > 1 then -- Make sure = is not the first token
@@ -193,87 +183,6 @@ function Parser.parseElifStatement(tokens)
 	
 	return {
 		type = "elif_statement",
-		condition = condition
-	}
-end
-
--- Parse a for statement
-function Parser.parseForStatement(tokens)
-	-- for variable in iterable:
-	local variable = nil
-	local iterable = nil
-	local inIndex = nil
-	local colonIndex = nil
-	
-	-- Debug: print all tokens
-	print("DEBUG: For statement tokens:", table.concat(tokens, " | "))
-	
-	-- Find 'in' keyword
-	for i = 2, #tokens do
-		if tokens[i] == "in" then
-			inIndex = i
-			variable = tokens[i - 1]
-			break
-		end
-	end
-	
-	if not inIndex then
-		error("Invalid for statement: missing 'in' keyword")
-	end
-	
-	-- Find colon
-	for i = inIndex + 1, #tokens do
-		if tokens[i] == ":" then
-			colonIndex = i
-			break
-		end
-	end
-	
-	if not colonIndex then
-		error("Invalid for statement: missing colon")
-	end
-	
-	-- Extract iterable (between 'in' and ':')
-	local iterableTokens = {}
-	for i = inIndex + 1, colonIndex - 1 do
-		table.insert(iterableTokens, tokens[i])
-	end
-		iterable = table.concat(iterableTokens, " ")
-	
-	print("DEBUG: Parsed for loop - variable:", variable, "iterable:", iterable)
-	print("DEBUG: Iterable tokens:", table.concat(iterableTokens, " | "))
-	
-	return {
-		type = "for_statement",
-		variable = variable,
-		iterable = iterable
-	}
-end
-
--- Parse a while statement
-function Parser.parseWhileStatement(tokens)
-	-- Find the condition (between 'while' and ':')
-	local conditionTokens = {}
-	local colonIndex = nil
-	
-	for i = 2, #tokens do
-		if tokens[i] == ":" then
-			colonIndex = i
-			break
-		else
-			table.insert(conditionTokens, tokens[i])
-		end
-	end
-	
-	if not colonIndex then
-		error("Invalid while statement: missing colon")
-	end
-	
-	-- Join condition tokens
-	local condition = table.concat(conditionTokens, " ")
-	
-	return {
-		type = "while_statement",
 		condition = condition
 	}
 end
