@@ -8,7 +8,7 @@ A modular Python interpreter implementation written in Luau that runs inside Rob
 
 - **Basic Operations**: Variable assignment, print statements, string/number literals
 - **Mathematical Expressions**: Arithmetic operations with proper operator precedence (`+`, `-`, `*`, `/`)
-- **Control Flow**: 
+- **Control Flow**:
   - `if`/`elif`/`else` conditional statements with Python-style truthiness
   - `for` loops with `range()` function (1-3 arguments) and string iteration
   - `while` loops with condition evaluation
