@@ -15,11 +15,19 @@ A modular Python interpreter implementation written in Luau that runs inside Rob
   - **Nested loops and conditionals** - Full support for arbitrarily deep nesting
 - **Built-in Functions**:
   - `print()` - Output with multiple arguments
-  - `len()` - Get length of strings
+  - `len()` - Get length of strings and tables
   - `str()` - Convert values to strings
   - `int()` - Convert values to integers
+  - `float()` - Convert values to floating point numbers
+  - `bool()` - Convert values to booleans with Python truthiness
   - `type()` - Get type of values
   - `range()` - Generate number sequences (supports 1-3 arguments like Python)
+  - `min()` - Find minimum value from arguments or iterable
+  - `max()` - Find maximum value from arguments or iterable
+  - `sum()` - Sum all values in an iterable
+  - `abs()` - Get absolute value of a number
+  - `round()` - Round numbers to specified decimal places
+  - `pow()` - Raise a number to a power (with optional modulo)
 - **Comments**: Python-style `#` comments are supported
 - **Variable Scope**: Proper variable scoping in nested control structures
 
@@ -160,9 +168,19 @@ for i in range(3):
 print("Hello", "World", 123)  # Multiple arguments
 length = len("PyLua")         # String length
 number = int("42")            # Convert to integer
+decimal = float("3.14")       # Convert to float
+truth = bool(1)               # Convert to boolean
 text = str(123)               # Convert to string
 data_type = type("hello")     # Get type
-numbers = range(1, 10, 2)     # Generate range
+numbers = range(1, 10, 2)     # Generate range: [1, 3, 5, 7, 9]
+
+# Math functions
+total = sum([1, 2, 3, 4, 5])  # Sum: 15
+minimum = min(1, 2, 3)        # Min: 1
+maximum = max([1, 2, 3])      # Max: 3
+absolute = abs(-5)            # Absolute: 5
+rounded = round(3.14159, 2)   # Round: 3.14
+power = pow(2, 3)             # Power: 8
 ```
 
 ### Comments
@@ -201,7 +219,7 @@ luau src/server/server.server.luau
 - [ ] Function definitions and calls
 - [ ] List data type and operations
 - [ ] Dictionary data type and operations
-- [ ] More built-in functions (min, max, sum, etc.)
+- [x] ~~More built-in functions (min, max, sum, etc.)~~ ✅ **Completed**
 
 ### Medium Term
 

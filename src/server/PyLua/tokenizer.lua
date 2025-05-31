@@ -5,12 +5,32 @@ local Tokenizer = {}
 
 -- Simple tokenizer for Python code
 function Tokenizer.tokenize(code)
-	local tokens = {}
-	local current = ""
+	-- First, remove comments
+	local cleanCode = ""
 	local i = 1
-	
 	while i <= #code do
 		local char = code:sub(i, i)
+		if char == "#" then
+			-- Skip everything until end of line
+			while i <= #code and code:sub(i, i) ~= "\n" do
+				i = i + 1
+			end
+			-- Add the newline if we found one
+			if i <= #code and code:sub(i, i) == "\n" then
+				cleanCode = cleanCode .. "\n"
+			end
+		else
+			cleanCode = cleanCode .. char
+		end
+		i = i + 1
+	end
+	
+	local tokens = {}
+	local current = ""
+	i = 1
+	
+	while i <= #cleanCode do
+		local char = cleanCode:sub(i, i)
 		
 		if char:match("%s") then
 			-- Whitespace - finish current token if any
@@ -42,9 +62,8 @@ function Tokenizer.tokenize(code)
 			if current ~= "" then
 				table.insert(tokens, current)
 				current = ""
-			end
-			-- Check for == operator
-			if i + 1 <= #code and code:sub(i + 1, i + 1) == "=" then
+			end			-- Check for == operator
+			if i + 1 <= #cleanCode and cleanCode:sub(i + 1, i + 1) == "=" then
 				table.insert(tokens, "==")
 				i = i + 1
 			else
@@ -57,7 +76,7 @@ function Tokenizer.tokenize(code)
 				current = ""
 			end
 			-- Check for != operator
-			if i + 1 <= #code and code:sub(i + 1, i + 1) == "=" then
+			if i + 1 <= #cleanCode and cleanCode:sub(i + 1, i + 1) == "=" then
 				table.insert(tokens, "!=")
 				i = i + 1
 			else
@@ -70,7 +89,7 @@ function Tokenizer.tokenize(code)
 				current = ""
 			end
 			-- Check for <= operator
-			if i + 1 <= #code and code:sub(i + 1, i + 1) == "=" then
+			if i + 1 <= #cleanCode and cleanCode:sub(i + 1, i + 1) == "=" then
 				table.insert(tokens, "<=")
 				i = i + 1
 			else
@@ -83,7 +102,7 @@ function Tokenizer.tokenize(code)
 				current = ""
 			end
 			-- Check for >= operator
-			if i + 1 <= #code and code:sub(i + 1, i + 1) == "=" then
+			if i + 1 <= #cleanCode and cleanCode:sub(i + 1, i + 1) == "=" then
 				table.insert(tokens, ">=")
 				i = i + 1
 			else
@@ -123,8 +142,7 @@ function Tokenizer.tokenize(code)
 				table.insert(tokens, current)
 				current = ""
 			end
-			table.insert(tokens, "/")
-		elseif char == "\"" or char == "'" then
+			table.insert(tokens, "/")		elseif char == "\"" or char == "'" then
 			-- String literal
 			if current ~= "" then
 				table.insert(tokens, current)
@@ -135,8 +153,8 @@ function Tokenizer.tokenize(code)
 			local str = ""
 			i = i + 1
 			
-			while i <= #code and code:sub(i, i) ~= quote do
-				str = str .. code:sub(i, i)
+			while i <= #cleanCode and cleanCode:sub(i, i) ~= quote do
+				str = str .. cleanCode:sub(i, i)
 				i = i + 1
 			end
 			

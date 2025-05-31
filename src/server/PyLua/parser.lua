@@ -34,6 +34,10 @@ function Parser.parseFunctionCall(tokens, startIndex)
 					current_arg = ""
 				end
 			else
+				-- Add space between tokens except for certain cases
+				if current_arg ~= "" and not (token:match("^[%(%)]$") or current_arg:match("[%(%)]$")) then
+					current_arg = current_arg .. " "
+				end
 				current_arg = current_arg .. token
 			end
 			

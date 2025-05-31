@@ -52,13 +52,21 @@ function Evaluator.evaluateFunctionCall(expr, variables, builtins)
 	if not argsStr then
 		return expr
 	end
-	
-	-- Check if it's a built-in function
+		-- Check if it's a built-in function
 	if builtins and builtins[funcName] then
-		-- Evaluate the argument
-		local argValue = Evaluator.evaluateExpression(argsStr, variables, builtins)
-		-- Call the built-in function
-		return builtins[funcName](argValue)
+		-- Split arguments by comma and evaluate each one
+		local args = {}
+		if argsStr:match("^%s*(.-)%s*$") ~= "" then
+			-- Simple comma splitting (doesn't handle nested parentheses perfectly, but works for basic cases)
+			for arg in argsStr:gmatch("([^,]+)") do
+				local trimmedArg = arg:match("^%s*(.-)%s*$") -- Trim whitespace
+				local argValue = Evaluator.evaluateExpression(trimmedArg, variables, builtins)
+				table.insert(args, argValue)
+			end
+		end
+		
+		-- Call the built-in function with unpacked arguments
+		return builtins[funcName](table.unpack(args))
 	end
 	
 	return expr -- Unknown function
