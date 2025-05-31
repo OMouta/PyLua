@@ -102,9 +102,8 @@ function Parser.parseStatement(tokens)
 			}
 		end
 	end
-	
-	-- Check for function calls
-	local funcName, args, nextIndex = Parser.parseFunctionCall(tokens, 1)
+		-- Check for function calls
+	local funcName, args, _nextIndex = Parser.parseFunctionCall(tokens, 1)
 	
 	return {
 		type = "function_call",

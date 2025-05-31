@@ -228,8 +228,7 @@ function Evaluator.executeStatement(statement, builtins, variables)
 		else
 			warn("Unknown function: " .. funcName)
 		end
-		
-	elseif statement.type == "if_statement" then
+			elseif statement.type == "if_statement" then
 		-- Return the statement for the main interpreter to handle
 		-- (since if statements require looking ahead for indented blocks)
 		return statement
@@ -237,6 +236,8 @@ function Evaluator.executeStatement(statement, builtins, variables)
 	else
 		warn("Unknown statement type: " .. tostring(statement.type))
 	end
+	
+	return nil
 end
 
 return Evaluator

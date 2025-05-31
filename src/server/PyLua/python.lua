@@ -43,7 +43,7 @@ end
 
 -- Parse indented block structure
 local function parseBlocks(lines)
-	local blocks = {}
+	local _blocks = {}
 	local i = 1
 	
 	while i <= #lines do
