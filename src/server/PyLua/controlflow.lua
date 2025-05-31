@@ -3,6 +3,21 @@
 
 local ControlFlow = {}
 
+-- Execute a statement (handles both regular statements and nested if statements)
+local function executeStatement(statement, evaluator, builtins, variables)
+	if statement.type == "complete_if_statement" then
+		-- This is a nested if statement, execute it recursively
+		if #statement.elifChain > 0 then
+			ControlFlow.executeIfChain(statement.condition, statement.ifBlock, statement.elifChain, statement.elseBlock, evaluator, builtins, variables)
+		else
+			ControlFlow.executeIf(statement.condition, statement.ifBlock, statement.elseBlock, evaluator, builtins, variables)
+		end
+	else
+		-- Regular statement
+		evaluator.executeStatement(statement, builtins, variables)
+	end
+end
+
 -- Execute an if statement
 function ControlFlow.executeIf(condition, ifBody, elseBody, evaluator, builtins, variables)
 	-- Evaluate the condition
@@ -11,12 +26,12 @@ function ControlFlow.executeIf(condition, ifBody, elseBody, evaluator, builtins,
 	if isTrue then
 		-- Execute if body
 		for _, statement in ipairs(ifBody) do
-			evaluator.executeStatement(statement, builtins, variables)
+			executeStatement(statement, evaluator, builtins, variables)
 		end
 	elseif elseBody then
 		-- Execute else body
 		for _, statement in ipairs(elseBody) do
-			evaluator.executeStatement(statement, builtins, variables)
+			executeStatement(statement, evaluator, builtins, variables)
 		end
 	end
 end
@@ -29,7 +44,7 @@ function ControlFlow.executeIfChain(ifCondition, ifBody, elifChain, elseBody, ev
 	if isTrue then
 		-- Execute if body
 		for _, statement in ipairs(ifBody) do
-			evaluator.executeStatement(statement, builtins, variables)
+			executeStatement(statement, evaluator, builtins, variables)
 		end
 		return
 	end
@@ -41,7 +56,7 @@ function ControlFlow.executeIfChain(ifCondition, ifBody, elifChain, elseBody, ev
 			if elifTrue then
 				-- Execute elif body
 				for _, statement in ipairs(elifBlock.body) do
-					evaluator.executeStatement(statement, builtins, variables)
+					executeStatement(statement, evaluator, builtins, variables)
 				end
 				return
 			end
@@ -51,7 +66,7 @@ function ControlFlow.executeIfChain(ifCondition, ifBody, elifChain, elseBody, ev
 	-- If no conditions were true, execute else body
 	if elseBody then
 		for _, statement in ipairs(elseBody) do
-			evaluator.executeStatement(statement, builtins, variables)
+			executeStatement(statement, evaluator, builtins, variables)
 		end
 	end
 end
