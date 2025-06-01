@@ -6,7 +6,7 @@
 /*.rbxl.lock
 
 # Rojo files
-/*.sourcemap.json
+/*sourcemap.json
 
 # Python source files for reference
 cpython-source
