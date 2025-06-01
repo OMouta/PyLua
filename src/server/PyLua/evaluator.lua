@@ -7,11 +7,15 @@ local Evaluator = {}
 function Evaluator.evaluateExpression(expr, variables, builtins)
 	-- Remove leading/trailing whitespace
 	expr = expr:match("^%s*(.-)%s*$")
-	
-	-- Handle string literals
+		-- Handle string literals
 	if (expr:sub(1, 1) == "\"" and expr:sub(-1, -1) == "\"") or 
 	   (expr:sub(1, 1) == "'" and expr:sub(-1, -1) == "'") then
 		return expr:sub(2, -2) -- Remove quotes
+	end
+	
+	-- Handle list literals [1, 2, 3]
+	if expr:sub(1, 1) == "[" and expr:sub(-1, -1) == "]" then
+		return Evaluator.evaluateListLiteral(expr, variables, builtins)
 	end
 	
 	-- Handle numbers
@@ -244,8 +248,82 @@ function Evaluator.executeStatement(statement, builtins, variables)
 	else
 		warn("Unknown statement type: " .. tostring(statement.type))
 	end
+		return nil
+end
+
+-- Evaluate a Python list literal like [1, 2, 3] or ["a", "b", "c"]
+function Evaluator.evaluateListLiteral(expr, variables, builtins)
+	-- Remove the brackets
+	local listContent = expr:sub(2, -2):match("^%s*(.-)%s*$")
 	
-	return nil
+	-- Handle empty list
+	if listContent == "" then
+		return {}
+	end
+	
+	-- Split by comma while respecting nested brackets
+	local result = {}
+	local elements = Evaluator.splitListElements(listContent)
+	
+	-- Evaluate each element
+	for _, element in ipairs(elements) do
+		local trimmedElement = element:match("^%s*(.-)%s*$") -- Trim whitespace
+		local value = Evaluator.evaluateExpression(trimmedElement, variables, builtins)
+		table.insert(result, value)
+	end
+	
+	return result
+end
+
+-- Split list elements by comma while respecting nested brackets
+function Evaluator.splitListElements(content)
+	local elements = {}
+	local currentElement = ""
+	local bracketDepth = 0
+	local inString = false
+	local stringChar = nil
+	local i = 1
+	
+	while i <= #content do
+		local char = content:sub(i, i)
+		
+		-- Handle string literals
+		if (char == '"' or char == "'") and not inString then
+			inString = true
+			stringChar = char
+			currentElement = currentElement .. char
+		elseif char == stringChar and inString then
+			inString = false
+			stringChar = nil
+			currentElement = currentElement .. char
+		elseif inString then
+			currentElement = currentElement .. char
+		-- Handle brackets when not in string
+		elseif char == "[" then
+			bracketDepth = bracketDepth + 1
+			currentElement = currentElement .. char
+		elseif char == "]" then
+			bracketDepth = bracketDepth - 1
+			currentElement = currentElement .. char
+		elseif char == "," and bracketDepth == 0 then
+			-- This is a top-level comma, split here
+			if currentElement:match("^%s*(.-)%s*$") ~= "" then
+				table.insert(elements, currentElement)
+			end
+			currentElement = ""
+		else
+			currentElement = currentElement .. char
+		end
+		
+		i = i + 1
+	end
+	
+	-- Add the last element
+	if currentElement:match("^%s*(.-)%s*$") ~= "" then
+		table.insert(elements, currentElement)
+	end
+	
+	return elements
 end
 
 return Evaluator

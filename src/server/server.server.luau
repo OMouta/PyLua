@@ -94,3 +94,110 @@ if x > 0:
 else:
     print("x is not positive")
 ]])
+
+-- Simple while loop test
+Python.execute([[
+count = 0
+while count < 5:
+    print("Count is:", count)
+    count = count + 1
+]])
+
+-- While loop with more complex condition
+Python.execute([[
+x = 10
+while x > 0:
+    print("x =", x)
+    x = x - 2
+print("x is now:", x)
+]])
+
+-- Nested while loops
+Python.execute([[
+i = 1
+while i <= 3:
+    print("Outer loop i =", i)
+    j = 1
+    while j <= 2:
+        print("  Inner loop j =", j)
+        j = j + 1
+    i = i + 1
+]])
+
+-- Simple for loop with range
+Python.execute([[
+for i in range(5):
+    print("i =", i)
+]])
+
+-- For loop with range(start, stop)
+Python.execute([[
+for num in range(2, 7):
+    print("num =", num)
+]])
+
+-- For loop with range(start, stop, step)
+Python.execute([[
+for even in range(0, 10, 2):
+    print("even =", even)
+]])
+
+-- Nested for loops
+Python.execute([[
+for i in range(1, 4):
+    print("Outer i =", i)
+    for j in range(1, 3):
+        print("  Inner j =", j)
+]])
+
+-- List literals and operations
+Python.execute('my_list = [1, 2, 3, 4, 5]')
+Python.execute('print("List:", my_list)')
+Python.execute('print("List length:", len(my_list))')
+
+-- List iteration
+Python.execute([[
+for item in [10, 20, 30]:
+    print("List item:", item)
+]])
+
+-- String iteration
+Python.execute([[
+for char in "hello":
+    print("Character:", char)
+]])
+
+-- Mixed Lists
+Python.execute([[
+mixed = ["apple", 42, "banana", 100]
+for item in mixed:
+    print("Mixed item:", item, "Type:", type(item))
+]])
+
+-- Enumerate function
+Python.execute([[
+fruits = ["apple", "banana", "cherry"]
+for i, fruit in enumerate(fruits):
+    print("Index:", i, "Fruit:", fruit)
+]])
+
+-- Enumerate with string
+Python.execute([[
+for i, char in enumerate("hello"):
+    print("Index:", i, "Character:", char)
+]])
+
+-- Enumerate with custom start
+Python.execute([[
+colors = ["red", "green", "blue"]
+for i, color in enumerate(colors, 1):
+    print("Position:", i, "Color:", color)
+]])
+
+-- Nested loops with lists
+Python.execute([=[
+matrix = [[1, 2], [3, 4]]
+for row in matrix:
+    for item in row:
+        print("Matrix item:", item)
+]=])

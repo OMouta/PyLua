@@ -22,6 +22,8 @@ end
 -- Forward declarations to handle mutual recursion
 local parseStatementList
 local parseIfStatementWithBlocks
+local parseWhileStatementWithBlocks
+local parseForStatementWithBlocks
 
 -- Parse a list of statement lines recursively to handle nested structures
 parseStatementList = function(lines, startIndex, maxIndent)
@@ -45,11 +47,20 @@ parseStatementList = function(lines, startIndex, maxIndent)
 		else
 			local tokens = require('./tokenizer').tokenize(trimmed)
 			local parsed = Parser.parseStatement(tokens)
-			
 			if parsed and parsed.type == "if_statement" then
 				-- This is an if statement, collect its nested structure recursively
 				local ifResult, nextIndex = parseIfStatementWithBlocks(lines, i, indent)
 				table.insert(statements, ifResult)
+				i = nextIndex
+			elseif parsed and parsed.type == "while_statement" then
+				-- This is a while statement, collect its nested structure recursively
+				local whileResult, nextIndex = parseWhileStatementWithBlocks(lines, i, indent)
+				table.insert(statements, whileResult)
+				i = nextIndex
+			elseif parsed and parsed.type == "for_statement" then
+				-- This is a for statement, collect its nested structure recursively
+				local forResult, nextIndex = parseForStatementWithBlocks(lines, i, indent)
+				table.insert(statements, forResult)
 				i = nextIndex
 			else
 				-- Regular statement
@@ -116,8 +127,52 @@ parseIfStatementWithBlocks = function(lines, startIndex, baseIndent)
 		elifChain = elifChain,
 		elseBlock = elseBlock
 	}
+		return ifStatement, i
+end
+
+-- Parse a while statement with its nested block
+parseWhileStatementWithBlocks = function(lines, startIndex, baseIndent)
+	local line = lines[startIndex]
+	local trimmed = line:match("^%s*(.-)%s*$")
+	local tokens = require('./tokenizer').tokenize(trimmed)
+	local parsed = Parser.parseStatement(tokens)
 	
-	return ifStatement, i
+	local whileBody = {}
+	local i = startIndex + 1
+	
+	-- Parse while block
+	whileBody, i = parseStatementList(lines, i, baseIndent + 1)
+	
+	-- Create a complete while statement structure
+	local whileStatement = {
+		type = "complete_while_statement",
+		condition = parsed.condition,
+		body = whileBody
+	}
+		return whileStatement, i
+end
+
+-- Parse a for statement with its nested block
+parseForStatementWithBlocks = function(lines, startIndex, baseIndent)
+	local line = lines[startIndex]
+	local trimmed = line:match("^%s*(.-)%s*$")
+	local tokens = require('./tokenizer').tokenize(trimmed)
+	local parsed = Parser.parseStatement(tokens)
+	
+	local forBody = {}
+	local i = startIndex + 1
+	
+	-- Parse for block
+	forBody, i = parseStatementList(lines, i, baseIndent + 1)
+		-- Create a complete for statement structure
+	local forStatement = {
+		type = "complete_for_statement",
+		variables = parsed.variables,  -- Changed from 'variable' to 'variables'
+		iterable = parsed.iterable,
+		body = forBody
+	}
+	
+	return forStatement, i
 end
 
 -- Parse a complete code block with nested structures
@@ -178,7 +233,7 @@ function Parser.parseStatement(tokens)
 	if #tokens == 0 then
 		return nil
 	end
-		-- Check for if statement
+	-- Check for if statement
 	if tokens[1] == "if" then
 		return Parser.parseIfStatement(tokens)
 	end
@@ -194,6 +249,15 @@ function Parser.parseStatement(tokens)
 			type = "else",
 			tokens = tokens
 		}
+	end
+		-- Check for while statement
+	if tokens[1] == "while" then
+		return Parser.parseWhileStatement(tokens)
+	end
+	
+	-- Check for for statement
+	if tokens[1] == "for" then
+		return Parser.parseForStatement(tokens)
 	end
 	
 	-- Check for assignment (variable = value)
@@ -310,6 +374,107 @@ function Parser.parseElifStatement(tokens)
 	return {
 		type = "elif_statement",
 		condition = condition
+	}
+end
+
+-- Parse a while statement
+function Parser.parseWhileStatement(tokens)
+	-- Find the condition (between 'while' and ':')
+	local conditionTokens = {}
+	local colonIndex = nil
+	
+	for i = 2, #tokens do
+		if tokens[i] == ":" then
+			colonIndex = i
+			break
+		else
+			table.insert(conditionTokens, tokens[i])
+		end
+	end
+	
+	if not colonIndex then
+		error("Invalid while statement: missing colon")
+	end
+	
+	-- Join condition tokens
+	local condition = table.concat(conditionTokens, " ")
+	
+	return {
+		type = "while_statement",
+		condition = condition
+	}
+end
+
+-- Parse a for statement
+function Parser.parseForStatement(tokens)
+	-- Parse "for variable(s) in iterable:"
+	-- Expected format: for <var> in <iterable> : OR for <var1>, <var2> in <iterable> :
+	
+	if #tokens < 5 then
+		error("Invalid for statement: too few tokens")
+	end
+	
+	-- Find the "in" keyword to separate variables from iterable
+	local inIndex = nil
+	for i = 2, #tokens do
+		if tokens[i] == "in" then
+			inIndex = i
+			break
+		end
+	end
+	
+	if not inIndex then
+		error("Invalid for statement: expected 'for <var> in <iterable>:' or 'for <var1>, <var2> in <iterable>:'")
+	end
+	
+	-- Extract variables (everything between "for" and "in")
+	local variables = {}
+	for i = 2, inIndex - 1 do
+		if tokens[i] ~= "," then  -- Skip commas
+			table.insert(variables, tokens[i])
+		end
+	end
+	
+	if #variables == 0 then
+		error("Invalid for statement: no variables found")
+	end
+	
+	local colonIndex = nil
+	local iterableTokens = {}
+	
+	-- Find the colon and collect iterable tokens
+	for i = inIndex + 1, #tokens do
+		if tokens[i] == ":" then
+			colonIndex = i
+			break
+		else
+			table.insert(iterableTokens, tokens[i])
+		end
+	end
+		if not colonIndex then
+		error("Invalid for statement: missing colon")
+	end
+	
+	-- Join iterable tokens with appropriate spacing
+	local iterable = ""
+	for k, token in ipairs(iterableTokens) do
+		if k > 1 then
+			-- Add space between most tokens, except for parentheses and operators
+			local prevToken = iterableTokens[k-1]
+			local needsSpace = not (token == "(" or token == ")" or prevToken == "(" or 
+			                       token == "," or prevToken == "," or
+			                       (token:match("[%+%-%*/]") and #token == 1) or
+			                       (prevToken:match("[%+%-%*/]") and #prevToken == 1))
+			if needsSpace then
+				iterable = iterable .. " "
+			end
+		end
+		iterable = iterable .. token
+	end
+		return {
+		type = "for_statement",
+		variables = variables,  -- Changed from 'variable' to 'variables' (array)
+		iterable = iterable
 	}
 end
 

@@ -217,7 +217,7 @@ luau src/server/server.server.luau
 ### Short Term
 
 - [ ] Function definitions and calls
-- [ ] List data type and operations
+- [x] ~~List data type and operations ~~ ✅ **Completed**
 - [ ] Dictionary data type and operations
 - [x] ~~More built-in functions (min, max, sum, etc.)~~ ✅ **Completed**
 

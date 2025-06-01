@@ -21,8 +21,7 @@ function Python.execute(code)
 	
 	-- Parse all statements using the parser
 	local statements = Parser.parseBlocks(lines)
-	
-	-- Execute all statements
+		-- Execute all statements
 	for _, statement in ipairs(statements) do
 		if statement.type == "complete_if_statement" then
 			-- Execute the complete if/elif/else chain
@@ -30,7 +29,12 @@ function Python.execute(code)
 				ControlFlow.executeIfChain(statement.condition, statement.ifBlock, statement.elifChain, statement.elseBlock, Evaluator, Builtins.getAll(), Variables)
 			else
 				ControlFlow.executeIf(statement.condition, statement.ifBlock, statement.elseBlock, Evaluator, Builtins.getAll(), Variables)
-			end
+			end		elseif statement.type == "complete_while_statement" then
+			-- Execute the complete while loop
+			ControlFlow.executeWhile(statement.condition, statement.body, Evaluator, Builtins.getAll(), Variables)
+		elseif statement.type == "complete_for_statement" then
+			-- Execute the complete for loop
+			ControlFlow.executeFor(statement.variables, statement.iterable, statement.body, Evaluator, Builtins.getAll(), Variables)
 		else
 			-- Execute regular statement
 			Evaluator.executeStatement(statement, Builtins.getAll(), Variables)

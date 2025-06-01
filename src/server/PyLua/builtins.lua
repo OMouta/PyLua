@@ -243,6 +243,28 @@ function builtins.pow(base, exp, mod)
 		end
 		result = result % mod
 	end
+		return result
+end
+
+-- Built-in enumerate function
+function builtins.enumerate(iterable, start)
+	start = start or 0
+	
+	local result = {}
+	
+	-- Handle strings
+	if type(iterable) == "string" then
+		for i = 1, #iterable do
+			table.insert(result, {start + i - 1, iterable:sub(i, i)})
+		end
+	-- Handle tables (lists)
+	elseif type(iterable) == "table" then
+		for i, value in ipairs(iterable) do
+			table.insert(result, {start + i - 1, value})
+		end
+	else
+		error("enumerate() argument must be iterable (string or list)")
+	end
 	
 	return result
 end

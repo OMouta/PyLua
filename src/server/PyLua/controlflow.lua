@@ -11,7 +11,11 @@ local function executeStatement(statement, evaluator, builtins, variables)
 			ControlFlow.executeIfChain(statement.condition, statement.ifBlock, statement.elifChain, statement.elseBlock, evaluator, builtins, variables)
 		else
 			ControlFlow.executeIf(statement.condition, statement.ifBlock, statement.elseBlock, evaluator, builtins, variables)
-		end
+		end	elseif statement.type == "complete_while_statement" then
+		-- This is a nested while statement, execute it recursively
+		ControlFlow.executeWhile(statement.condition, statement.body, evaluator, builtins, variables)	elseif statement.type == "complete_for_statement" then
+		-- This is a nested for statement, execute it recursively
+		ControlFlow.executeFor(statement.variables, statement.iterable, statement.body, evaluator, builtins, variables)
 	else
 		-- Regular statement
 		evaluator.executeStatement(statement, builtins, variables)
@@ -62,12 +66,96 @@ function ControlFlow.executeIfChain(ifCondition, ifBody, elifChain, elseBody, ev
 			end
 		end
 	end
-	
-	-- If no conditions were true, execute else body
+		-- If no conditions were true, execute else body
 	if elseBody then
 		for _, statement in ipairs(elseBody) do
 			executeStatement(statement, evaluator, builtins, variables)
 		end
+	end
+end
+
+-- Execute a while loop
+function ControlFlow.executeWhile(condition, body, evaluator, builtins, variables)
+	-- Add a simple infinite loop protection (max 10000 iterations)
+	local maxIterations = 10000
+	local iterations = 0
+	
+	while evaluator.evaluateCondition(condition, variables, builtins) do
+		iterations = iterations + 1
+		if iterations > maxIterations then
+			error("While loop exceeded maximum iterations (" .. maxIterations .. "). Possible infinite loop.")
+		end
+		
+		-- Execute while body
+		for _, statement in ipairs(body) do
+			executeStatement(statement, evaluator, builtins, variables)		end
+	end
+end
+
+-- Execute a for loop
+function ControlFlow.executeFor(variables, iterable, body, evaluator, builtins, variablesObj)	-- Evaluate the iterable expression
+	local iterableValue = evaluator.evaluateExpression(iterable, variablesObj, builtins)
+	
+	-- Add infinite loop protection (max 10000 iterations)
+	local maxIterations = 10000
+	local iterations = 0
+	
+	-- Handle different iterable types
+	if type(iterableValue) == "table" then
+		-- Iterate over list/range result
+		for _, value in ipairs(iterableValue) do
+			iterations = iterations + 1
+			if iterations > maxIterations then
+				error("For loop exceeded maximum iterations (" .. maxIterations .. "). Possible infinite loop.")
+			end
+			
+			-- Handle tuple unpacking for multiple variables
+			if #variables == 1 then
+				-- Single variable: for item in list
+				variablesObj.set(variables[1], value)
+			elseif #variables == 2 then
+				-- Tuple unpacking: for i, item in enumerate(list)
+				if type(value) == "table" and #value == 2 then
+					variablesObj.set(variables[1], value[1])  -- index
+					variablesObj.set(variables[2], value[2])  -- item
+				else
+					error("Cannot unpack " .. type(value) .. " into " .. #variables .. " variables")
+				end
+			else
+				error("Unsupported number of variables: " .. #variables)
+			end
+			
+			-- Execute for body
+			for _, statement in ipairs(body) do
+				executeStatement(statement, evaluator, builtins, variablesObj)
+			end
+		end
+	elseif type(iterableValue) == "string" then
+		-- Iterate over string characters
+		for i = 1, #iterableValue do
+			iterations = iterations + 1
+			if iterations > maxIterations then
+				error("For loop exceeded maximum iterations (" .. maxIterations .. "). Possible infinite loop.")
+			end
+			
+			-- Handle tuple unpacking for multiple variables
+			if #variables == 1 then
+				-- Single variable: for char in string
+				variablesObj.set(variables[1], iterableValue:sub(i, i))
+			elseif #variables == 2 then
+				-- Tuple unpacking: for i, char in enumerate(string)
+				variablesObj.set(variables[1], i - 1)  -- index (0-based like Python)
+				variablesObj.set(variables[2], iterableValue:sub(i, i))  -- character
+			else
+				error("Unsupported number of variables: " .. #variables)
+			end
+			
+			-- Execute for body
+			for _, statement in ipairs(body) do
+				executeStatement(statement, evaluator, builtins, variablesObj)
+			end		end
+	else
+		error("For loop iterable must be a list, range, or string, got " .. type(iterableValue))
 	end
 end
 
