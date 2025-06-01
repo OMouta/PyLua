@@ -4,3 +4,9 @@
 # Roblox Studio lock files
 /*.rbxlx.lock
 /*.rbxl.lock
+
+# Rojo files
+/*.sourcemap.json
+
+# Python source files for reference
+cpython-source
