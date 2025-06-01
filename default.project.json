@@ -4,7 +4,15 @@
     "$className": "DataModel",
 
     "ServerScriptService": {
-      "$path": "src/server"
+      "src": {
+        "$path": "src",
+        "$className": "Folder"
+      },
+
+      "tests": {
+        "$path": "tests",
+        "$className": "Folder"
+      }
     }
   }
 }

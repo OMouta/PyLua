@@ -142,7 +142,15 @@ function Tokenizer.tokenize(code)
 				table.insert(tokens, current)
 				current = ""
 			end
-			table.insert(tokens, "/")		elseif char == "\"" or char == "'" then
+			table.insert(tokens, "/")
+		elseif char == "%" then
+			-- Modulus operator
+			if current ~= "" then
+				table.insert(tokens, current)
+				current = ""
+			end
+			table.insert(tokens, "%")
+		elseif char == "\"" or char == "'" then
 			-- String literal
 			if current ~= "" then
 				table.insert(tokens, current)

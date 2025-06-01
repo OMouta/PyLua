@@ -5,8 +5,19 @@ local Evaluator = {}
 
 -- Evaluate a Python expression (enhanced implementation)
 function Evaluator.evaluateExpression(expr, variables, builtins)
+	if expr == nil then
+		return nil
+	end
+	if expr == true or expr == false then
+		return expr
+	end
 	-- Remove leading/trailing whitespace
-	expr = expr:match("^%s*(.-)%s*$")
+	expr = tostring(expr or ""):match("^%s*(.-)%s*$")
+	if expr == "True" then
+		return true
+	elseif expr == "False" then
+		return false
+	end
 		-- Handle string literals
 	if (expr:sub(1, 1) == "\"" and expr:sub(-1, -1) == "\"") or 
 	   (expr:sub(1, 1) == "'" and expr:sub(-1, -1) == "'") then
@@ -32,10 +43,8 @@ function Evaluator.evaluateExpression(expr, variables, builtins)
 	-- Handle variables
 	if variables and variables.exists(expr) then
 		return variables.get(expr)
-	end
-	
-	-- Handle simple mathematical expressions
-	if expr:find("[%+%-%*/]") then
+	end	-- Handle simple mathematical expressions
+	if expr:find("[%+%-%*/%%]") then
 		return Evaluator.evaluateMathExpression(expr, variables, builtins)
 	end
 	
@@ -88,8 +97,7 @@ function Evaluator.evaluateMathExpression(expr, variables, builtins)
 			cleanExpr = cleanExpr:gsub("%f[%w_]" .. varName .. "%f[^%w_]", tostring(value))
 		end
 	end
-	
-	-- Handle function calls within the expression
+		-- Handle function calls within the expression
 	while cleanExpr:find("%w+%(") do
 		local funcCall = cleanExpr:match("(%w+%([^%)]*%))")
 		if funcCall then
@@ -106,18 +114,20 @@ end
 
 -- Safely evaluate a mathematical expression without using load()
 function Evaluator.safeMathEval(expr)
+	-- Ensure expr is a string
+	expr = tostring(expr or "")
 	-- Simple recursive descent parser for basic math operations
-	-- This is a basic implementation - handles +, -, *, / with proper precedence
-	
+	-- This is a basic implementation - handles +, -, *, /, % with proper precedence
+
 	-- Remove spaces
 	expr = expr:gsub("%s+", "")
-	
+
 	-- Handle simple cases first
 	local num = tonumber(expr)
 	if num then
 		return num
 	end
-	
+
 	-- Find operators in order of precedence (lowest to highest)
 	-- Addition and subtraction (lowest precedence)
 	for i = #expr, 1, -1 do
@@ -129,7 +139,7 @@ function Evaluator.safeMathEval(expr)
 				local right = expr:sub(i + 1)
 				local leftVal = Evaluator.safeMathEval(left)
 				local rightVal = Evaluator.safeMathEval(right)
-				
+
 				if char == "+" then
 					return leftVal + rightVal
 				else
@@ -138,31 +148,38 @@ function Evaluator.safeMathEval(expr)
 			end
 		end
 	end
-	
-	-- Multiplication and division (higher precedence)
+
+	-- Multiplication, division, and modulus (higher precedence)
 	for i = #expr, 1, -1 do
 		local char = expr:sub(i, i)
-		if char == "*" or char == "/" then
+		if char == "*" or char == "/" or char == "%" then
 			local left = expr:sub(1, i - 1)
 			local right = expr:sub(i + 1)
 			local leftVal = Evaluator.safeMathEval(left)
 			local rightVal = Evaluator.safeMathEval(right)
-			
+
 			if char == "*" then
 				return leftVal * rightVal
-			else
+			elseif char == "/" then
 				if rightVal ~= 0 then
 					return leftVal / rightVal
 				else
 					warn("Division by zero")
 					return 0
 				end
+			elseif char == "%" then
+				if rightVal ~= 0 then
+					return leftVal % rightVal
+				else
+					warn("Modulo by zero")
+					return 0
+				end
 			end
 		end
 	end
-	
+
 	-- If we get here, we couldn't parse the expression
-	warn("Could not evaluate expression: " .. expr)
+	warn("Could not evaluate expression: " .. tostring(expr))
 	return 0
 end
 
