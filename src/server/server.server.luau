@@ -57,7 +57,7 @@ Python.execute([[
 float_num = float("3.14")
 int_num = int(float_num)
 bool_val = bool(1)
-print("Float:", float_num, "Int:", int_num, "Bool:", bool_val)
+print("Float:", type(float_num), "Int:", type(int_num), "Bool:", type(bool_val))
 ]])
 
 -- Power function
