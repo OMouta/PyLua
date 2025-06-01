@@ -247,9 +247,3 @@ PyLua is designed to be extensible. To add new features:
 ## 📝 License
 
 Just dont say its yours, do whatever its under the MIT license (I chose it randomly)
-
-## 🙏 Acknowledgments
-
-- Inspired by Python's elegant syntax and semantics
-- Built for the Roblox/Luau ecosystem
-- Designed with modularity and extensibility in mind
