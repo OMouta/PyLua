@@ -31,12 +31,8 @@ if score >= 90:
     print("Grade: A")
 elif score >= 80:
     print("Grade: B")
-elif score >= 70:
-    print("Grade: C")
-elif score >= 60:
-    print("Grade: D")
 else:
-    print("Grade: F")
+    print("Grade is lower than B")
 
 print("Score:", score)
 ]])
@@ -76,8 +72,6 @@ if name == "Python":
     print("This is Python")
 elif name == "Lua":
     print("This is Lua")
-elif name == "PyLua":
-    print("This is PyLua - Python in Luau!")
 else:
     print("Unknown language")
 ]])
@@ -151,9 +145,11 @@ for i in range(1, 4):
 ]])
 
 -- List literals and operations
-Python.execute('my_list = [1, 2, 3, 4, 5]')
-Python.execute('print("List:", my_list)')
-Python.execute('print("List length:", len(my_list))')
+Python.execute([[
+my_list = [1, 2, 3, 4, 5]
+print("List:", my_list)
+print("List length:", len(my_list))
+]])
 
 -- List iteration
 Python.execute([[
