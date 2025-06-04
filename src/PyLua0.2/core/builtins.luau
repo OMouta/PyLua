@@ -7,7 +7,8 @@ local Builtins = {}
 local builtins = {}
 
 -- print() function
-builtins["print"] = function(args)
+builtins["print"] = function(...)
+    local args = {...}
     local output = ""
     for i, arg in ipairs(args) do
         if i > 1 then output = output .. " " end
@@ -18,7 +19,8 @@ builtins["print"] = function(args)
 end
 
 -- range() function
-builtins["range"] = function(args)
+builtins["range"] = function(...)
+    local args = {...}
     -- Range implementation that returns an iterable list
     if #args == 1 then
         local result = {}
@@ -69,11 +71,7 @@ builtins["len"] = function(obj) -- Changed from function(args)
 end
 
 -- type() function
-builtins["type"] = function(args)
-    if #args ~= 1 then
-        error("type() takes exactly one argument")
-    end
-    local obj = args[1]
+builtins["type"] = function(obj)
     local luaType = type(obj)
     -- Convert Lua types to Python types
     if luaType == "number" then
@@ -94,19 +92,12 @@ builtins["type"] = function(args)
 end
 
 -- str() function
-builtins["str"] = function(args)
-    if #args ~= 1 then
-        error("str() takes exactly one argument")
-    end
-    return tostring(args[1])
+builtins["str"] = function(obj)
+    return tostring(obj)
 end
 
 -- int() function
-builtins["int"] = function(args)
-    if #args ~= 1 then
-        error("int() takes exactly one argument")
-    end
-    local value = args[1]
+builtins["int"] = function(value)
     if type(value) == "number" then
         return math.floor(value)
     elseif type(value) == "string" then
@@ -122,11 +113,7 @@ builtins["int"] = function(args)
 end
 
 -- float() function
-builtins["float"] = function(args)
-    if #args ~= 1 then
-        error("float() takes exactly one argument")
-    end
-    local value = args[1]
+builtins["float"] = function(value)
     if type(value) == "number" then
         return value
     elseif type(value) == "string" then
@@ -142,22 +129,17 @@ builtins["float"] = function(args)
 end
 
 -- bool() function
-builtins["bool"] = function(args)
-    if #args == 0 then
+builtins["bool"] = function(value)
+    if value == nil then
         return false
-    elseif #args == 1 then
-        local value = args[1]
-        if value == nil or value == false then
-            return false
-        elseif value == 0 or value == "" then
-            return false
-        elseif type(value) == "table" and #value == 0 then
-            return false
-        else
-            return true
-        end
+    elseif value == nil or value == false then
+        return false
+    elseif value == 0 or value == "" then
+        return false
+    elseif type(value) == "table" and #value == 0 then
+        return false
     else
-        error("bool() takes 0 or 1 arguments")
+        return true
     end
 end
 
