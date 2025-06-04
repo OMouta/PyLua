@@ -6,7 +6,7 @@ This document outlines the steps to refactor PyLua from a direct source-to-execu
 
 ### 0. Directory Structure for PyLua0.2
 
-The new code for version 0.2 will be organized within the `src/PyLua0.2/` folder as follows:
+The new code for version 0.2 will be organized within the `src/PyLua0.2/` folder as follows (can change and will):
 
 ```txt
 src/PyLua0.2/
@@ -47,7 +47,25 @@ local bytecode_example = {
 }
 ```
 
-### 2. Bytecode Compiler (Modify `src/PyLua0.2/compiler/parser.luau` and potentially create a new compiler module)
+### 2. Bytecode Interpreter
+
+- [x] Create `src/PyLua0.2/vm/opcodes.luau` to define bytecode instruction set and structure.
+- [x] Create a new module (`src/PyLua0.2/vm/bytecode_executor.luau`) to execute the bytecode.
+- [x] Implement a dispatch loop that reads and executes bytecode operations one by one.
+- [x] Implement handlers for each defined opcode:
+- [x] `LOAD_CONST`: Load a constant onto an internal stack.
+- [x] `STORE_NAME`: Store a value from the stack into a variable.
+- [x] `LOAD_NAME`: Load a variable's value onto the stack.
+- [x] `CALL_FUNCTION`: Call a function (using `src/PyLua0.2/core/builtins.luau` or user-defined functions).
+- [x] `BINARY_OP`: Perform binary operations.
+- [x] `COMPARE_OP`: Perform comparison operations.
+- [x] `JUMP_IF_FALSE`: Conditional jump.
+- [x] `JUMP`: Unconditional jump.
+- [ ] (Add more opcodes as needed for Python features)
+- [ ] Manage an execution stack for operands and function calls.
+- [x] Interface with `src/PyLua0.2/core/builtins.luau` for calling built-in functions.
+
+### 3. Bytecode Compiler
 
 - [ ] **Tokenizer (`src/PyLua0.2/compiler/tokenizer.luau`):** Review and ensure it provides tokens suitable for the new parser/compiler. (Likely minor or no changes initially).
 - [ ] **Parser to Bytecode Emitter (`src/PyLua0.2/compiler/parser.luau`):**
@@ -61,25 +79,6 @@ local bytecode_example = {
 - [ ] Adapt `if/else` statements to generate conditional jump opcodes (`JUMP_IF_FALSE`, `JUMP`).
 - [ ] Adapt `for` loops to generate appropriate loop setup and jump opcodes.
 - [ ] Adapt `while` loops to generate appropriate loop setup and jump opcodes.
-
-### 3. Bytecode Interpreter (New module: `src/PyLua0.2/vm/bytecode_executor.luau` or heavily refactor `evaluator.luau`)
-
-- [ ] Consider creating `src/PyLua0.2/vm/opcodes.luau` to define bytecode instruction set and structure.
-- [ ] Create a new module (`src/PyLua0.2/vm/bytecode_executor.luau`) or refactor `src/PyLua/evaluator.luau` (if it's to be adapted and moved, potentially to `src/PyLua0.2/vm/bytecode_executor.luau`) to execute the bytecode.
-- [ ] Implement a dispatch loop that reads and executes bytecode operations one by one.
-- [ ] Implement handlers for each defined opcode:
-- [ ] `LOAD_CONST`: Load a constant onto an internal stack.
-- [ ] `STORE_NAME`: Store a value from the stack into a variable (using `src/PyLua0.2/core/variables.luau`).
-- [ ] `LOAD_NAME`: Load a variable's value onto the stack.
-- [ ] `CALL_FUNCTION`: Call a function (using `src/PyLua0.2/core/builtins.luau` or user-defined functions).
-- [ ] `BINARY_OP`: Perform binary operations.
-- [ ] `COMPARE_OP`: Perform comparison operations.
-- [ ] `JUMP_IF_FALSE`: Conditional jump.
-- [ ] `JUMP`: Unconditional jump.
-- [ ] (Add more opcodes as needed for Python features)
-- [ ] Manage an execution stack for operands and function calls.
-- [ ] Interface with `src/PyLua0.2/core/variables.luau` for variable storage and retrieval.
-- [ ] Interface with `src/PyLua0.2/core/builtins.luau` for calling built-in functions.
 
 ### 4. Update Main API (`src/PyLua0.2/python.luau`)
 
