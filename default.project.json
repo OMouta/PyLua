@@ -12,11 +12,6 @@
       "tests": {
         "$path": "tests",
         "$className": "Folder"
-      },
-
-      "tests0.2": {
-        "$path": "tests0.2",
-        "$className": "Folder"
       }
     }
   }

@@ -112,6 +112,35 @@ function Objects.createList(items)
     return createPyObject(ObjectTypes.LIST, items, listMethods)
 end
 
+-- === PYTHON TUPLE ===
+local tupleMethods = {}
+
+tupleMethods.index = function(self, item)
+    for i, v in ipairs(self.__value) do
+        if v == item then
+            return i - 1  -- Convert to Python 0-based indexing
+        end
+    end
+    error("ValueError: tuple.index(x): x not in tuple")
+end
+
+tupleMethods.count = function(self, item)
+    local count = 0
+    for _, v in ipairs(self.__value) do
+        if v == item then
+            count = count + 1
+        end
+    end
+    return count
+end
+
+function Objects.createTuple(items)
+    items = items or {}
+    local tuple = createPyObject(ObjectTypes.TUPLE, items, tupleMethods)
+    -- Tuples are immutable, so we make the value read-only
+    return tuple
+end
+
 -- === PYTHON DICTIONARY ===
 local dictMethods = {}
 
@@ -170,35 +199,6 @@ end
 function Objects.createDict(items)
     items = items or {}
     return createPyObject(ObjectTypes.DICT, items, dictMethods)
-end
-
--- === PYTHON TUPLE ===
-local tupleMethods = {}
-
-tupleMethods.index = function(self, item)
-    for i, v in ipairs(self.__value) do
-        if v == item then
-            return i - 1  -- Convert to Python 0-based indexing
-        end
-    end
-    error("ValueError: tuple.index(x): x not in tuple")
-end
-
-tupleMethods.count = function(self, item)
-    local count = 0
-    for _, v in ipairs(self.__value) do
-        if v == item then
-            count = count + 1
-        end
-    end
-    return count
-end
-
-function Objects.createTuple(items)
-    items = items or {}
-    local tuple = createPyObject(ObjectTypes.TUPLE, items, tupleMethods)
-    -- Tuples are immutable, so we make the value read-only
-    return tuple
 end
 
 -- === PYTHON SET ===
@@ -442,6 +442,9 @@ function Objects.createIterator(pyObject)
             length = #pyObject
         }
     end
+    
+    -- Fallback return - this should never be reached due to the isIterable check above
+    error("Unable to create iterator for object of type '" .. (pyObject.__type or type(pyObject)) .. "'")
 end
 
 -- Export object types for external use
