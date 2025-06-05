@@ -1,9 +1,9 @@
 -- PyLua 0.2 Bytecode Executor
 -- Virtual machine that executes PyLua bytecode
 
-local opcodes = require(script.Parent.opcodes)
-local builtins = require(script.Parent.Parent.core.builtins)
-local objects = require(script.Parent.Parent.core.objects)
+local opcodes = require('./opcodes')
+local builtins = require('../core/builtins')
+local objects = require('../core/objects')
 local Opcodes = opcodes.Opcodes
 local BytecodeExecutor = {}
 
