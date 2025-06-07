@@ -108,6 +108,58 @@ local function getOperatorPrecedence(op)
     return 0
 end
 
+-- Check if a line has unclosed delimiters (for multi-line statements)
+local function hasUnclosedDelimiters(tokens)
+    local openParens = 0
+    local openBrackets = 0
+    local openBraces = 0
+    
+    for _, token in ipairs(tokens) do
+        if token == "(" then
+            openParens = openParens + 1
+        elseif token == ")" then
+            openParens = openParens - 1
+        elseif token == "[" then
+            openBrackets = openBrackets + 1
+        elseif token == "]" then
+            openBrackets = openBrackets - 1
+        elseif token == "{" then
+            openBraces = openBraces + 1
+        elseif token == "}" then
+            openBraces = openBraces - 1
+        end
+    end
+    
+    return openParens > 0 or openBrackets > 0 or openBraces > 0
+end
+
+-- Collect multi-line statement tokens (for object literals spanning multiple lines)
+local function collectMultiLineStatement(lines, startLine)
+    local allTokens = {}
+    local currentLine = startLine
+    
+    while currentLine <= #lines do
+        local line = lines[currentLine]
+        local trimmed = line:match("^%s*(.-)%s*$")
+        
+        if trimmed ~= "" and not trimmed:match("^#") then
+            local lineTokens = tokenizer.tokenize(trimmed)
+            for _, token in ipairs(lineTokens) do
+                table.insert(allTokens, token)
+            end
+            
+            -- Check if statement is now complete
+            if not hasUnclosedDelimiters(allTokens) then
+                break
+            end
+        end
+        
+        currentLine = currentLine + 1
+    end
+    
+    return allTokens, currentLine
+end
+
 -- Forward declarations
 local compileExpression
 local compileStatement
@@ -132,18 +184,160 @@ local function compilePrimary(state, tokens, pos)
         local constIndex = addConstant(state, value)
         emit(state, opcodes.Opcodes.LOAD_CONST, constIndex)
         return pos + 1
+    elseif token == "True" then
+        -- Python True literal
+        local constIndex = addConstant(state, true)
+        emit(state, opcodes.Opcodes.LOAD_CONST, constIndex)
+        return pos + 1
+    elseif token == "False" then
+        -- Python False literal
+        local constIndex = addConstant(state, false)
+        emit(state, opcodes.Opcodes.LOAD_CONST, constIndex)
+        return pos + 1
+    elseif token == "None" then
+        -- Python None literal
+        local constIndex = addConstant(state, nil)
+        emit(state, opcodes.Opcodes.LOAD_CONST, constIndex)
+        return pos + 1
     elseif isIdentifier(token) then
         -- Variable or function name
         local nameIndex = addName(state, token)
         emit(state, opcodes.Opcodes.LOAD_NAME, nameIndex)
         return pos + 1
     elseif token == "(" then
-        -- Parenthesized expression
-        pos = compileExpression(state, tokens, pos + 1)
-        if tokens[pos] ~= ")" then
-            error("Expected ')' after expression")
+        -- Parenthesized expression or tuple
+        pos = pos + 1
+        
+        -- Check for empty tuple
+        if tokens[pos] == ")" then
+            emit(state, opcodes.Opcodes.BUILD_TUPLE, 0)
+            return pos + 1
         end
+        
+        -- Parse first expression
+        pos = compileExpression(state, tokens, pos)
+        
+        -- Check if it's a tuple (has comma) or just parenthesized expression
+        if tokens[pos] == "," then
+            local elementCount = 1
+            pos = pos + 1
+            
+            -- Parse remaining elements
+            while tokens[pos] and tokens[pos] ~= ")" do
+                pos = compileExpression(state, tokens, pos)
+                elementCount = elementCount + 1
+                
+                if tokens[pos] == "," then
+                    pos = pos + 1
+                elseif tokens[pos] ~= ")" then
+                    error("Expected ',' or ')' in tuple")
+                end
+            end
+            
+            if tokens[pos] ~= ")" then
+                error("Expected ')' after tuple")
+            end
+            
+            emit(state, opcodes.Opcodes.BUILD_TUPLE, elementCount)
+            return pos + 1
+        else
+            -- Just a parenthesized expression
+            if tokens[pos] ~= ")" then
+                error("Expected ')' after expression")
+            end
+            return pos + 1
+        end
+    elseif token == "[" then
+        -- List literal
+        pos = pos + 1
+        local elementCount = 0
+        
+        -- Handle empty list
+        if tokens[pos] == "]" then
+            emit(state, opcodes.Opcodes.BUILD_LIST, 0)
+            return pos + 1
+        end
+        
+        -- Parse list elements
+        while tokens[pos] and tokens[pos] ~= "]" do
+            pos = compileExpression(state, tokens, pos)
+            elementCount = elementCount + 1
+            
+            if tokens[pos] == "," then
+                pos = pos + 1
+            elseif tokens[pos] ~= "]" then
+                error("Expected ',' or ']' in list")
+            end
+        end
+        
+        if tokens[pos] ~= "]" then
+            error("Expected ']' after list")
+        end
+        
+        emit(state, opcodes.Opcodes.BUILD_LIST, elementCount)
         return pos + 1
+    elseif token == "{" then
+        -- Dictionary or set literal
+        pos = pos + 1
+          -- Handle empty dict/set
+        if tokens[pos] == "}" then
+            -- Empty dict (Python convention: {} is dict, set() is empty set)
+            emit(state, opcodes.Opcodes.BUILD_DICT, 0)
+            return pos + 1
+        end
+        
+        -- Parse first element to determine if it's a dict or set
+        local firstExprPos = pos
+        pos = compileExpression(state, tokens, pos)
+        if tokens[pos] == ":" then
+            -- Dictionary - we have key:value pairs
+            -- The first key was already compiled, now compile its value
+            pos = pos + 1  -- skip ':'
+            pos = compileExpression(state, tokens, pos)  -- compile value
+            local pairCount = 1
+            
+            -- Parse remaining key-value pairs
+            while pos <= #tokens and tokens[pos] == "," do
+                pos = pos + 1
+                if pos <= #tokens and tokens[pos] == "}" then
+                    break  -- trailing comma
+                end
+                pos = compileExpression(state, tokens, pos)  -- key
+                if pos > #tokens or tokens[pos] ~= ":" then
+                    error("Expected ':' after dictionary key")
+                end
+                pos = pos + 1  -- skip ':'
+                pos = compileExpression(state, tokens, pos)  -- value
+                pairCount = pairCount + 1
+            end
+            
+            if pos > #tokens or tokens[pos] ~= "}" then
+                error("Expected '}' after dictionary")
+            end
+            
+            emit(state, opcodes.Opcodes.BUILD_DICT, pairCount)
+            return pos + 1
+        else
+            -- Set - we have individual values
+            local elementCount = 1
+              -- Parse remaining elements
+            while pos <= #tokens and tokens[pos] == "," do
+                pos = pos + 1
+                if pos <= #tokens and tokens[pos] == "}" then
+                    break  -- trailing comma
+                end
+                
+                pos = compileExpression(state, tokens, pos)
+                elementCount = elementCount + 1
+            end
+            
+            if pos > #tokens or tokens[pos] ~= "}" then
+                error("Expected '}' after set")
+            end
+            
+            emit(state, opcodes.Opcodes.BUILD_SET, elementCount)
+            return pos + 1
+        end
     else
         error("Unexpected token in expression: " .. token)
     end
@@ -186,12 +380,50 @@ end
 
 -- Compile a binary expression with operator precedence
 compileExpression = function(state, tokens, pos)
+    -- Check bounds
+    if pos > #tokens then
+        error("Unexpected end of expression")
+    end
+    
     -- Parse the left operand
     pos = compilePrimary(state, tokens, pos)
-    
-    -- Check for function call
-    if tokens[pos] == "(" then
-        pos = compileFunctionCall(state, tokens, pos)
+      -- Handle postfix operations (function calls, indexing, attribute access)
+    while tokens[pos] do
+        if tokens[pos] == "(" then
+            -- Function call
+            pos = compileFunctionCall(state, tokens, pos)
+        elseif tokens[pos] == "[" then
+            -- Array/dictionary indexing
+            pos = pos + 1  -- Skip '['
+            
+            -- Compile the index expression
+            pos = compileExpression(state, tokens, pos)
+            
+            -- Expect ']'
+            if tokens[pos] ~= "]" then
+                error("Expected ']' after index expression")
+            end
+            pos = pos + 1  -- Skip ']'
+            
+            -- Emit indexing bytecode
+            emit(state, opcodes.Opcodes.BINARY_SUBSCR)
+        elseif tokens[pos] == "." then
+            -- Attribute access (obj.attr)
+            pos = pos + 1  -- Skip '.'
+            
+            if not tokens[pos] or not isIdentifier(tokens[pos]) then
+                error("Expected attribute name after '.'")
+            end
+            
+            local attrName = tokens[pos]
+            pos = pos + 1
+            
+            -- Add attribute name to names table and emit LOAD_ATTR
+            local nameIndex = addName(state, attrName)
+            emit(state, opcodes.Opcodes.LOAD_ATTR, nameIndex)
+        else
+            break  -- No more postfix operations
+        end
     end
     
     -- Handle binary operators with precedence
@@ -199,13 +431,32 @@ compileExpression = function(state, tokens, pos)
         local operator = tokens[pos]
         local precedence = getOperatorPrecedence(operator)
         pos = pos + 1
-        
-        -- Parse right operand
+          -- Parse right operand
         pos = compilePrimary(state, tokens, pos)
-        
-        -- Check for function call on right operand
-        if tokens[pos] == "(" then
-            pos = compileFunctionCall(state, tokens, pos)
+          -- Handle postfix operations on right operand (function calls, indexing, attribute access)
+        while tokens[pos] do
+            if tokens[pos] == "(" then
+                pos = compileFunctionCall(state, tokens, pos)
+            elseif tokens[pos] == "[" then
+                pos = pos + 1  -- Skip '['
+                pos = compileExpression(state, tokens, pos)
+                if tokens[pos] ~= "]" then
+                    error("Expected ']' after index expression")
+                end
+                pos = pos + 1  -- Skip ']'
+                emit(state, opcodes.Opcodes.BINARY_SUBSCR)
+            elseif tokens[pos] == "." then
+                pos = pos + 1  -- Skip '.'
+                if not tokens[pos] or not isIdentifier(tokens[pos]) then
+                    error("Expected attribute name after '.'")
+                end
+                local attrName = tokens[pos]
+                pos = pos + 1
+                local nameIndex = addName(state, attrName)
+                emit(state, opcodes.Opcodes.LOAD_ATTR, nameIndex)
+            else
+                break
+            end
         end
         
         -- Emit the appropriate binary operation
@@ -241,26 +492,106 @@ end
 
 -- Compile an assignment statement
 local function compileAssignment(state, tokens, pos)
-    -- First token should be the variable name
-    local varName = tokens[pos]
-    if not isIdentifier(varName) then
-        error("Expected variable name in assignment")
+    -- Parse the left-hand side to determine assignment type
+    local startPos = pos
+    
+    -- Check if it's a simple variable assignment (var = ...) or indexing assignment (obj[key] = ...)
+    if isIdentifier(tokens[pos]) and tokens[pos + 1] == "=" then
+        -- Simple variable assignment: var = value
+        local varName = tokens[pos]
+        pos = pos + 2  -- Skip variable name and '='
+        
+        -- Compile the right-hand side expression
+        pos = compileExpression(state, tokens, pos)
+        
+        -- Store the value in the variable
+        local nameIndex = addName(state, varName)
+        emit(state, opcodes.Opcodes.STORE_NAME, nameIndex)
+        
+        return pos
+    else
+        -- Check for indexing assignment: obj[key] = value
+        local savedPos = pos
+        local foundIndexing = false
+        local equalsPos = nil
+        
+        -- Scan to find the assignment pattern
+        while pos <= #tokens do
+            if tokens[pos] == "=" then
+                equalsPos = pos
+                break
+            elseif tokens[pos] == "[" then
+                foundIndexing = true
+            end
+            pos = pos + 1
+        end
+        
+        if foundIndexing and equalsPos then
+            -- Indexing assignment: obj[key] = value
+            pos = savedPos
+            
+            -- Compile the object expression (everything before '[')
+            local objStart = pos
+            while tokens[pos] and tokens[pos] ~= "[" do
+                pos = pos + 1
+            end
+            
+            -- Compile object expression
+            local objTokens = {}
+            for i = objStart, pos - 1 do
+                table.insert(objTokens, tokens[i])
+            end
+            compileExpression(state, objTokens, 1)
+            
+            -- Skip '['
+            if tokens[pos] ~= "[" then
+                error("Expected '[' in indexing assignment")
+            end
+            pos = pos + 1
+            
+            -- Compile the index expression
+            local indexStart = pos
+            local bracketCount = 1
+            while tokens[pos] and bracketCount > 0 do
+                if tokens[pos] == "[" then
+                    bracketCount = bracketCount + 1
+                elseif tokens[pos] == "]" then
+                    bracketCount = bracketCount - 1
+                end
+                if bracketCount > 0 then
+                    pos = pos + 1
+                end
+            end
+            
+            local indexTokens = {}
+            for i = indexStart, pos - 1 do
+                table.insert(indexTokens, tokens[i])
+            end
+            compileExpression(state, indexTokens, 1)
+            
+            -- Skip ']'
+            if tokens[pos] ~= "]" then
+                error("Expected ']' in indexing assignment")
+            end
+            pos = pos + 1
+            
+            -- Skip '='
+            if tokens[pos] ~= "=" then
+                error("Expected '=' in indexing assignment")
+            end
+            pos = pos + 1
+            
+            -- Compile the right-hand side expression
+            pos = compileExpression(state, tokens, pos)
+            
+            -- Emit store subscript instruction
+            emit(state, opcodes.Opcodes.STORE_SUBSCR)
+            
+            return pos
+        else
+            error("Invalid assignment statement")
+        end
     end
-    
-    pos = pos + 1
-    
-    -- Next token should be '='
-    if tokens[pos] ~= "=" then
-        error("Expected '=' in assignment")
-    end
-    pos = pos + 1
-    
-    -- Compile the right-hand side expression
-    pos = compileExpression(state, tokens, pos)
-      -- Store the value in the variable
-    local nameIndex = addName(state, varName)
-    emit(state, opcodes.Opcodes.STORE_NAME, nameIndex)
-      return pos
 end
 
 -- Forward declarations for block compilation functions
@@ -738,9 +1069,33 @@ compileStatement = function(state, tokens, pos)
     -- Check for control flow statements
     if tokens[pos] == "for" then
         return compileForLoop(state, tokens, pos)
-    -- Check if this is an assignment (variable = expression)
-    elseif isIdentifier(tokens[pos]) and tokens[pos + 1] == "=" then
-        return compileAssignment(state, tokens, pos)
+    -- Check if this is an assignment (variable = expression OR obj[key] = expression)
+    elseif isIdentifier(tokens[pos]) then
+        -- Look ahead to determine if this is an assignment
+        local checkPos = pos + 1
+        local foundEquals = false
+        
+        -- Scan forward to look for '=' (allowing for indexing syntax)
+        while checkPos <= #tokens do
+            if tokens[checkPos] == "=" then
+                foundEquals = true
+                break
+            elseif tokens[checkPos] == "(" then
+                -- If we hit a function call, it's not an assignment
+                break
+            end
+            checkPos = checkPos + 1
+        end
+        
+        if foundEquals then
+            return compileAssignment(state, tokens, pos)
+        else
+            -- Expression statement (like function calls)
+            pos = compileExpression(state, tokens, pos)
+            -- Pop the result since it's not being assigned
+            emit(state, opcodes.Opcodes.POP_TOP)
+            return pos
+        end
     else
         -- Expression statement (like function calls)
         pos = compileExpression(state, tokens, pos)
@@ -759,7 +1114,7 @@ function Compiler.compile(sourceCode)
     for line in sourceCode:gmatch("[^\r\n]+") do
         table.insert(lines, line)
     end
-      local i = 1
+    local i = 1
     while i <= #lines do
         state.lineNumber = i
         local line = lines[i]
@@ -767,7 +1122,15 @@ function Compiler.compile(sourceCode)
         
         if trimmed ~= "" and not trimmed:match("^#") then  -- Skip empty lines and comments
             local tokens = tokenizer.tokenize(trimmed)
-            if #tokens > 0 then                -- Check if this is a for loop
+            
+            -- Check if this line has unclosed delimiters (multi-line statement)
+            if #tokens > 0 and hasUnclosedDelimiters(tokens) then
+                -- Collect all tokens for the complete multi-line statement
+                local completeTokens, endLine = collectMultiLineStatement(lines, i)
+                compileStatement(state, completeTokens, 1)
+                i = endLine + 1
+            elseif #tokens > 0 then
+                -- Check if this is a for loop
                 if tokens[1] == "for" then
                     i = compileForLoopBlock(state, lines, i)
                 -- Check if this is a while loop

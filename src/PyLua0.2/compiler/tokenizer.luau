@@ -181,14 +181,19 @@ function Tokenizer.tokenize(code)
 				table.insert(tokens, current)
 				current = ""
 			end
-			table.insert(tokens, "%")
-		elseif char == "." then
-			-- Dot operator for attribute access
-			if current ~= "" then
-				table.insert(tokens, current)
-				current = ""
+			table.insert(tokens, "%")		elseif char == "." then
+			-- Check if this is part of a decimal number
+			if current ~= "" and current:match("^%d+$") and i + 1 <= #cleanCode and cleanCode:sub(i + 1, i + 1):match("%d") then
+				-- This is a decimal point in a number, add it to current token
+				current = current .. char
+			else
+				-- This is a dot operator for attribute access
+				if current ~= "" then
+					table.insert(tokens, current)
+					current = ""
+				end
+				table.insert(tokens, ".")
 			end
-			table.insert(tokens, ".")
 		elseif char == "\"" or char == "'" then
 			-- String literal
 			if current ~= "" then
