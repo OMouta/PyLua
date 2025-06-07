@@ -143,6 +143,11 @@ builtins["bool"] = function(value)
     end
 end
 
+-- Python boolean constants
+builtins["True"] = true
+builtins["False"] = false
+builtins["None"] = nil
+
 -- Public API
 function Builtins.getBuiltins()
     return builtins
