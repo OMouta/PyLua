@@ -146,7 +146,7 @@ end
 -- Python boolean constants
 builtins["True"] = true
 builtins["False"] = false
-builtins["None"] = nil
+builtins["None"] = "__PYLUA_NIL__"  -- Use placeholder for None since Lua tables can't store nil
 
 -- Public API
 function Builtins.getBuiltins()

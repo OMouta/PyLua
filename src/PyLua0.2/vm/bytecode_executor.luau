@@ -88,6 +88,12 @@ local opcodeHandlers = {}
 opcodeHandlers[Opcodes.LOAD_CONST] = function(vm, instruction)
     local constantIndex = instruction.arg
     local constant = vm.constants[constantIndex + 1] -- Lua arrays are 1-indexed
+    
+    -- Handle special nil placeholder
+    if constant == "__PYLUA_NIL__" then
+        constant = nil
+    end
+    
     push(vm, constant)
 end
 
@@ -95,7 +101,24 @@ opcodeHandlers[Opcodes.STORE_NAME] = function(vm, instruction)
     local nameIndex = instruction.arg
     local name = vm.names[nameIndex + 1] -- Lua arrays are 1-indexed
     local value = pop(vm)
-    vm.variables[name] = value
+    
+    debugLog(vm, string.format("STORE_NAME: nameIndex=%d, name='%s', value=%s (type: %s)", 
+        nameIndex, tostring(name), tostring(value), type(value)))
+    
+    -- Handle nil values specially since Lua tables can't store nil
+    if value == nil then
+        vm.variables[name] = "__PYLUA_NIL__"
+        debugLog(vm, string.format("STORE_NAME: Stored NIL placeholder for '%s'", name))
+    else
+        vm.variables[name] = value
+        debugLog(vm, string.format("STORE_NAME: Stored value for '%s'", name))
+    end
+    
+    -- Debug: Print current variables table
+    debugLog(vm, "STORE_NAME: Current variables table:")
+    for k, v in pairs(vm.variables) do
+        debugLog(vm, string.format("  variables['%s'] = %s (type: %s)", k, tostring(v), type(v)))
+    end
 end
 
 opcodeHandlers[Opcodes.LOAD_NAME] = function(vm, instruction)
@@ -107,14 +130,50 @@ opcodeHandlers[Opcodes.LOAD_NAME] = function(vm, instruction)
     end
     
     local name = vm.names[nameIndex + 1] -- Lua arrays are 1-indexed
-    local value = vm.variables[name]
     
-    -- If not found in variables, check built-ins
-    if value == nil then
-        value = vm.builtins[name]
+    debugLog(vm, string.format("LOAD_NAME: nameIndex=%d, name='%s'", nameIndex, tostring(name)))
+    
+    -- Debug: Print current variables table
+    debugLog(vm, "LOAD_NAME: Current variables table:")
+    for k, v in pairs(vm.variables) do
+        debugLog(vm, string.format("  variables['%s'] = %s (type: %s)", k, tostring(v), type(v)))
     end
     
-    if value == nil then
+    local value = vm.variables[name]
+    debugLog(vm, string.format("LOAD_NAME: Retrieved value=%s (type: %s) for name='%s'", 
+        tostring(value), type(value), name))
+    
+    local found = false
+    
+    -- Handle special nil placeholder from variables
+    if value == "__PYLUA_NIL__" then
+        value = nil
+        found = true
+        debugLog(vm, string.format("LOAD_NAME: Converted NIL placeholder to nil for '%s'", name))
+    elseif value ~= nil then
+        found = true
+    end
+    
+    if not found then
+        -- If not found in variables, check built-ins
+        debugLog(vm, string.format("LOAD_NAME: Variable '%s' not found, checking builtins", name))
+        local builtinValue = vm.builtins[name]
+        debugLog(vm, string.format("LOAD_NAME: Builtin value=%s (type: %s) for name='%s'", 
+            tostring(builtinValue), type(builtinValue), name))
+        
+        value = builtinValue
+        
+        -- Handle special nil placeholder from builtins
+        if value == "__PYLUA_NIL__" then
+            value = nil
+            found = true
+            debugLog(vm, string.format("LOAD_NAME: Converted builtin NIL placeholder to nil for '%s'", name))
+        elseif value ~= nil then
+            found = true
+        end
+    end
+    
+    if not found then
         local suggestion = "Make sure the variable is defined before using it"
         if name == "range" or name == "print" or name == "len" then
             suggestion = "This is a built-in function - check if the built-ins module is properly loaded"
@@ -123,6 +182,7 @@ opcodeHandlers[Opcodes.LOAD_NAME] = function(vm, instruction)
     end
     
     debugLog(vm, "LOAD_NAME " .. name .. " = " .. tostring(value))
+    debugLog(vm, string.format("LOAD_NAME: Pushing value=%s onto stack for '%s'", tostring(value), name))
     push(vm, value)
 end
 
@@ -343,13 +403,55 @@ opcodeHandlers[Opcodes.GET_ITER] = function(vm, instruction)
     -- Create an iterator object for the iterable
     local iterator
     if type(iterable) == "table" then
-        -- For lists/arrays, create a simple index-based iterator
-        iterator = {
-            type = "list",
-            data = iterable,
-            index = 1,
-            length = #iterable
-        }
+        if iterable.__type == "list" then
+            -- Python list object
+            iterator = {
+                type = "list",
+                data = iterable.__value,
+                index = 1,
+                length = #iterable.__value
+            }
+        elseif iterable.__type == "tuple" then
+            -- Python tuple object
+            iterator = {
+                type = "list",
+                data = iterable.__value,
+                index = 1,
+                length = #iterable.__value
+            }
+        elseif iterable.__type == "set" then
+            -- Python set object - convert to array for iteration
+            local setArray = {}
+            for value, _ in pairs(iterable.__value) do
+                table.insert(setArray, value)
+            end
+            iterator = {
+                type = "list",
+                data = setArray,
+                index = 1,
+                length = #setArray
+            }
+        elseif iterable.__type == "dict" then
+            -- Python dict object - iterate over keys
+            local keyArray = {}
+            for key, _ in pairs(iterable.__value) do
+                table.insert(keyArray, key)
+            end
+            iterator = {
+                type = "list",
+                data = keyArray,
+                index = 1,
+                length = #keyArray
+            }
+        else
+            -- Generic Lua table (for range() etc)
+            iterator = {
+                type = "list",
+                data = iterable,
+                index = 1,
+                length = #iterable
+            }
+        end
     else
         error("Object is not iterable: " .. type(iterable))
     end

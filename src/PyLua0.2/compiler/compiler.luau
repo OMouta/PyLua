@@ -25,7 +25,12 @@ local function addConstant(state, value)
         return state.constantsMap[key]
     end
     
-    table.insert(state.constants, value)
+    -- Handle nil values specially since Lua tables ignore nil values
+    if value == nil then
+        table.insert(state.constants, "__PYLUA_NIL__")  -- Use placeholder for nil
+    else
+        table.insert(state.constants, value)
+    end
     local index = #state.constants - 1  -- 0-based indexing
     state.constantsMap[key] = index
     return index
