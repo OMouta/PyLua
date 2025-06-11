@@ -367,6 +367,67 @@ opcodeHandlers[Opcodes.CALL_FUNCTION] = function(vm, instruction)
         end
         
         push(vm, result)
+    elseif type(func) == "table" and func.__type == "function" then
+        -- Handle Python function objects
+        debugLog(vm, "CALL_FUNCTION: Calling Python function '" .. (func.__value.name or "<anonymous>") .. "' with " .. argCount .. " arguments")
+        
+        -- Check parameter count (basic validation)
+        local expectedParams = func.__value.parameters or {}
+        if #args_table ~= #expectedParams then
+            error(createRuntimeError(vm, "TypeError", 
+                "Function '" .. (func.__value.name or "<anonymous>") .. "' expected " .. #expectedParams .. " arguments but got " .. #args_table,
+                "Check the number of arguments passed to the function"))
+        end
+        
+        -- Create a new VM context for the function execution
+        local functionVM = createVM()
+        functionVM.constants = func.__value.bytecode.constants or {}
+        functionVM.names = func.__value.bytecode.names or {}
+        functionVM.code = func.__value.bytecode.code or {}
+        functionVM.debug = vm.debug
+        
+        -- TODO: Implement proper scope management - for now, copy global variables
+        functionVM.variables = {}
+        for k, v in pairs(vm.variables) do
+            functionVM.variables[k] = v
+        end
+        
+        -- Bind parameters to arguments
+        for i, paramName in ipairs(expectedParams) do
+            functionVM.variables[paramName] = args_table[i]
+        end
+        
+        -- Execute the function bytecode
+        local success, result = pcall(function()
+            while functionVM.pc <= #functionVM.code do
+                local instruction = functionVM.code[functionVM.pc]
+                local handler = opcodeHandlers[instruction.op]
+                
+                if not handler then
+                    error("Unknown opcode: " .. tostring(instruction.op))
+                end
+                
+                handler(functionVM, instruction)
+                
+                -- Check if function returned
+                if functionVM.returnValue ~= nil then
+                    return functionVM.returnValue
+                end
+                
+                functionVM.pc = functionVM.pc + 1
+            end
+            
+            -- If no explicit return, return None
+            return nil
+        end)
+        
+        if not success then
+            error(createRuntimeError(vm, "RuntimeError", 
+                "Error in function '" .. (func.__value.name or "<anonymous>") .. "': " .. tostring(result),
+                "Check the function implementation"))
+        end
+        
+        push(vm, result)
     else
         debugLog(string.format("[DEBUG CALL_FUNCTION] func is NOT a function. Type: %s, Value: %s", type(func), tostring(func))) -- DEBUG LINE
         local suggestion = "Make sure you're calling a function, not a variable"
@@ -710,6 +771,50 @@ opcodeHandlers[Opcodes.GET_TYPE] = function(vm, instruction)
             push(vm, luaType)
         end
     end
+end
+
+-- Function-related opcode handlers
+opcodeHandlers[Opcodes.MAKE_FUNCTION] = function(vm, instruction)
+    local name = instruction.name or "<anonymous>"
+    local parameters = instruction.parameters or {}
+    local functionBytecode = instruction.bytecode or {}
+    local defaults = instruction.defaults or {}
+    local closure = instruction.closure or {}
+    
+    debugLog(vm, "MAKE_FUNCTION: Creating function '" .. name .. "' with " .. #parameters .. " parameters")
+    
+    local functionObj = objects.createFunction(name, parameters, functionBytecode, defaults, closure)
+    push(vm, functionObj)
+end
+
+opcodeHandlers[Opcodes.RETURN_VALUE] = function(vm, instruction)
+    local value = pop(vm)
+    debugLog(vm, "RETURN_VALUE: " .. tostring(value))
+    vm.returnValue = value
+    vm.pc = #vm.code + 1  -- Jump to end of program
+end
+
+-- Note: LOAD_FAST, STORE_FAST, LOAD_GLOBAL, STORE_GLOBAL will be implemented
+-- when we add full scope management and call frames
+
+opcodeHandlers[Opcodes.LOAD_FAST] = function(vm, instruction)
+    -- For now, treat as LOAD_NAME until call frames are implemented
+    opcodeHandlers[Opcodes.LOAD_NAME](vm, instruction)
+end
+
+opcodeHandlers[Opcodes.STORE_FAST] = function(vm, instruction)
+    -- For now, treat as STORE_NAME until call frames are implemented
+    opcodeHandlers[Opcodes.STORE_NAME](vm, instruction)
+end
+
+opcodeHandlers[Opcodes.LOAD_GLOBAL] = function(vm, instruction)
+    -- For now, treat as LOAD_NAME until call frames are implemented
+    opcodeHandlers[Opcodes.LOAD_NAME](vm, instruction)
+end
+
+opcodeHandlers[Opcodes.STORE_GLOBAL] = function(vm, instruction)
+    -- For now, treat as STORE_NAME until call frames are implemented
+    opcodeHandlers[Opcodes.STORE_NAME](vm, instruction)
 end
 
 -- Main execution function with comprehensive error handling

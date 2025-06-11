@@ -39,6 +39,6 @@ end
 
 -- Export version information
 Python.version = "0.2.0"
-Python.description = "PyLua 0.2 - Python-to-Lua compiler with bytecode virtual machine"
+Python.description = "PyLua 0.2 - The Python compiler for luau"
 
 return Python

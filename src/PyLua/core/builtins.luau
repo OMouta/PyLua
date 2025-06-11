@@ -85,7 +85,12 @@ builtins["type"] = function(obj)
     elseif luaType == "boolean" then
         return "bool"
     elseif luaType == "table" then
-        return "list"
+        -- Check if it's a Python object with __type field
+        if obj.__type then
+            return obj.__type
+        else
+            return "list"  -- Default for plain tables
+        end
     else
         return "object"
     end

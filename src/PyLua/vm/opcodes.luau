@@ -31,6 +31,13 @@ local Opcodes = {
     -- Function calls
     CALL_FUNCTION = "CALL_FUNCTION", -- Pop function and args, call function, push result
     
+    -- Function definitions and scope
+    MAKE_FUNCTION = "MAKE_FUNCTION", -- Create function object from bytecode
+    LOAD_FAST = "LOAD_FAST",       -- Load local variable (function parameter/local)
+    STORE_FAST = "STORE_FAST",     -- Store to local variable  
+    LOAD_GLOBAL = "LOAD_GLOBAL",   -- Load global variable (distinct from local)
+    STORE_GLOBAL = "STORE_GLOBAL", -- Store to global variable
+    
     -- Stack manipulation
     POP_TOP = "POP_TOP",           -- Remove top element from stack
     DUP_TOP = "DUP_TOP",           -- Duplicate top element on stack

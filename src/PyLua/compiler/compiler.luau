@@ -603,6 +603,222 @@ end
 local compileIfStatementBlock
 local compileWhileLoopBlock  
 local compileForLoopBlock
+local compileFunctionDefinitionBlock
+
+-- Function definition compilation functions
+local function compileFunctionDefinition(state, tokens, pos)
+    -- def function_name(param1, param2, ...):
+    if tokens[pos] ~= "def" then
+        error("Expected 'def' keyword")
+    end
+    pos = pos + 1
+    
+    -- Get function name
+    local functionName = tokens[pos]
+    if not isIdentifier(functionName) then
+        error("Expected function name after 'def'")
+    end
+    pos = pos + 1
+    
+    -- Expect '('
+    if tokens[pos] ~= "(" then
+        error("Expected '(' after function name")
+    end
+    pos = pos + 1
+    
+    -- Parse parameters
+    local parameters = {}
+    while tokens[pos] and tokens[pos] ~= ")" do
+        if #parameters > 0 then
+            if tokens[pos] ~= "," then
+                error("Expected ',' between function parameters")
+            end
+            pos = pos + 1
+        end
+        
+        if not isIdentifier(tokens[pos]) then
+            error("Expected parameter name")
+        end
+        
+        table.insert(parameters, tokens[pos])
+        pos = pos + 1
+    end
+    
+    -- Expect ')'
+    if tokens[pos] ~= ")" then
+        error("Expected ')' after function parameters")
+    end
+    pos = pos + 1
+    
+    -- Expect ':'
+    if tokens[pos] ~= ":" then
+        error("Expected ':' after function signature")
+    end
+    pos = pos + 1
+      -- For now, create a placeholder function object
+    -- In a full implementation, we'd compile the function body as separate bytecode
+    local nameIndex = addName(state, functionName)
+    
+    -- Create MAKE_FUNCTION instruction with function details
+    local instruction = {
+        op = opcodes.Opcodes.MAKE_FUNCTION,
+        name = functionName,
+        parameters = parameters,
+        bytecode = {}, -- Empty for now - will be filled by block compiler
+        defaults = {},
+        closure = {},
+        arg = nameIndex, -- Use nameIndex as the arg for consistency
+        line = state.lineNumber
+    }
+    table.insert(state.code, instruction)
+    
+    -- Store function in variable
+    emit(state, opcodes.Opcodes.STORE_NAME, nameIndex)
+    
+    return pos
+end
+
+compileFunctionDefinitionBlock = function(state, lines, startLine)
+    local line = lines[startLine]
+    local tokens = tokenizer.tokenize(line:match("^%s*(.-)%s*$"))
+    
+    -- Parse the function definition header
+    local pos = 1
+    if tokens[pos] ~= "def" then
+        error("Expected 'def' keyword")
+    end
+    pos = pos + 1
+    
+    -- Get function name
+    local functionName = tokens[pos]
+    if not isIdentifier(functionName) then
+        error("Expected function name after 'def'")
+    end
+    pos = pos + 1
+    
+    -- Expect '('
+    if tokens[pos] ~= "(" then
+        error("Expected '(' after function name")
+    end
+    pos = pos + 1
+    
+    -- Parse parameters
+    local parameters = {}
+    while tokens[pos] and tokens[pos] ~= ")" do
+        if #parameters > 0 then
+            if tokens[pos] ~= "," then
+                error("Expected ',' between function parameters")
+            end
+            pos = pos + 1
+        end
+        
+        if not isIdentifier(tokens[pos]) then
+            error("Expected parameter name")
+        end
+        
+        table.insert(parameters, tokens[pos])
+        pos = pos + 1
+    end
+    
+    -- Expect ')'
+    if tokens[pos] ~= ")" then
+        error("Expected ')' after function parameters")
+    end
+    pos = pos + 1
+    
+    -- Expect ':'
+    if tokens[pos] ~= ":" then
+        error("Expected ':' after function signature")
+    end
+    
+    -- Create a new compiler state for the function body
+    local functionState = createCompilerState()
+    
+    -- Compile the function body
+    local currentLine = startLine + 1
+    local baseIndent = nil
+    
+    while currentLine <= #lines do
+        local blockLine = lines[currentLine]
+        local indent = blockLine:match("^(%s*)")
+        local trimmed = blockLine:match("^%s*(.-)%s*$")
+        
+        -- Skip empty lines
+        if trimmed == "" then
+            currentLine = currentLine + 1
+        elseif #indent > 0 then
+            -- First indented line sets the base indentation
+            if not baseIndent then
+                baseIndent = #indent
+            end
+            
+            -- If indentation matches the block level, compile this line
+            if #indent >= baseIndent then
+                local blockTokens = tokenizer.tokenize(trimmed)
+                if #blockTokens > 0 then
+                    -- Check for return statement
+                    if blockTokens[1] == "return" then
+                        -- Compile return expression
+                        if #blockTokens > 1 then
+                            local returnTokens = {}
+                            for i = 2, #blockTokens do
+                                table.insert(returnTokens, blockTokens[i])
+                            end
+                            compileExpression(functionState, returnTokens, 1)
+                        else
+                            -- Return None
+                            local constIndex = addConstant(functionState, nil)
+                            emit(functionState, opcodes.Opcodes.LOAD_CONST, constIndex)
+                        end
+                        emit(functionState, opcodes.Opcodes.RETURN_VALUE)
+                    else
+                        -- Regular statement in function body
+                        functionState.lineNumber = currentLine
+                        compileStatement(functionState, blockTokens, 1)
+                    end
+                    currentLine = currentLine + 1
+                else
+                    currentLine = currentLine + 1
+                end
+            else
+                -- Indentation decreased, end of function body
+                break
+            end
+        else
+            -- No indentation, end of function body
+            break
+        end
+    end
+    
+    -- If no explicit return, add implicit return None
+    if #functionState.code == 0 or functionState.code[#functionState.code].op ~= opcodes.Opcodes.RETURN_VALUE then
+        local constIndex = addConstant(functionState, nil)
+        emit(functionState, opcodes.Opcodes.LOAD_CONST, constIndex)
+        emit(functionState, opcodes.Opcodes.RETURN_VALUE)
+    end
+      -- Create MAKE_FUNCTION instruction with complete function bytecode
+    local nameIndex = addName(state, functionName)
+    local instruction = {
+        op = opcodes.Opcodes.MAKE_FUNCTION,
+        name = functionName,
+        parameters = parameters,
+        bytecode = {
+            constants = functionState.constants,
+            names = functionState.names,
+            code = functionState.code
+        },
+        defaults = {},
+        closure = {},
+        arg = nameIndex, -- Use nameIndex as the arg for consistency
+        line = state.lineNumber
+    }
+    table.insert(state.code, instruction)
+    
+    -- Store function in variable
+    emit(state, opcodes.Opcodes.STORE_NAME, nameIndex)
+    
+    return currentLine
+end
 
 -- Compile an if/elif/else statement with blocks
 compileIfStatementBlock = function(state, lines, startLine)
@@ -1066,14 +1282,14 @@ local function compileForLoop(state, tokens, pos)
 end
 
 -- Compile a single statement
-compileStatement = function(state, tokens, pos)
-    if not tokens[pos] then
+compileStatement = function(state, tokens, pos)    if not tokens[pos] then
         return pos
     end
-    
-    -- Check for control flow statements
+      -- Check for control flow statements
     if tokens[pos] == "for" then
         return compileForLoop(state, tokens, pos)
+    elseif tokens[pos] == "def" then
+        return compileFunctionDefinition(state, tokens, pos)
     -- Check if this is an assignment (variable = expression OR obj[key] = expression)
     elseif isIdentifier(tokens[pos]) then
         -- Look ahead to determine if this is an assignment
@@ -1134,8 +1350,7 @@ function Compiler.compile(sourceCode)
                 local completeTokens, endLine = collectMultiLineStatement(lines, i)
                 compileStatement(state, completeTokens, 1)
                 i = endLine + 1
-            elseif #tokens > 0 then
-                -- Check if this is a for loop
+            elseif #tokens > 0 then                -- Check if this is a for loop
                 if tokens[1] == "for" then
                     i = compileForLoopBlock(state, lines, i)
                 -- Check if this is a while loop
@@ -1144,6 +1359,9 @@ function Compiler.compile(sourceCode)
                 -- Check if this is an if statement
                 elseif tokens[1] == "if" then
                     i = compileIfStatementBlock(state, lines, i)
+                -- Check if this is a function definition
+                elseif tokens[1] == "def" then
+                    i = compileFunctionDefinitionBlock(state, lines, i)
                 else
                     compileStatement(state, tokens, 1)
                     i = i + 1

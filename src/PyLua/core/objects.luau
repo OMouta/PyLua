@@ -258,6 +258,27 @@ function Objects.createNone()
     return createPyObject(ObjectTypes.NONE, nil, {})
 end
 
+-- === FUNCTION TYPE ===
+function Objects.createFunction(name, parameters, bytecode, defaults, closure)
+    local functionValue = {
+        name = name or "<anonymous>",
+        parameters = parameters or {},
+        bytecode = bytecode or {},
+        defaults = defaults or {},
+        closure = closure or {},
+        argcount = #(parameters or {}),
+    }
+    
+    local functionMethods = {}
+    
+    -- Function call representation (when printed)
+    functionMethods.__tostring = function(self)
+        return "<function " .. functionValue.name .. " at " .. tostring(self) .. ">"
+    end
+    
+    return createPyObject(ObjectTypes.FUNCTION, functionValue, functionMethods)
+end
+
 -- === UTILITY FUNCTIONS ===
 
 -- Convert Python object to Lua representation for operations
