@@ -1,7 +1,7 @@
 -- Test script for PyLua 0.2 Bytecode Executor
 -- This script tests the bytecode executor with hand-crafted bytecode
 
-local BytecodeExecutor = require('../src/PyLua0.2/vm/bytecode_executor')
+local BytecodeExecutor = require('../src/PyLua/vm/bytecode_executor')
 
 local function testBasicAssignment()
     print("=== Testing Basic Assignment ===")

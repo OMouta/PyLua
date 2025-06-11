@@ -1,4 +1,4 @@
-local python = require('../src/PyLua0.2/python')
+local python = require('../src/PyLua/python')
 
 python.execute([[
 # PyLua 0.2 Comprehensive Feature Showcase

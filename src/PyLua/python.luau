@@ -1,82 +1,44 @@
--- PyLua: A Python Interpreter in Luau
--- Main module for the Python interpreter
+-- PyLua 0.2 Main API
+-- Public interface for the PyLua bytecode system
 
 local Python = {}
 
--- Import modular components
-local Tokenizer = require('./tokenizer')
-local Parser = require('./parser')
-local Evaluator = require('./evaluator')
-local Builtins = require('./builtins')
-local Variables = require('./variables')
-local ControlFlow = require('./controlflow')
+-- Import components
+local compiler = require('./compiler/compiler')
+local bytecodeExecutor = require('./vm/bytecode_executor')
 
--- Main execution function
-function Python.execute(code)
-	-- Split code into lines, preserving indentation
-	local lines = {}
-	for line in code:gmatch("[^\r\n]+") do
-		table.insert(lines, line)
-	end
-	
-	-- Parse all statements using the parser
-	local statements = Parser.parseBlocks(lines)
-		-- Execute all statements
-	for _, statement in ipairs(statements) do
-		if statement.type == "complete_if_statement" then
-			-- Execute the complete if/elif/else chain
-			if #statement.elifChain > 0 then
-				ControlFlow.executeIfChain(statement.condition, statement.ifBlock, statement.elifChain, statement.elseBlock, Evaluator, Builtins.getAll(), Variables)
-			else
-				ControlFlow.executeIf(statement.condition, statement.ifBlock, statement.elseBlock, Evaluator, Builtins.getAll(), Variables)
-			end		elseif statement.type == "complete_while_statement" then
-			-- Execute the complete while loop
-			ControlFlow.executeWhile(statement.condition, statement.body, Evaluator, Builtins.getAll(), Variables)
-		elseif statement.type == "complete_for_statement" then
-			-- Execute the complete for loop
-			ControlFlow.executeFor(statement.variables, statement.iterable, statement.body, Evaluator, Builtins.getAll(), Variables)
-		else
-			-- Execute regular statement
-			Evaluator.executeStatement(statement, Builtins.getAll(), Variables)
-		end
-	end
+-- Compile Python source code to bytecode
+function Python.compile(sourceString)
+    if type(sourceString) ~= "string" then
+        error("Python.compile() requires a string argument")
+    end
+    
+    return compiler.compile(sourceString)
 end
 
--- Add a built-in function to the interpreter
-function Python.addBuiltin(name, func)
-	Builtins.add(name, func)
+-- Execute bytecode and return the result
+function Python.runBytecode(bytecode, options)
+    if type(bytecode) ~= "table" then
+        error("Python.runBytecode() requires a bytecode table")
+    end
+    
+    options = options or {}
+    return bytecodeExecutor.execute(bytecode, options)
 end
 
--- Get all available built-ins
-function Python.getBuiltins()
-	return Builtins.getAll()
+-- Compile and execute Python source code in one step
+function Python.execute(sourceString, options)
+    local bytecode = Python.compile(sourceString)
+    return Python.runBytecode(bytecode, options)
 end
 
--- Get access to individual modules for advanced usage
-function Python.getModules()
-	return {
-		tokenizer = Tokenizer,
-		parser = Parser,
-		evaluator = Evaluator,
-		builtins = Builtins,
-		variables = Variables,
-		controlflow = ControlFlow
-	}
+-- Get a variable value from execution results (compatibility function)
+function Python.getVariable(variables, name)
+    return bytecodeExecutor.getVariable(variables, name)
 end
 
--- Get variable value
-function Python.getVariable(name)
-	return Variables.get(name)
-end
-
--- Set variable value
-function Python.setVariable(name, value)
-	Variables.set(name, value)
-end
-
--- Clear all variables
-function Python.clearVariables()
-	Variables.clear()
-end
+-- Export version information
+Python.version = "0.2.0"
+Python.description = "PyLua 0.2 - Python-to-Lua compiler with bytecode virtual machine"
 
 return Python

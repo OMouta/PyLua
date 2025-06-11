@@ -1,7 +1,7 @@
 -- Test script for enhanced error handling in PyLua 0.2 Bytecode Executor
 -- This script tests various error conditions with proper error reporting
 
-local BytecodeExecutor = require('../src/PyLua0.2/vm/bytecode_executor')
+local BytecodeExecutor = require('../src/PyLua/vm/bytecode_executor')
 
 local function testNameError()
     print("=== Testing NameError with line numbers ===")

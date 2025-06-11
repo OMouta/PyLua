@@ -1,4 +1,4 @@
-local Python = require('../src/PyLua0.2/python')
+local Python = require('../src/PyLua/python')
 
 -- Simple while loop bytecode test
 local bytecode = Python.compile([[

@@ -1,4 +1,4 @@
-local Python = require('../src/PyLua0.2/python')
+local Python = require('../src/PyLua/python')
 
 -- Test while loop compilation and execution
 print("=== Testing While Loop ===")

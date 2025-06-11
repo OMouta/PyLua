@@ -1,5 +1,5 @@
 -- Test Python object literals (lists, dictionaries, tuples, sets) in PyLua compiler
-local python = require('../src/PyLua0.2/python')
+local python = require('../src/PyLua/python')
 
 -- Test 1: List literals
 print("=== Test 1: List literals ===")

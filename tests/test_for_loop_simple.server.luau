@@ -1,4 +1,4 @@
-local Python = require('../src/PyLua0.2/python')
+local Python = require('../src/PyLua/python')
 
 -- Test a simple for loop that can be on one line conceptually
 print("=== Testing Basic For Loop Compilation ===")

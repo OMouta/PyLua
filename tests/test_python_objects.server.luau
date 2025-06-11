@@ -1,7 +1,7 @@
 -- Test script for PyLua 0.2 Python Object System
 -- Tests Python lists, dictionaries, tuples, sets, and their methods
 
-local BytecodeExecutor = require('../src/PyLua0.2/vm/bytecode_executor')
+local BytecodeExecutor = require('../src/PyLua/vm/bytecode_executor')
 
 local function testPythonLists()
     print("=== Testing Python Lists ===")

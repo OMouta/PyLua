@@ -1,6 +1,6 @@
 -- Test nested control flow structures in PyLua compiler
 -- Testing loops inside if statements and if statements inside loops
-local python = require('../src/PyLua0.2/python')
+local python = require('../src/PyLua/python')
 
 -- Test 1: For loop inside if statement
 print("=== Test 1: For loop inside if statement ===")

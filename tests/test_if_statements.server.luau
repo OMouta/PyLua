@@ -1,4 +1,4 @@
-local python = require('../src/PyLua0.2/python')
+local python = require('../src/PyLua/python')
 
 -- Test 1: Simple if statement
 print("=== Test 1: Simple if statement ===")
