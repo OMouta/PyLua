@@ -38,7 +38,7 @@ function Python.getVariable(variables, name)
 end
 
 -- Export version information
-Python.version = "0.2.0"
+Python.version = "0.2.1"
 Python.description = "PyLua 0.2 - The Python compiler for luau"
 
 return Python
