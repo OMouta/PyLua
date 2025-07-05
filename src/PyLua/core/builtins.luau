@@ -1,4 +1,4 @@
--- PyLua 0.2 Built-in Functions
+-- PyLua Built-in Functions
 -- Standard library implementations for Python built-in functions
 
 local Builtins = {}
@@ -75,7 +75,7 @@ builtins["type"] = function(obj)
     local luaType = type(obj)
     -- Convert Lua types to Python types
     if luaType == "number" then
-        if obj % 1 == 0 then
+        if type(obj) == "number" and obj % 1 == 0 then
             return "int"
         else
             return "float"

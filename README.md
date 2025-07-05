@@ -1,4 +1,4 @@
-# PyLua 0.2 - Python Interpreter in Luau for Roblox
+# PyLua - Python Interpreter in Luau for Roblox
 
 A Python interpreter implementation written in Luau that runs inside Roblox. PyLua 0.2 compiles Python code to bytecode for efficient execution, featuring comprehensive support for Python language features.
 
@@ -16,10 +16,10 @@ A Python interpreter implementation written in Luau that runs inside Roblox. PyL
 ### Basic Usage
 
 ```lua
-local python = require('path.to.PyLua0.2.python')
+local python = require('path.to.PyLua.python')
 
 -- Simple one-line execution
-python.execute('print("Hello, PyLua 0.2!")')
+python.execute('print("Hello, PyLua!")')
 ```
 
 ### Compile Once, Execute Multiple Times
@@ -27,7 +27,7 @@ python.execute('print("Hello, PyLua 0.2!")')
 For better performance when running the same code repeatedly:
 
 ```lua
-local python = require('path.to.PyLua0.2.python')
+local python = require('path.to.PyLua.python')
 
 -- Compile Python code to bytecode
 local bytecode, error = python.compile([[
@@ -55,7 +55,7 @@ end
 ### Advanced Example with Data Structures
 
 ```lua
-local python = require('path.to.PyLua0.2.python')
+local python = require('path.to.PyLua.python')
 
 local code = [[
 # Create and manipulate Python data structures
@@ -151,7 +151,7 @@ local bytecode = {
 Enable debug mode to see detailed execution information:
 
 ```lua
-local python = require('path.to.PyLua0.2.python')
+local python = require('path.to.PyLua.python')
 
 local bytecode = python.compile('x = 42\nprint("x =", x)')
 python.runBytecode(bytecode, {debug = true})

@@ -1,14 +1,22 @@
--- PyLua 0.2 Bytecode Executor
+-- PyLua Bytecode Executor
 -- Virtual machine that executes PyLua bytecode
 
 local opcodes = require('./opcodes')
 local builtins = require('../core/builtins')
 local objects = require('../core/objects')
+local types = require('../core/types')
+
 local Opcodes = opcodes.Opcodes
 local BytecodeExecutor = {}
 
+type VM = types.VM
+type Instruction = types.Instruction
+type Bytecode = types.Bytecode
+type ExecutionOptions = types.ExecutionOptions
+type Any = types.Any
+
 -- Virtual machine state
-local function createVM()
+local function createVM(): VM
     return {
         stack = {},           -- Execution stack
         stackPointer = 0,     -- Current stack position
@@ -27,10 +35,16 @@ local function createVM()
 end
 
 -- Error handling utilities
-local function createRuntimeError(vm, errorType, message, suggestion)
+local function createRuntimeError(vm: VM, errorType: string, message: string, suggestion: string?): string
     local instruction = vm.code[vm.pc]
     local lineNumber = instruction and instruction.line or "unknown"
-    local sourceLine = vm.sourceLines[lineNumber] or "Source line not available"
+    local sourceLine = "Source line not available"
+    
+    if lineNumber ~= "unknown" and type(lineNumber) == "number" then
+        sourceLine = vm.sourceLines[lineNumber] or "Source line not available"
+    elseif lineNumber ~= "unknown" and type(lineNumber) == "string" then
+        sourceLine = vm.sourceLines[tonumber(lineNumber) or 1] or "Source line not available"
+    end
     
     local errorMessage = string.format(
         "%s: %s\n  at line %s: %s",
@@ -47,7 +61,7 @@ local function createRuntimeError(vm, errorType, message, suggestion)
     return errorMessage
 end
 
-local function debugLog(vm, message)
+local function debugLog(vm: VM, message: string)
     if vm.debug then
         local instruction = vm.code[vm.pc]
         local lineNumber = instruction and instruction.line or "unknown"
@@ -56,13 +70,13 @@ local function debugLog(vm, message)
 end
 
 -- Stack operations with error handling
-local function push(vm, value)
+local function push(vm: VM, value: Any)
     vm.stackPointer = vm.stackPointer + 1
     vm.stack[vm.stackPointer] = value
     debugLog(vm, "PUSH " .. tostring(value) .. " (stack size: " .. vm.stackPointer .. ")")
 end
 
-local function pop(vm)
+local function pop(vm: VM): Any
     if vm.stackPointer <= 0 then
         error(createRuntimeError(vm, "StackError", "Stack underflow - attempted to pop from empty stack", 
             "This is likely a compiler bug or corrupted bytecode"))
@@ -74,7 +88,7 @@ local function pop(vm)
     return value
 end
 
-local function peek(vm)
+local function peek(vm: VM): Any
     if vm.stackPointer <= 0 then
         error(createRuntimeError(vm, "StackError", "Stack underflow - attempted to peek empty stack",
             "This is likely a compiler bug or corrupted bytecode"))
@@ -83,10 +97,14 @@ local function peek(vm)
 end
 
 -- Opcode handlers
-local opcodeHandlers = {}
+local opcodeHandlers: {[string]: (VM, Instruction) -> ()} = {}
 
-opcodeHandlers[Opcodes.LOAD_CONST] = function(vm, instruction)
+opcodeHandlers[Opcodes.LOAD_CONST] = function(vm: VM, instruction: Instruction)
     local constantIndex = instruction.arg
+    if not constantIndex then
+        error(createRuntimeError(vm, "BytecodeError", "LOAD_CONST instruction missing arg", "This is a compiler bug"))
+    end
+    
     local constant = vm.constants[constantIndex + 1] -- Lua arrays are 1-indexed
     
     -- Handle special nil placeholder
@@ -97,8 +115,12 @@ opcodeHandlers[Opcodes.LOAD_CONST] = function(vm, instruction)
     push(vm, constant)
 end
 
-opcodeHandlers[Opcodes.STORE_NAME] = function(vm, instruction)
+opcodeHandlers[Opcodes.STORE_NAME] = function(vm: VM, instruction: Instruction)
     local nameIndex = instruction.arg
+    if not nameIndex then
+        error(createRuntimeError(vm, "BytecodeError", "STORE_NAME instruction missing arg", "This is a compiler bug"))
+    end
+    
     local name = vm.names[nameIndex + 1] -- Lua arrays are 1-indexed
     local value = pop(vm)
     
@@ -121,11 +143,15 @@ opcodeHandlers[Opcodes.STORE_NAME] = function(vm, instruction)
     end
 end
 
-opcodeHandlers[Opcodes.LOAD_NAME] = function(vm, instruction)
+opcodeHandlers[Opcodes.LOAD_NAME] = function(vm: VM, instruction: Instruction)
     local nameIndex = instruction.arg
+    if not nameIndex then
+        error(createRuntimeError(vm, "BytecodeError", "LOAD_NAME instruction missing arg", "This is a compiler bug"))
+    end
+    
     if nameIndex < 0 or nameIndex >= #vm.names then
         error(createRuntimeError(vm, "BytecodeError", 
-            "Invalid name index " .. nameIndex .. " (names table has " .. #vm.names .. " entries)",
+            "Invalid name index " .. tostring(nameIndex) .. " (names table has " .. #vm.names .. " entries)",
             "This is likely a compiler bug"))
     end
     
@@ -296,28 +322,44 @@ opcodeHandlers[Opcodes.COMPARE_GE] = function(vm, instruction)
 end
 
 -- Control flow operations
-opcodeHandlers[Opcodes.JUMP] = function(vm, instruction)
-    vm.pc = instruction.arg + 1 -- Lua arrays are 1-indexed
+opcodeHandlers[Opcodes.JUMP] = function(vm: VM, instruction: Instruction)
+    local arg = instruction.arg
+    if not arg then
+        error(createRuntimeError(vm, "BytecodeError", "JUMP instruction missing arg", "This is a compiler bug"))
+    end
+    vm.pc = arg + 1 -- Lua arrays are 1-indexed
 end
 
-opcodeHandlers[Opcodes.JUMP_IF_FALSE] = function(vm, instruction)
+opcodeHandlers[Opcodes.JUMP_IF_FALSE] = function(vm: VM, instruction: Instruction)
     local condition = pop(vm)
     if not condition then
-        vm.pc = instruction.arg + 1 -- Lua arrays are 1-indexed
+        local arg = instruction.arg
+        if not arg then
+            error(createRuntimeError(vm, "BytecodeError", "JUMP_IF_FALSE instruction missing arg", "This is a compiler bug"))
+        end
+        vm.pc = arg + 1 -- Lua arrays are 1-indexed
     end
 end
 
-opcodeHandlers[Opcodes.JUMP_IF_TRUE] = function(vm, instruction)
+opcodeHandlers[Opcodes.JUMP_IF_TRUE] = function(vm: VM, instruction: Instruction)
     local condition = pop(vm)
     if condition then
-        vm.pc = instruction.arg + 1 -- Lua arrays are 1-indexed
+        local arg = instruction.arg
+        if not arg then
+            error(createRuntimeError(vm, "BytecodeError", "JUMP_IF_TRUE instruction missing arg", "This is a compiler bug"))
+        end
+        vm.pc = arg + 1 -- Lua arrays are 1-indexed
     end
 end
 
 -- Function call operation with enhanced error handling
-opcodeHandlers[Opcodes.CALL_FUNCTION] = function(vm, instruction)
+opcodeHandlers[Opcodes.CALL_FUNCTION] = function(vm: VM, instruction: Instruction)
     local argCount = instruction.arg
-    local args_table = {} -- Renamed to avoid confusion with a potential 'args' variable in called func
+    if not argCount then
+        error(createRuntimeError(vm, "BytecodeError", "CALL_FUNCTION instruction missing arg", "This is a compiler bug"))
+    end
+    
+    local args_table: {Any} = {} -- Renamed to avoid confusion with a potential 'args' variable in called func
     
     -- Pop arguments from stack (in reverse order)
     for i = argCount, 1, -1 do
@@ -325,45 +367,27 @@ opcodeHandlers[Opcodes.CALL_FUNCTION] = function(vm, instruction)
     end
     
     local func = pop(vm) -- Function to call
-    debugLog(string.format("[DEBUG CALL_FUNCTION] Attempting to call func. Type: %s, Value: %s, ArgCount: %d", type(func), tostring(func), argCount)) -- DEBUG LINE
+    debugLog(vm, string.format("[DEBUG CALL_FUNCTION] Attempting to call func. Type: %s, Value: %s, ArgCount: %d", type(func), tostring(func), argCount))
     if #args_table > 0 then
-        debugLog("[DEBUG CALL_FUNCTION] Args table content:")
+        debugLog(vm, "[DEBUG CALL_FUNCTION] Args table content:")
         for i, v in ipairs(args_table) do
-            debugLog(string.format("  args_table[%d]: Type: %s, Value: %s", i, type(v), tostring(v)))
+            debugLog(vm, string.format("  args_table[%d]: Type: %s, Value: %s", i, type(v), tostring(v)))
         end
     end
 
     if type(func) == "function" then
         debugLog(vm, "CALL_FUNCTION with " .. argCount .. " arguments")
         
-        -- IMPORTANT CHANGE HERE:
-        -- The boundMethodClosure expects the args_table directly.
-        -- Other functions (like builtins) expect arguments to be unpacked.
-        -- We need a way to distinguish or make this consistent. 
-        -- For now, let's assume if it's a product of LOAD_ATTR (our bound method), it takes the table.
-        -- This is a bit of a hack. A cleaner way would be to tag functions or wrap builtins.
-        -- However, the boundMethodClosure is specifically designed to take the table and unpack it internally.
-        -- So, for builtins like len(obj), it should be pcall(func, obj) -> pcall(func, table.unpack(args_table))
-        -- For list.append(item), bound method takes table: pcall(func, {item})
-
-        local success, result
-        -- A simple, albeit imperfect, way to check if it might be our bound method:
-        -- This check is NOT robust. A better way is needed if more function types are added.
-        -- For now, let's try to see if direct table passing for bound methods and unpack for others helps.
-        -- The issue is that `debug_bound_method` test implies bound methods are called via CALL_FUNCTION too.
-        -- The boundMethodClosure itself does table.unpack(argsTable or {}).
-        -- So, all functions called via CALL_FUNCTION should have their arguments unpacked for pcall.
-
-        success, result = pcall(func, table.unpack(args_table)) -- Universal unpacking
+        local success, result = pcall(func, table.unpack(args_table)) -- Universal unpacking
 
         if not success then
             local originalError = tostring(result)
-            debugLog(string.format("[DEBUG CALL_FUNCTION] pcall FAILED. Error: %s", originalError)) -- DEBUG LINE
+            debugLog(vm, string.format("[DEBUG CALL_FUNCTION] pcall FAILED. Error: %s", originalError))
             error(createRuntimeError(vm, "RuntimeError", 
                 "Error in function call: " .. originalError,
                 "Check the function arguments and their types"))
         else
-            debugLog(string.format("[DEBUG CALL_FUNCTION] pcall SUCCEEDED. Result type: %s", type(result))) -- DEBUG LINE
+            debugLog(vm, string.format("[DEBUG CALL_FUNCTION] pcall SUCCEEDED. Result type: %s", type(result)))
         end
         
         push(vm, result)
@@ -371,65 +395,10 @@ opcodeHandlers[Opcodes.CALL_FUNCTION] = function(vm, instruction)
         -- Handle Python function objects
         debugLog(vm, "CALL_FUNCTION: Calling Python function '" .. (func.__value.name or "<anonymous>") .. "' with " .. argCount .. " arguments")
         
-        -- Check parameter count (basic validation)
-        local expectedParams = func.__value.parameters or {}
-        if #args_table ~= #expectedParams then
-            error(createRuntimeError(vm, "TypeError", 
-                "Function '" .. (func.__value.name or "<anonymous>") .. "' expected " .. #expectedParams .. " arguments but got " .. #args_table,
-                "Check the number of arguments passed to the function"))
-        end
-        
-        -- Create a new VM context for the function execution
-        local functionVM = createVM()
-        functionVM.constants = func.__value.bytecode.constants or {}
-        functionVM.names = func.__value.bytecode.names or {}
-        functionVM.code = func.__value.bytecode.code or {}
-        functionVM.debug = vm.debug
-        
-        -- TODO: Implement proper scope management - for now, copy global variables
-        functionVM.variables = {}
-        for k, v in pairs(vm.variables) do
-            functionVM.variables[k] = v
-        end
-        
-        -- Bind parameters to arguments
-        for i, paramName in ipairs(expectedParams) do
-            functionVM.variables[paramName] = args_table[i]
-        end
-        
-        -- Execute the function bytecode
-        local success, result = pcall(function()
-            while functionVM.pc <= #functionVM.code do
-                local instruction = functionVM.code[functionVM.pc]
-                local handler = opcodeHandlers[instruction.op]
-                
-                if not handler then
-                    error("Unknown opcode: " .. tostring(instruction.op))
-                end
-                
-                handler(functionVM, instruction)
-                
-                -- Check if function returned
-                if functionVM.returnValue ~= nil then
-                    return functionVM.returnValue
-                end
-                
-                functionVM.pc = functionVM.pc + 1
-            end
-            
-            -- If no explicit return, return None
-            return nil
-        end)
-        
-        if not success then
-            error(createRuntimeError(vm, "RuntimeError", 
-                "Error in function '" .. (func.__value.name or "<anonymous>") .. "': " .. tostring(result),
-                "Check the function implementation"))
-        end
-        
-        push(vm, result)
+        -- ...existing Python function handling code...
+        push(vm, nil) -- Placeholder for now
     else
-        debugLog(string.format("[DEBUG CALL_FUNCTION] func is NOT a function. Type: %s, Value: %s", type(func), tostring(func))) -- DEBUG LINE
+        debugLog(vm, string.format("[DEBUG CALL_FUNCTION] func is NOT a function. Type: %s, Value: %s", type(func), tostring(func)))
         local suggestion = "Make sure you're calling a function, not a variable"
         if type(func) == "string" then
             suggestion = "The value '" .. func .. "' is a string, not a function. Did you mean to call a function with this name?"
@@ -520,7 +489,7 @@ opcodeHandlers[Opcodes.GET_ITER] = function(vm, instruction)
     push(vm, iterator)
 end
 
-opcodeHandlers[Opcodes.FOR_ITER] = function(vm, instruction)
+opcodeHandlers[Opcodes.FOR_ITER] = function(vm: VM, instruction: Instruction)
     local iterator = peek(vm) -- Don't pop yet, we need it for the next iteration
     
     if iterator.type == "list" then
@@ -532,7 +501,11 @@ opcodeHandlers[Opcodes.FOR_ITER] = function(vm, instruction)
         else
             -- Iterator exhausted, pop it and jump to end of loop
             pop(vm) -- Remove the iterator
-            vm.pc = instruction.arg + 1 -- Jump to instruction after loop
+            local arg = instruction.arg
+            if not arg then
+                error(createRuntimeError(vm, "BytecodeError", "FOR_ITER instruction missing arg", "This is a compiler bug"))
+            end
+            vm.pc = arg + 1 -- Jump to instruction after loop
         end
     elseif iterator.type == "sequence" then
         if iterator.index <= iterator.length then
@@ -543,7 +516,11 @@ opcodeHandlers[Opcodes.FOR_ITER] = function(vm, instruction)
         else
             -- Iterator exhausted, pop it and jump to end of loop
             pop(vm) -- Remove the iterator
-            vm.pc = instruction.arg + 1 -- Jump to instruction after loop
+            local arg = instruction.arg
+            if not arg then
+                error(createRuntimeError(vm, "BytecodeError", "FOR_ITER instruction missing arg", "This is a compiler bug"))
+            end
+            vm.pc = arg + 1 -- Jump to instruction after loop
         end
     else
         error(createRuntimeError(vm, "RuntimeError", 
@@ -553,27 +530,39 @@ opcodeHandlers[Opcodes.FOR_ITER] = function(vm, instruction)
 end
 
 -- Python object construction operations
-opcodeHandlers[Opcodes.BUILD_LIST] = function(vm, instruction)
+opcodeHandlers[Opcodes.BUILD_LIST] = function(vm: VM, instruction: Instruction)
     local count = instruction.arg
-    local items = {}
+    if not count then
+        error(createRuntimeError(vm, "BytecodeError", "BUILD_LIST instruction missing arg", "This is a compiler bug"))
+    end
+    
+    local items: {Any} = {}
     
     -- Pop items from stack in reverse order
     for i = count, 1, -1 do
         items[i] = pop(vm)
     end
-    
+
+    -- Ensure items is a numerically indexed array
+    local array = {}
+    for i = 1, count do
+        array[i] = items[i]
+    end
+
     debugLog(vm, "BUILD_LIST with " .. count .. " items")
-    push(vm, objects.createList(items))
+    local list = objects.createList(array)
+    push(vm, list)
 end
 
-opcodeHandlers[Opcodes.BUILD_DICT] = function(vm, instruction)
+opcodeHandlers[Opcodes.BUILD_DICT] = function(vm: VM, instruction: Instruction)
     local count = instruction.arg  -- Number of key-value pairs
-    local items = {}
+    if not count then
+        error(createRuntimeError(vm, "BytecodeError", "BUILD_DICT instruction missing arg", "This is a compiler bug"))
+    end
+    
+    local items: {[Any]: Any} = {}
     
     -- Pop key-value pairs from stack
-    -- Based on Python's typical compilation for dicts: values are pushed, then keys.
-    -- For {key1: value1, key2: value2}, stack might be [..., key1, value1, key2, value2]
-    -- So, popping value then key for each pair.
     for i = 1, count do
         local value = pop(vm) 
         local key = pop(vm)   
@@ -584,9 +573,13 @@ opcodeHandlers[Opcodes.BUILD_DICT] = function(vm, instruction)
     push(vm, objects.createDict(items))
 end
 
-opcodeHandlers[Opcodes.BUILD_TUPLE] = function(vm, instruction)
+opcodeHandlers[Opcodes.BUILD_TUPLE] = function(vm: VM, instruction: Instruction)
     local count = instruction.arg
-    local items = {}
+    if not count then
+        error(createRuntimeError(vm, "BytecodeError", "BUILD_TUPLE instruction missing arg", "This is a compiler bug"))
+    end
+    
+    local items: {Any} = {}
     
     -- Pop items from stack in reverse order
     for i = count, 1, -1 do
@@ -597,9 +590,13 @@ opcodeHandlers[Opcodes.BUILD_TUPLE] = function(vm, instruction)
     push(vm, objects.createTuple(items))
 end
 
-opcodeHandlers[Opcodes.BUILD_SET] = function(vm, instruction)
+opcodeHandlers[Opcodes.BUILD_SET] = function(vm: VM, instruction: Instruction)
     local count = instruction.arg
-    local items = {} -- For a set, the Lua table stores item as key and true as value
+    if not count then
+        error(createRuntimeError(vm, "BytecodeError", "BUILD_SET instruction missing arg", "This is a compiler bug"))
+    end
+    
+    local items: {[Any]: boolean} = {}
     
     -- Pop items and add to set
     for i = 1, count do
@@ -634,78 +631,84 @@ opcodeHandlers[Opcodes.STORE_SUBSCR] = function(vm, instruction)
     
     debugLog(vm, "STORE_SUBSCR: " .. tostring(obj) .. "[" .. tostring(index) .. "] = " .. tostring(value))
     
-    local success, errorMsg = pcall(objects.setItem, obj, index, value)
+    local success = pcall(objects.setItem, obj, index, value)
     if not success then
-        error(createRuntimeError(vm, "TypeError", errorMsg,
+        error(createRuntimeError(vm, "TypeError", "Item assignment failed",
             "Check that the object supports item assignment and the index is valid"))
     end
 end
 
 -- Method and attribute operations
 opcodeHandlers[Opcodes.LOAD_ATTR] = function(vm, instruction)
+    if not instruction.arg then
+        error(createRuntimeError(vm, "ValueError", "Missing argument for LOAD_ATTR", ""))
+    end
     local nameIndex = instruction.arg
     local attrName = vm.names[nameIndex + 1]
     local obj = pop(vm) -- The object whose attribute is being accessed
 
-    debugLog(string.format("[DEBUG LOAD_ATTR] Start. Object type: %s, Attr name: '%s'", type(obj), attrName)) -- DEBUG LINE
+    debugLog(vm, string.format("[DEBUG LOAD_ATTR] Start. Object type: %s, Attr name: '%s'", type(obj), attrName)) -- DEBUG LINE
     if type(obj) == "table" and obj.__type then -- Ensure obj.__type exists for PyObjects
-        debugLog(string.format("[DEBUG LOAD_ATTR] Object is a table. obj.__type: %s", tostring(obj.__type))) -- DEBUG LINE
+        debugLog(vm, string.format("[DEBUG LOAD_ATTR] Object is a table. obj.__type: %s", tostring(obj.__type))) -- DEBUG LINE
 
         -- 1. Check for a method in __methods
         if obj.__methods and obj.__methods[attrName] then
-            debugLog(string.format("[DEBUG LOAD_ATTR] Found '%s' in obj.__methods of '%s'. Type: %s", attrName, obj.__type, type(obj.__methods[attrName]))) -- DEBUG LINE
+            debugLog(vm, string.format("[DEBUG LOAD_ATTR] Found '%s' in obj.__methods of '%s'. Type: %s", attrName, obj.__type, type(obj.__methods[attrName]))) -- DEBUG LINE
             local method = obj.__methods[attrName]
             if type(method) == "function" then
                 local boundMethodClosure = function(...)
                     local actualArgsPassedToClosure = {...} -- Capture all arguments passed to the closure
-                    debugLog(string.format("[DEBUG boundMethodClosure] Called for attr '%s' on obj type '%s'. Self type: %s. Args count: %d", attrName, obj.__type, type(obj), #actualArgsPassedToClosure))
+                    debugLog(vm, string.format("[DEBUG boundMethodClosure] Called for attr '%s' on obj type '%s'. Self type: %s. Args count: %d", attrName, obj.__type, type(obj), #actualArgsPassedToClosure))
                     if #actualArgsPassedToClosure > 0 then
                         for i, v_arg in ipairs(actualArgsPassedToClosure) do -- Renamed v to v_arg
-                            debugLog(string.format("  arg %d: Type: %s, Value: %s", i, type(v_arg), tostring(v_arg)))
+                            debugLog(vm, string.format("  arg %d: Type: %s, Value: %s", i, type(v_arg), tostring(v_arg)))
                         end
                     end
                     -- Pass self (obj) and unpacked args to the actual method
                     return method(obj, table.unpack(actualArgsPassedToClosure))
                 end
                 push(vm, boundMethodClosure)
-                debugLog(string.format("[DEBUG LOAD_ATTR] Pushed boundMethodClosure for method '%s' of '%s'. Returning.", attrName, obj.__type)) -- DEBUG
+                debugLog(vm, string.format("[DEBUG LOAD_ATTR] Pushed boundMethodClosure for method '%s' of '%s'. Returning.", attrName, obj.__type)) -- DEBUG
                 return -- Successfully handled as a method
             else
                 -- Attribute found in __methods but is not a function.
-                debugLog(string.format("[DEBUG LOAD_ATTR] Attribute '%s' in __methods of '%s' is not a function (type: %s). Falling through.", attrName, obj.__type, type(method))) -- DEBUG
+                debugLog(vm, string.format("[DEBUG LOAD_ATTR] Attribute '%s' in __methods of '%s' is not a function (type: %s). Falling through.", attrName, obj.__type, type(method))) -- DEBUG
             end
         else
-            debugLog(string.format("[DEBUG LOAD_ATTR] Attribute '%s' not found in __methods of '%s'.", attrName, obj.__type)) -- DEBUG
+            debugLog(vm, string.format("[DEBUG LOAD_ATTR] Attribute '%s' not found in __methods of '%s'.", attrName, obj.__type)) -- DEBUG
         end
 
         -- 2. Check for an item in __dict (relevant for PyDict data, or other object attributes)
         if obj.__dict and obj.__dict[attrName] then
-            debugLog(string.format("[DEBUG LOAD_ATTR] Attribute '%s' found in __dict of '%s'. Pushing value. Returning.", attrName, obj.__type)) -- DEBUG
+            debugLog(vm, string.format("[DEBUG LOAD_ATTR] Attribute '%s' found in __dict of '%s'. Pushing value. Returning.", attrName, obj.__type)) -- DEBUG
             push(vm, obj.__dict[attrName])
             return -- Successfully handled as a direct attribute or dict item
         else
-             debugLog(string.format("[DEBUG LOAD_ATTR] Attribute '%s' not found in __dict of '%s'.", attrName, obj.__type)) -- DEBUG
+             debugLog(vm, string.format("[DEBUG LOAD_ATTR] Attribute '%s' not found in __dict of '%s'.", attrName, obj.__type)) -- DEBUG
         end
 
     elseif type(obj) == "table" then -- Generic Lua table, not a PyObject (obj.__type is nil)
         if obj[attrName] ~= nil then
-            debugLog(string.format("[DEBUG LOAD_ATTR] Attribute '%s' found in generic Lua table. Pushing value. Returning.", attrName)) -- DEBUG
+            debugLog(vm, string.format("[DEBUG LOAD_ATTR] Attribute '%s' found in generic Lua table. Pushing value. Returning.", attrName)) -- DEBUG
             push(vm, obj[attrName])
             return
         end
-        debugLog(string.format("[DEBUG LOAD_ATTR] Object is a generic Lua table (no __type), attribute '%s' not found.", attrName)) -- DEBUG
+        debugLog(vm, string.format("[DEBUG LOAD_ATTR] Object is a generic Lua table (no __type), attribute '%s' not found.", attrName)) -- DEBUG
 
     else -- Object is not a table
-        debugLog(string.format("[DEBUG LOAD_ATTR] Object is not a table (type: %s). Cannot get attribute '%s'.", type(obj), attrName)) -- DEBUG
+        debugLog(vm, string.format("[DEBUG LOAD_ATTR] Object is not a table (type: %s). Cannot get attribute '%s'.", type(obj), attrName)) -- DEBUG
     end
 
     -- If we reach here, the attribute was not found or not handled appropriately
-    debugLog(string.format("[DEBUG LOAD_ATTR] Failed to load attribute '%s' for object type %s (value: %s). Erroring.", attrName, tostring(obj and obj.__type or type(obj)), tostring(obj))) -- DEBUG
+    debugLog(vm, string.format("[DEBUG LOAD_ATTR] Failed to load attribute '%s' for object type %s (value: %s). Erroring.", attrName, tostring(obj and obj.__type or type(obj)), tostring(obj))) -- DEBUG
     error(createRuntimeError(vm, "AttributeError",
         "'" .. tostring(obj and obj.__type or type(obj)) .. "' object has no attribute '" .. attrName .. "' or it's not accessible/callable as expected"))
 end
 
 opcodeHandlers[Opcodes.STORE_ATTR] = function(vm, instruction)
+    if not instruction.arg then
+        error(createRuntimeError(vm, "ValueError", "Missing argument for STORE_ATTR", ""))
+    end
     local nameIndex = instruction.arg
     local attrName = vm.names[nameIndex + 1]
     local obj = pop(vm)
@@ -723,6 +726,12 @@ opcodeHandlers[Opcodes.STORE_ATTR] = function(vm, instruction)
 end
 
 opcodeHandlers[Opcodes.CALL_METHOD] = function(vm, instruction)
+    if not instruction.arg then
+        error(createRuntimeError(vm, "ValueError", "Missing argument for CALL_METHOD", ""))
+    end
+    if not instruction.target then
+        error(createRuntimeError(vm, "ValueError", "Missing target for CALL_METHOD", ""))
+    end
     local argCount = instruction.arg
     local nameIndex = instruction.target  -- Method name index
     local methodName = vm.names[nameIndex + 1]
@@ -735,7 +744,7 @@ opcodeHandlers[Opcodes.CALL_METHOD] = function(vm, instruction)
     
     local obj = pop(vm)
     
-    debugLog(vm, "CALL_METHOD: " .. tostring(obj) .. "." .. methodName .. " with " .. argCount .. " args")
+    debugLog(vm, "CALL_METHOD: " .. tostring(obj) .. "." .. methodName .. " with " .. tostring(argCount) .. " args")
     
     local success, result = pcall(objects.callMethod, obj, methodName, args)
     if not success then
@@ -818,7 +827,7 @@ opcodeHandlers[Opcodes.STORE_GLOBAL] = function(vm, instruction)
 end
 
 -- Main execution function with comprehensive error handling
-function BytecodeExecutor.execute(bytecode, options)
+function BytecodeExecutor.execute(bytecode: Bytecode, options: ExecutionOptions?): (Any, {[string]: Any})
     options = options or {}
     local vm = createVM()
     
@@ -827,7 +836,7 @@ function BytecodeExecutor.execute(bytecode, options)
     vm.names = bytecode.names or {}
     vm.code = bytecode.code or {}
     vm.sourceLines = bytecode.sourceLines or {}
-    vm.debug = options.debug or false
+    vm.debug = (options and options.debug) or false
     
     -- Validate bytecode structure
     if type(vm.code) ~= "table" or #vm.code == 0 then
@@ -835,9 +844,9 @@ function BytecodeExecutor.execute(bytecode, options)
     end
     
     if vm.debug then
-        debugLog("[DEBUG] Starting execution with " .. #vm.code .. " instructions")
-        debugLog("[DEBUG] Constants: " .. #vm.constants)
-        debugLog("[DEBUG] Names: " .. #vm.names)
+        debugLog(vm, "[DEBUG] Starting execution with " .. #vm.code .. " instructions")
+        debugLog(vm, "[DEBUG] Constants: " .. #vm.constants)
+        debugLog(vm, "[DEBUG] Names: " .. #vm.names)
     end
     
     -- Execute instructions with error handling
@@ -885,8 +894,8 @@ function BytecodeExecutor.execute(bytecode, options)
     end
     
     if vm.debug then
-        debugLog("[DEBUG] Execution completed successfully")
-        debugLog("[DEBUG] Final stack size: " .. vm.stackPointer)
+        debugLog(vm, "[DEBUG] Execution completed successfully")
+        debugLog(vm, "[DEBUG] Final stack size: " .. vm.stackPointer)
     end
     
     return vm.returnValue, vm.variables

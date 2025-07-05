@@ -1,6 +1,6 @@
 # PyLua Refactoring Plan: Introducing Bytecode
 
-This document outlines the steps to refactor PyLua from a direct source-to-execution model to a compile-to-bytecode and then execute-bytecode model. This change will be done in the PyLua0.2 folder inside src.
+This document outlines the steps to refactor PyLua from a direct source-to-execution model to a compile-to-bytecode and then execute-bytecode model. This change will be done in the PyLua folder inside src.
 
 ## ✅ Phase 1: Core Bytecode Implementation - COMPLETE
 

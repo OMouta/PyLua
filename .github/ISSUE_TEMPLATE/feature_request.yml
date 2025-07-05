@@ -1,0 +1,50 @@
+name: "Feature request"
+description: "Suggest an idea or improvement for PyLua (Python-in-Luau for Roblox)."
+title: "[FEATURE] <short description>"
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting a feature for **PyLua**!
+        Please provide as much detail as possible to help us understand your idea and how it fits into the project.
+  - type: input
+    id: feature-description
+    attributes:
+      label: "Feature description"
+      description: "Describe the feature or enhancement you'd like to see in PyLua. Be specific about the Python or Luau functionality, API, or user experience."
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: "Motivation / Use case"
+      description: |
+        Why is this feature important to you? What problem does it solve, or what new capability does it enable for PyLua users?
+    validations:
+      required: false
+  - type: checkboxes
+    id: area-of-impact
+    attributes:
+      label: "Area(s) of impact"
+      description: "Which part of PyLua would this feature affect?"
+      options:
+        - label: "Compiler (`src/PyLua/compiler/`)"
+        - label: "Virtual Machine (`src/PyLua/vm/`)"
+        - label: "Builtins/Core (`src/PyLua/core/`)"
+        - label: "API/Documentation"
+        - label: "Other (describe below)"
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: "Alternatives considered"
+      description: "Have you considered any alternative approaches or workarounds?"
+    validations:
+      required: false
+  - type: textarea
+    id: additional-info
+    attributes:
+      label: "Additional information"
+      description: "Any other context, code samples, or references. If 'Other' above, please describe."
+    validations:
+      required: false

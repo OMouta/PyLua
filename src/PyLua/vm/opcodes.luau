@@ -1,4 +1,4 @@
--- PyLua 0.2 Bytecode Opcodes
+-- PyLua Bytecode Opcodes
 -- Defines the instruction set for the PyLua virtual machine
 
 local Opcodes = {

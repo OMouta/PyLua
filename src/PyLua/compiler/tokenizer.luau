@@ -1,4 +1,4 @@
--- PyLua 0.2 Tokenizer
+-- PyLua Tokenizer
 -- Converts Python code into tokens for bytecode compilation
 -- Adapted from the original PyLua tokenizer for use with the bytecode system
 

@@ -1,13 +1,20 @@
--- PyLua 0.2 Bytecode Compiler
+-- PyLua Bytecode Compiler
 -- Compiles Python source code to PyLua bytecode
 -- This replaces the direct evaluation approach with bytecode generation
 
 local Compiler = {}
 local opcodes = require('../vm/opcodes')
 local tokenizer = require('./tokenizer')
+local types = require('../core/types')
+
+type CompilerState = types.CompilerState
+type Instruction = types.Instruction
+type Bytecode = types.Bytecode
+type TokenPosition = types.TokenPosition
+type Any = types.Any
 
 -- Compiler state
-local function createCompilerState()
+local function createCompilerState(): CompilerState
     return {
         constants = {},      -- Constants table
         names = {},          -- Variable/function names table
@@ -19,7 +26,7 @@ local function createCompilerState()
 end
 
 -- Add a constant to the constants table and return its index
-local function addConstant(state, value)
+local function addConstant(state: CompilerState, value: Any): number
     local key = tostring(value) .. "_" .. type(value)
     if state.constantsMap[key] then
         return state.constantsMap[key]
@@ -37,7 +44,7 @@ local function addConstant(state, value)
 end
 
 -- Add a name to the names table and return its index
-local function addName(state, name)
+local function addName(state: CompilerState, name: string): number
     if state.namesMap[name] then
         return state.namesMap[name]
     end
@@ -49,8 +56,8 @@ local function addName(state, name)
 end
 
 -- Emit a bytecode instruction
-local function emit(state, opcode, arg, line)
-    local instruction = {
+local function emit(state: CompilerState, opcode: string, arg: number?, line: number?): number
+    local instruction: Instruction = {
         op = opcode,
         arg = arg,
         line = line or state.lineNumber
@@ -60,49 +67,49 @@ local function emit(state, opcode, arg, line)
 end
 
 -- Parse a number literal
-local function parseNumber(token)
+local function parseNumber(token: string): number
     local num = tonumber(token)
     if num then
         return num
     end
-    error("Invalid number: " .. token)
+    error("Invalid number: " .. tostring(token))
 end
 
 -- Parse a string literal
-local function parseString(token)
+local function parseString(token: string): string
     -- Remove quotes and return the string content
     if (token:sub(1, 1) == "\"" and token:sub(-1, -1) == "\"") or
        (token:sub(1, 1) == "'" and token:sub(-1, -1) == "'") then
         return token:sub(2, -2)
     end
-    error("Invalid string: " .. token)
+    error("Invalid string: " .. tostring(token))
 end
 
 -- Check if a token is a number
-local function isNumber(token)
+local function isNumber(token: string): boolean
     return tonumber(token) ~= nil
 end
 
 -- Check if a token is a string literal
-local function isString(token)
+local function isString(token: string): boolean
     return (token:sub(1, 1) == "\"" and token:sub(-1, -1) == "\"") or
            (token:sub(1, 1) == "'" and token:sub(-1, -1) == "'")
 end
 
 -- Check if a token is an identifier
-local function isIdentifier(token)
+local function isIdentifier(token: string): boolean
     return token:match("^[a-zA-Z_][a-zA-Z0-9_]*$") ~= nil
 end
 
 -- Check if a token is a binary operator
-local function isBinaryOperator(token)
+local function isBinaryOperator(token: string): boolean
     return token == "+" or token == "-" or token == "*" or token == "/" or 
            token == "%" or token == "==" or token == "!=" or token == "<" or
            token == ">" or token == "<=" or token == ">="
 end
 
 -- Get operator precedence (higher number = higher precedence)
-local function getOperatorPrecedence(op)
+local function getOperatorPrecedence(op: string): number
     if op == "==" or op == "!=" or op == "<" or op == ">" or op == "<=" or op == ">=" then
         return 1
     elseif op == "+" or op == "-" then
@@ -114,7 +121,7 @@ local function getOperatorPrecedence(op)
 end
 
 -- Check if a line has unclosed delimiters (for multi-line statements)
-local function hasUnclosedDelimiters(tokens)
+local function hasUnclosedDelimiters(tokens: {string}): boolean
     local openParens = 0
     local openBrackets = 0
     local openBraces = 0
@@ -139,13 +146,13 @@ local function hasUnclosedDelimiters(tokens)
 end
 
 -- Collect multi-line statement tokens (for object literals spanning multiple lines)
-local function collectMultiLineStatement(lines, startLine)
-    local allTokens = {}
+local function collectMultiLineStatement(lines: {string}, startLine: number): ({string}, number)
+    local allTokens: {string} = {}
     local currentLine = startLine
     
     while currentLine <= #lines do
         local line = lines[currentLine]
-        local trimmed = line:match("^%s*(.-)%s*$")
+        local trimmed = line:match("^%s*(.-)%s*$") or ""
         
         if trimmed ~= "" and not trimmed:match("^#") then
             local lineTokens = tokenizer.tokenize(trimmed)
@@ -166,11 +173,11 @@ local function collectMultiLineStatement(lines, startLine)
 end
 
 -- Forward declarations
-local compileExpression
-local compileStatement
+local compileExpression: (CompilerState, {string}, TokenPosition) -> TokenPosition
+local compileStatement: (CompilerState, {string}, TokenPosition) -> TokenPosition
 
 -- Compile a primary expression (numbers, strings, identifiers, parenthesized expressions)
-local function compilePrimary(state, tokens, pos)
+local function compilePrimary(state: CompilerState, tokens: {string}, pos: TokenPosition): TokenPosition
     local token = tokens[pos]
     
     if not token then
@@ -349,7 +356,7 @@ local function compilePrimary(state, tokens, pos)
 end
 
 -- Compile a function call
-local function compileFunctionCall(state, tokens, pos)
+local function compileFunctionCall(state: CompilerState, tokens: {string}, pos: TokenPosition): TokenPosition
     -- The function name should already be loaded onto the stack
     
     if tokens[pos] ~= "(" then
@@ -384,7 +391,7 @@ local function compileFunctionCall(state, tokens, pos)
 end
 
 -- Compile a binary expression with operator precedence
-compileExpression = function(state, tokens, pos)
+compileExpression = function(state: CompilerState, tokens: {string}, pos: TokenPosition): TokenPosition
     -- Check bounds
     if pos > #tokens then
         error("Unexpected end of expression")
@@ -496,7 +503,7 @@ compileExpression = function(state, tokens, pos)
 end
 
 -- Compile an assignment statement
-local function compileAssignment(state, tokens, pos)
+local function compileAssignment(state: CompilerState, tokens: {string}, pos: TokenPosition): TokenPosition
     -- Parse the left-hand side to determine assignment type
     local startPos = pos
     
@@ -659,12 +666,19 @@ local function compileFunctionDefinition(state, tokens, pos)
     -- In a full implementation, we'd compile the function body as separate bytecode
     local nameIndex = addName(state, functionName)
     
+    -- Create a placeholder bytecode structure
+    local placeholderBytecode: Bytecode = {
+        constants = {},
+        names = {},
+        code = {}
+    }
+    
     -- Create MAKE_FUNCTION instruction with function details
-    local instruction = {
+    local instruction: Instruction = {
         op = opcodes.Opcodes.MAKE_FUNCTION,
         name = functionName,
         parameters = parameters,
-        bytecode = {}, -- Empty for now - will be filled by block compiler
+        bytecode = placeholderBytecode,
         defaults = {},
         closure = {},
         arg = nameIndex, -- Use nameIndex as the arg for consistency
@@ -678,9 +692,10 @@ local function compileFunctionDefinition(state, tokens, pos)
     return pos
 end
 
-compileFunctionDefinitionBlock = function(state, lines, startLine)
+compileFunctionDefinitionBlock = function(state: CompilerState, lines: {string}, startLine: number): number
     local line = lines[startLine]
-    local tokens = tokenizer.tokenize(line:match("^%s*(.-)%s*$"))
+    local trimmedLine = line:match("^%s*(.-)%s*$") or ""
+    local tokens = tokenizer.tokenize(trimmedLine)
     
     -- Parse the function definition header
     local pos = 1
@@ -740,8 +755,8 @@ compileFunctionDefinitionBlock = function(state, lines, startLine)
     
     while currentLine <= #lines do
         local blockLine = lines[currentLine]
-        local indent = blockLine:match("^(%s*)")
-        local trimmed = blockLine:match("^%s*(.-)%s*$")
+        local indent = blockLine:match("^(%s*)") or ""
+        local trimmed = blockLine:match("^%s*(.-)%s*$") or ""
         
         -- Skip empty lines
         if trimmed == "" then
@@ -821,14 +836,15 @@ compileFunctionDefinitionBlock = function(state, lines, startLine)
 end
 
 -- Compile an if/elif/else statement with blocks
-compileIfStatementBlock = function(state, lines, startLine)
+compileIfStatementBlock = function(state: CompilerState, lines: {string}, startLine: number): number
     local endJumps = {}  -- Jumps to the end of the entire if statement
     local currentLine = startLine
     local isFirstClause = true
     
     while currentLine <= #lines do
         local line = lines[currentLine]
-        local tokens = tokenizer.tokenize(line:match("^%s*(.-)%s*$"))
+        local trimmedLine = line:match("^%s*(.-)%s*$") or ""
+        local tokens = tokenizer.tokenize(trimmedLine)
         
         if #tokens == 0 then
             currentLine = currentLine + 1
@@ -867,8 +883,8 @@ compileIfStatementBlock = function(state, lines, startLine)
             
             while currentLine <= #lines do
                 local blockLine = lines[currentLine]
-                local indent = blockLine:match("^(%s*)")
-                local trimmed = blockLine:match("^%s*(.-)%s*$")
+                local indent = blockLine:match("^(%s*)") or ""
+                local trimmed = blockLine:match("^%s*(.-)%s*$") or ""
                 
                 -- Skip empty lines
                 if trimmed == "" then
@@ -877,7 +893,8 @@ compileIfStatementBlock = function(state, lines, startLine)
                     -- First indented line sets the base indentation
                     if not baseIndent then
                         baseIndent = #indent
-                    end                    -- If indentation matches the block level, compile this line
+                    end
+                    -- If indentation matches the block level, compile this line
                     if #indent >= baseIndent then
                         local blockTokens = tokenizer.tokenize(trimmed)
                         if #blockTokens > 0 then
@@ -928,7 +945,7 @@ compileIfStatementBlock = function(state, lines, startLine)
             if currentLine <= #lines then
                 local nextLine = lines[currentLine]
                 if nextLine then
-                    local nextTrimmed = nextLine:match("^%s*(.-)%s*$")
+                    local nextTrimmed = nextLine:match("^%s*(.-)%s*$") or ""
                     local nextTokens = tokenizer.tokenize(nextTrimmed)
                     if nextTokens[1] == "elif" or nextTokens[1] == "else" then
                         -- Continue with next clause
@@ -956,8 +973,8 @@ compileIfStatementBlock = function(state, lines, startLine)
             
             while currentLine <= #lines do
                 local blockLine = lines[currentLine]
-                local indent = blockLine:match("^(%s*)")
-                local trimmed = blockLine:match("^%s*(.-)%s*$")
+                local indent = blockLine:match("^(%s*)") or ""
+                local trimmed = blockLine:match("^%s*(.-)%s*$") or ""
                 
                 -- Skip empty lines
                 if trimmed == "" then
@@ -967,7 +984,7 @@ compileIfStatementBlock = function(state, lines, startLine)
                     if not baseIndent then
                         baseIndent = #indent
                     end
-                      -- If indentation matches the block level, compile this line
+                    -- If indentation matches the block level, compile this line
                     if #indent >= baseIndent then
                         local blockTokens = tokenizer.tokenize(trimmed)
                         if #blockTokens > 0 then
@@ -1016,9 +1033,10 @@ compileIfStatementBlock = function(state, lines, startLine)
 end
 
 -- Compile a while loop with a block of statements
-compileWhileLoopBlock = function(state, lines, startLine)
+compileWhileLoopBlock = function(state: CompilerState, lines: {string}, startLine: number): number
     local line = lines[startLine]
-    local tokens = tokenizer.tokenize(line:match("^%s*(.-)%s*$"))
+    local trimmedLine = line:match("^%s*(.-)%s*$") or ""
+    local tokens = tokenizer.tokenize(trimmedLine)
     
     -- Parse: while condition:
     if tokens[1] ~= "while" then
@@ -1057,8 +1075,8 @@ compileWhileLoopBlock = function(state, lines, startLine)
     
     while currentLine <= #lines do
         local blockLine = lines[currentLine]
-        local indent = blockLine:match("^(%s*)")
-        local trimmed = blockLine:match("^%s*(.-)%s*$")
+        local indent = blockLine:match("^(%s*)") or ""
+        local trimmed = blockLine:match("^%s*(.-)%s*$") or ""
         
         -- Skip empty lines
         if trimmed == "" then
@@ -1069,7 +1087,7 @@ compileWhileLoopBlock = function(state, lines, startLine)
             if not baseIndent then
                 baseIndent = #indent
             end
-              -- If indentation matches the block level, compile this line
+            -- If indentation matches the block level, compile this line
             if #indent >= baseIndent then
                 local blockTokens = tokenizer.tokenize(trimmed)
                 if #blockTokens > 0 then
@@ -1113,9 +1131,10 @@ compileWhileLoopBlock = function(state, lines, startLine)
 end
 
 -- Compile a for loop with a block of statements  
-compileForLoopBlock = function(state, lines, startLine)
+compileForLoopBlock = function(state: CompilerState, lines: {string}, startLine: number): number
     local line = lines[startLine]
-    local tokens = tokenizer.tokenize(line:match("^%s*(.-)%s*$"))
+    local trimmedLine = line:match("^%s*(.-)%s*$") or ""
+    local tokens = tokenizer.tokenize(trimmedLine)
     
     -- Parse: for var in iterable:
     if tokens[1] ~= "for" then
@@ -1168,8 +1187,8 @@ compileForLoopBlock = function(state, lines, startLine)
     
     while currentLine <= #lines do
         local blockLine = lines[currentLine]
-        local indent = blockLine:match("^(%s*)")
-        local trimmed = blockLine:match("^%s*(.-)%s*$")
+        local indent = blockLine:match("^(%s*)") or ""
+        local trimmed = blockLine:match("^%s*(.-)%s*$") or ""
         
         -- Skip empty lines
         if trimmed == "" then
@@ -1282,7 +1301,7 @@ local function compileForLoop(state, tokens, pos)
 end
 
 -- Compile a single statement
-compileStatement = function(state, tokens, pos)    if not tokens[pos] then
+compileStatement = function(state: CompilerState, tokens: {string}, pos: TokenPosition): TokenPosition    if not tokens[pos] then
         return pos
     end
       -- Check for control flow statements
@@ -1327,11 +1346,11 @@ compileStatement = function(state, tokens, pos)    if not tokens[pos] then
 end
 
 -- Main compilation function
-function Compiler.compile(sourceCode)
+function Compiler.compile(sourceCode: string): Bytecode
     local state = createCompilerState()
     
     -- Split source code into lines
-    local lines = {}
+    local lines: {string} = {}
     for line in sourceCode:gmatch("[^\r\n]+") do
         table.insert(lines, line)
     end
@@ -1339,7 +1358,7 @@ function Compiler.compile(sourceCode)
     while i <= #lines do
         state.lineNumber = i
         local line = lines[i]
-        local trimmed = line:match("^%s*(.-)%s*$")
+        local trimmed = line:match("^%s*(.-)%s*$") or ""
         
         if trimmed ~= "" and not trimmed:match("^#") then  -- Skip empty lines and comments
             local tokens = tokenizer.tokenize(trimmed)
@@ -1375,12 +1394,13 @@ function Compiler.compile(sourceCode)
     end
     
     -- Return the bytecode structure
-    return {
+    local result: Bytecode = {
         constants = state.constants,
         names = state.names,
         code = state.code,
         sourceLines = lines  -- For debugging
     }
+    return result
 end
 
 return Compiler
