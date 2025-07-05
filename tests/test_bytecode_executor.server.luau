@@ -1,4 +1,4 @@
--- Test script for PyLua 0.2 Bytecode Executor
+-- Test script for PyLua Bytecode Executor
 -- This script tests the bytecode executor with hand-crafted bytecode
 
 local BytecodeExecutor = require('../src/PyLua/vm/bytecode_executor')

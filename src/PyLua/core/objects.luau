@@ -1,4 +1,4 @@
--- PyLua 0.2 Object System
+-- PyLua Object System
 -- Handles Python-specific data types and objects that don't map directly to Lua types
 
 local Objects = {}

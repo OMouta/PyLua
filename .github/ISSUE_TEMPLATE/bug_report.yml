@@ -1,0 +1,64 @@
+name: "Bug report"
+description: "Report a bug in PyLua (Python-in-Luau for Roblox) to help us improve."
+title: "[BUG] <short description>"
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for taking the time to report a bug in **PyLua**!
+        Please provide as much detail as possible so we can reproduce and fix the issue.
+  - type: input
+    id: what-happened
+    attributes:
+      label: "What happened?"
+      description: "Describe the bug in detail. Include any error messages, stack traces, or unexpected behavior."
+    validations:
+      required: true
+  - type: input
+    id: expected-behavior
+    attributes:
+      label: "Expected behavior"
+      description: "What did you expect PyLua to do?"
+    validations:
+      required: true
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: "Steps to reproduce"
+      description: |
+        How can we reproduce the bug? Please provide a minimal Python code sample and describe how you ran it in PyLua (e.g. via `python.execute`, `python.compile`, or test file). Example:
+        1. Python code used
+        2. Luau code or test file used
+        3. Output or error seen
+      placeholder: |
+        1. Python code: ...
+        2. Luau code: ...
+        3. See error: ...
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: "Environment"
+      description: "Roblox version, OS, PyLua version/commit, and any relevant configuration."
+    validations:
+      required: false
+  - type: checkboxes
+    id: affected-area
+    attributes:
+      label: "Affected area(s)"
+      description: "Which part of PyLua is affected?"
+      options:
+        - label: "Compiler (`src/PyLua/compiler/`)"
+        - label: "Virtual Machine (`src/PyLua/vm/`)"
+        - label: "Builtins/Core (`src/PyLua/core/`)"
+        - label: "API/Documentation"
+        - label: "Other (describe below)"
+  - type: textarea
+    id: additional-info
+    attributes:
+      label: "Additional information"
+      description: "Any other context, screenshots, or notes. If 'Other' above, please describe."
+    validations:
+      required: false

@@ -1,4 +1,4 @@
--- PyLua 0.2 Main API
+-- PyLua Main API
 -- Public interface for the PyLua bytecode system
 
 local Python = {}
@@ -39,6 +39,6 @@ end
 
 -- Export version information
 Python.version = "0.2.1"
-Python.description = "PyLua 0.2 - The Python compiler for luau"
+Python.description = "PyLua - The Python compiler for luau"
 
 return Python

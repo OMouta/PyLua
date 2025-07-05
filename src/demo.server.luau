@@ -1,8 +1,8 @@
 local python = require('../src/PyLua/python')
 
 python.execute([[
-# PyLua 0.2 Comprehensive Feature Showcase
-print("Welcome to PyLua 0.2 - Python in Roblox!")
+# PyLua Comprehensive Feature Showcase
+print("Welcome to PyLua - Python in Roblox!")
 print()
 
 # ===== BASIC VARIABLES AND TYPES =====
@@ -224,5 +224,5 @@ for student in students:
     
     print()
 
-print("🎉 PyLua 0.2 Demo Complete!")
+print("🎉 PyLua Demo Complete!")
 ]])
