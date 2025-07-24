@@ -1,0 +1,27 @@
+{
+  "name": "OMouta/PyLua",
+  "version": "0.2.2",
+  "description": "A Roblox project managed with Jelly",
+  "license": "MIT",
+  "authors": [
+    "OMouta"
+  ],
+  "realm": "shared",
+  "include": [
+    "README.md",
+    "src/**",
+    "default.project.json",
+    "jelly.json"
+  ],
+  "exclude": [],
+  "dependencies": {},
+  "devDependencies": {},
+  "scripts": {
+    "build": "rojo build default.project.json --output build/PyLua.rbxm"
+  },
+  "jelly": {
+    "cleanup": true,
+    "optimize": true,
+    "packagesPath": "Packages"
+  }
+}

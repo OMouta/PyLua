@@ -153,6 +153,17 @@ builtins["True"] = true
 builtins["False"] = false
 builtins["None"] = "__PYLUA_NIL__"  -- Use placeholder for None since Lua tables can't store nil
 
+-- Recursion limit functions (simplified sys module functions)
+builtins["getrecursionlimit"] = function()
+    -- Note: This requires VM context, will be bound at runtime
+    error("getrecursionlimit() requires VM context - this should be bound at runtime")
+end
+
+builtins["setrecursionlimit"] = function(limit)
+    -- Note: This requires VM context, will be bound at runtime
+    error("setrecursionlimit() requires VM context - this should be bound at runtime")
+end
+
 -- Public API
 function Builtins.getBuiltins()
     return builtins

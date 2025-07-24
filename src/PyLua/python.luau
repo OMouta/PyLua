@@ -28,6 +28,8 @@ end
 
 -- Compile and execute Python source code in one step
 function Python.execute(sourceString, options)
+    options = options or {}
+
     local bytecode = Python.compile(sourceString)
     return Python.runBytecode(bytecode, options)
 end
@@ -38,7 +40,7 @@ function Python.getVariable(variables, name)
 end
 
 -- Export version information
-Python.version = "0.2.1"
+Python.version = "0.2.2"
 Python.description = "PyLua - The Python compiler for luau"
 
 return Python

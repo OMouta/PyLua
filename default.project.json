@@ -1,18 +1,6 @@
 {
   "name": "PyLua",
   "tree": {
-    "$className": "DataModel",
-
-    "ServerScriptService": {
-      "src": {
-        "$path": "src",
-        "$className": "Folder"
-      },
-
-      "tests": {
-        "$path": "tests",
-        "$className": "Folder"
-      }
-    }
+    "$path": "src/PyLua"
   }
 }

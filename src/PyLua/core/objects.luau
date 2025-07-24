@@ -17,7 +17,7 @@ local ObjectTypes = {
 }
 
 -- Base PyObject structure
-local function createPyObject(objectType, value, methods)
+local function createPyObject(objectType: string, value: any, methods: any): any
     return {
         __type = objectType,
         __value = value or {},
@@ -46,7 +46,7 @@ listMethods.extend = function(self, iterable)
     return Objects.createNone()
 end
 
-listMethods.insert = function(self, index, item)
+listMethods.insert = function(self, index: number, item)
     -- Python uses 0-based indexing, Lua uses 1-based
     table.insert(self.__value, index + 1, item)
     return Objects.createNone()
@@ -62,7 +62,7 @@ listMethods.remove = function(self, item)
     error("list.remove(x): x not in list")
 end
 
-listMethods.pop = function(self, index)
+listMethods.pop = function(self, index: number?)
     local idx = index and (index + 1) or #self.__value  -- Default to last item
     if idx < 1 or idx > #self.__value then
         error("pop index out of range")
@@ -89,9 +89,9 @@ listMethods.count = function(self, item)
     return count
 end
 
-listMethods.sort = function(self, reverse)
+listMethods.sort = function(self, reverse: boolean?)
     if reverse then
-        table.sort(self.__value, function(a, b) return a > b end)
+        table.sort(self.__value, function(a: any, b: any) return a > b end)
     else
         table.sort(self.__value)
     end
@@ -107,7 +107,7 @@ listMethods.reverse = function(self)
     return Objects.createNone()
 end
 
-function Objects.createList(items)
+function Objects.createList(items: {any}?)
     items = items or {}
     return createPyObject(ObjectTypes.LIST, items, listMethods)
 end
@@ -134,7 +134,7 @@ tupleMethods.count = function(self, item)
     return count
 end
 
-function Objects.createTuple(items)
+function Objects.createTuple(items: {any}?)
     items = items or {}
     local tuple = createPyObject(ObjectTypes.TUPLE, items, tupleMethods)
     -- Tuples are immutable, so we make the value read-only
@@ -196,7 +196,7 @@ dictMethods.update = function(self, other)
     return Objects.createNone()
 end
 
-function Objects.createDict(items)
+function Objects.createDict(items: {[any]: any}?)
     items = items or {}
     return createPyObject(ObjectTypes.DICT, items, dictMethods)
 end
@@ -248,7 +248,7 @@ setMethods.intersection = function(self, other)
     return Objects.createSet(result)
 end
 
-function Objects.createSet(items)
+function Objects.createSet(items: {any}?)
     items = items or {}
     return createPyObject(ObjectTypes.SET, items, setMethods)
 end
@@ -259,7 +259,7 @@ function Objects.createNone()
 end
 
 -- === FUNCTION TYPE ===
-function Objects.createFunction(name, parameters, bytecode, defaults, closure)
+function Objects.createFunction(name: string, parameters: {string}, bytecode: {any}, defaults: {any}?, closure: {[string]: any}?)
     local functionValue = {
         name = name or "<anonymous>",
         parameters = parameters or {},
@@ -282,7 +282,7 @@ end
 -- === UTILITY FUNCTIONS ===
 
 -- Convert Python object to Lua representation for operations
-function Objects.toPython(value)
+function Objects.toPython(value: any)
     if type(value) == "table" and value.__type then
         return value  -- Already a Python object
     elseif type(value) == "table" then
@@ -294,7 +294,7 @@ function Objects.toPython(value)
 end
 
 -- Convert Python object to Lua for native operations
-function Objects.toLua(pyObject)
+function Objects.toLua(pyObject: any)
     if type(pyObject) == "table" and pyObject.__type then
         if pyObject.__type == ObjectTypes.LIST or pyObject.__type == ObjectTypes.TUPLE then
             return pyObject.__value
@@ -311,7 +311,7 @@ function Objects.toLua(pyObject)
 end
 
 -- Get the length of a Python object
-function Objects.getLength(pyObject)
+function Objects.getLength(pyObject: any)
     if type(pyObject) == "table" and pyObject.__type then
         if pyObject.__type == ObjectTypes.LIST or pyObject.__type == ObjectTypes.TUPLE then
             return #pyObject.__value
@@ -334,7 +334,7 @@ function Objects.getLength(pyObject)
 end
 
 -- Get an item from a Python object (indexing)
-function Objects.getItem(pyObject, index)
+function Objects.getItem(pyObject: any, index: any)
     if type(pyObject) == "table" and pyObject.__type then
         if pyObject.__type == ObjectTypes.LIST or pyObject.__type == ObjectTypes.TUPLE then
             local luaIndex = index + 1  -- Convert to 1-based indexing
@@ -363,7 +363,7 @@ function Objects.getItem(pyObject, index)
 end
 
 -- Set an item in a Python object
-function Objects.setItem(pyObject, index, value)
+function Objects.setItem(pyObject: any, index: number, value)
     if type(pyObject) == "table" and pyObject.__type then
         if pyObject.__type == ObjectTypes.LIST then
             local luaIndex = index + 1
@@ -384,7 +384,7 @@ function Objects.setItem(pyObject, index, value)
 end
 
 -- Call a method on a Python object
-function Objects.callMethod(pyObject, methodName, args)
+function Objects.callMethod(pyObject, methodName: string, args)
     if type(pyObject) == "table" and pyObject.__type and pyObject.__methods[methodName] then
         return pyObject.__methods[methodName](pyObject, table.unpack(args or {}))
     else
@@ -448,12 +448,12 @@ function Objects.createIterator(pyObject)
         for i = 1, string.len(pyObject) do
             table.insert(chars, string.sub(pyObject, i, i))
         end
-        return {
+        return ({
             type = "sequence",
             data = chars,
             index = 1, 
             length = #chars
-        }
+        } :: any)
     elseif type(pyObject) == "table" then
         -- Plain Lua table, treat as list
         return {
@@ -466,6 +466,54 @@ function Objects.createIterator(pyObject)
     
     -- Fallback return - this should never be reached due to the isIterable check above
     error("Unable to create iterator for object of type '" .. (pyObject.__type or type(pyObject)) .. "'")
+end
+
+-- === MODULE TYPE ===
+function Objects.createModule(name, attributes)
+    local moduleValue = {
+        name = name or "module",
+        __dict = attributes or {}
+    }
+    
+    local moduleMethods = {}
+    
+    -- Module string representation
+    moduleMethods.__tostring = function(self)
+        return "<module '" .. moduleValue.name .. "'>"
+    end
+    
+    local moduleObj = createPyObject(ObjectTypes.MODULE, moduleValue, moduleMethods)
+    
+    -- Copy attributes to the module's __dict for attribute access
+    for key, value in pairs(moduleValue.__dict) do
+        moduleObj.__dict[key] = value
+    end
+    
+    return moduleObj
+end
+
+-- Create sys module with VM context binding
+function Objects.createSysModule(vm)
+    local sysAttributes = {
+        getrecursionlimit = function()
+            return vm.maxCallDepth
+        end,
+        
+        setrecursionlimit = function(limit)
+            if type(limit) ~= "number" or limit < 1 then
+                error("recursion limit must be a positive integer")
+            end
+            vm.maxCallDepth = limit
+            return nil -- Python returns None
+        end,
+        
+        -- Python sys module also has other attributes
+        version = "0.2.2",
+        platform = "luau",
+        maxsize = 92233720368547, -- sys.maxsize equivalent
+    }
+    
+    return Objects.createModule("sys", sysAttributes)
 end
 
 -- Export object types for external use

@@ -38,6 +38,10 @@ export type VM = {
     builtins: {[string]: Any},  -- Built-in functions from core module
     returnValue: Any,     -- Last return value
     
+    -- Recursion tracking
+    callDepth: number,    -- Current function call depth
+    maxCallDepth: number, -- Maximum allowed call depth (recursion limit)
+    
     -- Error handling and debugging
     sourceLines: {string}, -- Original source code lines for error reporting
     debug: boolean        -- Debug mode flag
