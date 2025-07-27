@@ -48,6 +48,8 @@ ControlFlow.setCompileFunctions(compileStatement, compileExpression)
 
 -- Main compilation function for multi-line blocks
 local function compileLines(state: CompilerState, lines: {string}): CompilerState
+    -- Store source lines in state for error reporting
+    state.sourceLines = lines
     local i = 1
     while i <= #lines do
         state.lineNumber = i

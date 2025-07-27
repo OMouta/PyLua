@@ -13,7 +13,10 @@
     "default.project.json",
     "jelly.json"
   ],
-  "exclude": [],
+  "exclude": [
+    "tests/**",
+    "build/**"
+  ],
   "dependencies": {},
   "devDependencies": {},
   "scripts": {

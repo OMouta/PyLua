@@ -5,23 +5,33 @@ local tokenizer = require('../tokenizer')
 
 local Utils = {}
 
+-- Enhanced error reporting for utils - optional state parameter for better errors
+local function createUtilError(message: string, state: any?): string
+    if state and state.lineNumber and state.sourceLines then
+        local line = state.sourceLines[state.lineNumber] or ""
+        return string.format("CompilerError: %s\n  at line %d: %s", message, state.lineNumber, line)
+    else
+        return string.format("CompilerError: %s", message)
+    end
+end
+
 -- Parse a number literal
-function Utils.parseNumber(token: string): number
+function Utils.parseNumber(token: string, state: any?): number
     local num = tonumber(token)
     if num then
         return num
     end
-    error("Invalid number: " .. tostring(token))
+    error(createUtilError("Invalid number: " .. tostring(token), state))
 end
 
 -- Parse a string literal
-function Utils.parseString(token: string): string
+function Utils.parseString(token: string, state: any?): string
     -- Remove quotes and return the string content
     if (token:sub(1, 1) == "\"" and token:sub(-1, -1) == "\"") or
        (token:sub(1, 1) == "'" and token:sub(-1, -1) == "'") then
         return token:sub(2, -2)
     end
-    error("Invalid string: " .. tostring(token))
+    error(createUtilError("Invalid string: " .. tostring(token), state))
 end
 
 -- Check if a token is a number

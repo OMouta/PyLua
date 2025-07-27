@@ -6,6 +6,7 @@ local opcodes = require('../../vm/opcodes')
 local tokenizer = require('../tokenizer')
 local State = require('./state')
 local _Utils = require('./utils')
+local ErrorUtils = require('./error_utils')
 
 type CompilerState = types.CompilerState
 
@@ -48,11 +49,11 @@ function ControlFlow.compileIfStatementBlock(state: CompilerState, lines: {strin
             end
             
             if pos > #tokens or tokens[pos] ~= ":" then
-                error("Expected ':' after " .. keyword .. " condition")
+                ErrorUtils.expectedTokenError(state, "':'", tokens[pos], state.sourceLines)
             end
             
             if #conditionTokens == 0 then
-                error(keyword .. " statement must have a condition")
+                ErrorUtils.throwCompilerError(state, "SyntaxError", keyword .. " statement must have a condition", "Add a condition expression", "While parsing " .. keyword .. " statement")
             end
             
             -- Compile the condition expression
@@ -161,7 +162,7 @@ function ControlFlow.compileIfStatementBlock(state: CompilerState, lines: {strin
         elseif keyword == "else" then
             -- Parse: else:
             if #tokens < 2 or tokens[2] ~= ":" then
-                error("Expected ':' after else")
+                ErrorUtils.expectedTokenError(state, "':'", tokens[2], state.sourceLines)
             end
             
             -- Compile the else block (similar to if block)
@@ -251,7 +252,7 @@ function ControlFlow.compileWhileLoopBlock(state: CompilerState, lines: {string}
     
     -- Parse: while condition:
     if tokens[1] ~= "while" then
-        error("Expected 'while' keyword")
+        ErrorUtils.expectedTokenError(state, "'while'", tokens[1], state.sourceLines)
     end
     
     -- Parse the condition expression (everything until ':')
@@ -263,11 +264,11 @@ function ControlFlow.compileWhileLoopBlock(state: CompilerState, lines: {string}
     end
     
     if tokens[pos] ~= ":" then
-        error("Expected ':' after while condition")
+        ErrorUtils.expectedTokenError(state, "':'", tokens[pos], state.sourceLines)
     end
     
     if #conditionTokens == 0 then
-        error("While loop must have a condition")
+        ErrorUtils.throwCompilerError(state, "SyntaxError", "While loop must have a condition", "Add a condition expression", "While parsing while statement")
     end
     
     -- Mark the loop start position (where we'll jump back to)
@@ -362,18 +363,18 @@ function ControlFlow.compileForLoopBlock(state: CompilerState, lines: {string}, 
     
     -- Parse: for var in iterable:
     if tokens[1] ~= "for" then
-        error("Expected 'for' keyword")
+        ErrorUtils.expectedTokenError(state, "'for'", tokens[1], state.sourceLines)
     end
     
     -- Get the loop variable name
     local loopVar = tokens[2]
     if not loopVar then
-        error("Expected variable name after 'for'")
+        ErrorUtils.expectedTokenError(state, "identifier", nil, state.sourceLines)
     end
     
     -- Expect 'in'
     if tokens[3] ~= "in" then
-        error("Expected 'in' after loop variable")
+        ErrorUtils.expectedTokenError(state, "'in'", tokens[3], state.sourceLines)
     end
     
     -- Parse the iterable expression (rest of the tokens until ':')
@@ -385,7 +386,7 @@ function ControlFlow.compileForLoopBlock(state: CompilerState, lines: {string}, 
     end
     
     if tokens[pos] ~= ":" then
-        error("Expected ':' after for loop expression")
+        ErrorUtils.expectedTokenError(state, "':'", tokens[pos], state.sourceLines)
     end
     
     -- Compile the iterable expression
