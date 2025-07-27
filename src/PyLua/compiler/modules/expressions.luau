@@ -5,6 +5,7 @@ local types = require('../../core/types')
 local opcodes = require('../../vm/opcodes')
 local State = require('./state')
 local Utils = require('./utils')
+local ErrorUtils = require('./error_utils')
 
 type CompilerState = types.CompilerState
 type TokenPosition = types.TokenPosition
@@ -19,18 +20,18 @@ function Expressions.compilePrimary(state: CompilerState, tokens: {string}, pos:
     local token = tokens[pos]
     
     if not token then
-        error("Unexpected end of expression")
+        ErrorUtils.throwCompilerError(state, "SyntaxError", "Unexpected end of expression", "Check that all expressions are complete", "While parsing primary expression")
     end
     
     if Utils.isNumber(token) then
         -- Number literal
-        local value = Utils.parseNumber(token)
+        local value = Utils.parseNumber(token, state)
         local constIndex = State.addConstant(state, value)
         State.emit(state, opcodes.Opcodes.LOAD_CONST, constIndex)
         return pos + 1
     elseif Utils.isString(token) then
         -- String literal
-        local value = Utils.parseString(token)
+        local value = Utils.parseString(token, state)
         local constIndex = State.addConstant(state, value)
         State.emit(state, opcodes.Opcodes.LOAD_CONST, constIndex)
         return pos + 1
@@ -80,12 +81,12 @@ function Expressions.compilePrimary(state: CompilerState, tokens: {string}, pos:
                 if tokens[pos] == "," then
                     pos = pos + 1
                 elseif tokens[pos] ~= ")" then
-                    error("Expected ',' or ')' in tuple")
+                    ErrorUtils.expectedTokenError(state, "',' or ')'", tokens[pos], state.sourceLines)
                 end
             end
             
             if tokens[pos] ~= ")" then
-                error("Expected ')' after tuple")
+                ErrorUtils.expectedTokenError(state, "')'", tokens[pos], state.sourceLines)
             end
             
             State.emit(state, opcodes.Opcodes.BUILD_TUPLE, elementCount)
@@ -93,7 +94,7 @@ function Expressions.compilePrimary(state: CompilerState, tokens: {string}, pos:
         else
             -- Just a parenthesized expression
             if tokens[pos] ~= ")" then
-                error("Expected ')' after expression")
+                ErrorUtils.expectedTokenError(state, "')'", tokens[pos], state.sourceLines)
             end
             return pos + 1
         end
@@ -116,12 +117,12 @@ function Expressions.compilePrimary(state: CompilerState, tokens: {string}, pos:
             if tokens[pos] == "," then
                 pos = pos + 1
             elseif tokens[pos] ~= "]" then
-                error("Expected ',' or ']' in list")
+                ErrorUtils.expectedTokenError(state, "',' or ']'", tokens[pos], state.sourceLines)
             end
         end
         
         if tokens[pos] ~= "]" then
-            error("Expected ']' after list")
+            ErrorUtils.expectedTokenError(state, "']'", tokens[pos], state.sourceLines)
         end
         
         State.emit(state, opcodes.Opcodes.BUILD_LIST, elementCount)
@@ -153,7 +154,7 @@ function Expressions.compilePrimary(state: CompilerState, tokens: {string}, pos:
                 end
                 pos = compileExpression(state, tokens, pos)  -- key
                 if pos > #tokens or tokens[pos] ~= ":" then
-                    error("Expected ':' after dictionary key")
+                    ErrorUtils.expectedTokenError(state, "':'", tokens[pos], state.sourceLines)
                 end
                 pos = pos + 1  -- skip ':'
                 pos = compileExpression(state, tokens, pos)  -- value
@@ -161,7 +162,7 @@ function Expressions.compilePrimary(state: CompilerState, tokens: {string}, pos:
             end
             
             if pos > #tokens or tokens[pos] ~= "}" then
-                error("Expected '}' after dictionary")
+                ErrorUtils.expectedTokenError(state, "'}'", tokens[pos], state.sourceLines)
             end
             
             State.emit(state, opcodes.Opcodes.BUILD_DICT, pairCount)
@@ -181,14 +182,15 @@ function Expressions.compilePrimary(state: CompilerState, tokens: {string}, pos:
             end
             
             if pos > #tokens or tokens[pos] ~= "}" then
-                error("Expected '}' after set")
+                ErrorUtils.expectedTokenError(state, "'}'", tokens[pos], state.sourceLines)
             end
             
             State.emit(state, opcodes.Opcodes.BUILD_SET, elementCount)
             return pos + 1
         end
     else
-        error("Unexpected token in expression: " .. token)
+        ErrorUtils.unexpectedTokenError(state, token, state.sourceLines)
+        return pos -- This line will never execute but satisfies the type checker
     end
 end
 
@@ -197,7 +199,7 @@ function Expressions.compileFunctionCall(state: CompilerState, tokens: {string},
     -- The function name should already be loaded onto the stack
     
     if tokens[pos] ~= "(" then
-        error("Expected '(' for function call")
+        ErrorUtils.expectedTokenError(state, "'('", tokens[pos], state.sourceLines)
     end
     pos = pos + 1
     
@@ -207,7 +209,7 @@ function Expressions.compileFunctionCall(state: CompilerState, tokens: {string},
     while tokens[pos] and tokens[pos] ~= ")" do
         if argCount > 0 then
             if tokens[pos] ~= "," then
-                error("Expected ',' between function arguments")
+                ErrorUtils.expectedTokenError(state, "','", tokens[pos], state.sourceLines)
             end
             pos = pos + 1
         end
@@ -217,7 +219,7 @@ function Expressions.compileFunctionCall(state: CompilerState, tokens: {string},
     end
     
     if tokens[pos] ~= ")" then
-        error("Expected ')' after function arguments")
+        ErrorUtils.expectedTokenError(state, "')'", tokens[pos], state.sourceLines)
     end
     pos = pos + 1
     
@@ -231,7 +233,7 @@ end
 compileExpression = function(state: CompilerState, tokens: {string}, pos: TokenPosition): TokenPosition
     -- Check bounds
     if pos > #tokens then
-        error("Unexpected end of expression")
+        ErrorUtils.throwCompilerError(state, "SyntaxError", "Unexpected end of expression", "Check that all expressions are complete", "While parsing expression")
     end
     
     -- Parse the left operand
@@ -251,7 +253,7 @@ compileExpression = function(state: CompilerState, tokens: {string}, pos: TokenP
             
             -- Expect ']'
             if tokens[pos] ~= "]" then
-                error("Expected ']' after index expression")
+                ErrorUtils.expectedTokenError(state, "']'", tokens[pos], state.sourceLines)
             end
             pos = pos + 1  -- Skip ']'
             
@@ -262,7 +264,7 @@ compileExpression = function(state: CompilerState, tokens: {string}, pos: TokenP
             pos = pos + 1  -- Skip '.'
             
             if not tokens[pos] or not Utils.isIdentifier(tokens[pos]) then
-                error("Expected attribute name after '.'")
+                ErrorUtils.expectedTokenError(state, "identifier", tokens[pos], state.sourceLines)
             end
             
             local attrName = tokens[pos]
@@ -292,14 +294,14 @@ compileExpression = function(state: CompilerState, tokens: {string}, pos: TokenP
                 pos = pos + 1  -- Skip '['
                 pos = compileExpression(state, tokens, pos)
                 if tokens[pos] ~= "]" then
-                    error("Expected ']' after index expression")
+                    ErrorUtils.expectedTokenError(state, "']'", tokens[pos], state.sourceLines)
                 end
                 pos = pos + 1  -- Skip ']'
                 State.emit(state, opcodes.Opcodes.BINARY_SUBSCR)
             elseif tokens[pos] == "." then
                 pos = pos + 1  -- Skip '.'
                 if not tokens[pos] or not Utils.isIdentifier(tokens[pos]) then
-                    error("Expected attribute name after '.'")
+                    ErrorUtils.expectedTokenError(state, "identifier", tokens[pos], state.sourceLines)
                 end
                 local attrName = tokens[pos]
                 pos = pos + 1
@@ -334,7 +336,7 @@ compileExpression = function(state: CompilerState, tokens: {string}, pos: TokenP
         elseif operator == ">=" then
             State.emit(state, opcodes.Opcodes.COMPARE_GE)
         else
-            error("Unknown binary operator: " .. operator)
+            ErrorUtils.throwCompilerError(state, "SyntaxError", "Unknown binary operator: " .. operator, "Check the operator syntax", "While parsing binary expression")
         end
     end
     

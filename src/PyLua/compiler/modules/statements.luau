@@ -6,6 +6,7 @@ local opcodes = require('../../vm/opcodes')
 local State = require('./state')
 local Utils = require('./utils')
 local Expressions = require('./expressions')
+local ErrorUtils = require('./error_utils')
 
 type CompilerState = types.CompilerState
 type TokenPosition = types.TokenPosition
@@ -66,7 +67,7 @@ function Statements.compileAssignment(state: CompilerState, tokens: {string}, po
             
             -- Skip '['
             if tokens[pos] ~= "[" then
-                error("Expected '[' in indexing assignment")
+                ErrorUtils.expectedTokenError(state, "'['", tokens[pos], state.sourceLines)
             end
             pos = pos + 1
             
@@ -92,13 +93,13 @@ function Statements.compileAssignment(state: CompilerState, tokens: {string}, po
             
             -- Skip ']'
             if tokens[pos] ~= "]" then
-                error("Expected ']' in indexing assignment")
+                ErrorUtils.expectedTokenError(state, "']'", tokens[pos], state.sourceLines)
             end
             pos = pos + 1
             
             -- Skip '='
             if tokens[pos] ~= "=" then
-                error("Expected '=' in indexing assignment")
+                ErrorUtils.expectedTokenError(state, "'='", tokens[pos], state.sourceLines)
             end
             pos = pos + 1
             
@@ -110,7 +111,8 @@ function Statements.compileAssignment(state: CompilerState, tokens: {string}, po
             
             return pos
         else
-            error("Invalid assignment statement")
+            ErrorUtils.invalidAssignmentError(state, "Invalid assignment pattern detected", state.sourceLines)
+            return pos -- Ensure a return value for all code paths
         end
     end
 end
@@ -119,20 +121,20 @@ end
 function Statements.compileForLoop(state: CompilerState, tokens: {string}, pos: TokenPosition): TokenPosition
     -- for var in iterable:
     if tokens[pos] ~= "for" then
-        error("Expected 'for' keyword")
+        ErrorUtils.expectedTokenError(state, "'for'", tokens[pos], state.sourceLines)
     end
     pos = pos + 1
     
     -- Get the loop variable name
     local loopVar = tokens[pos]
     if not Utils.isIdentifier(loopVar) then
-        error("Expected variable name after 'for'")
+        ErrorUtils.expectedTokenError(state, "identifier", tokens[pos], state.sourceLines)
     end
     pos = pos + 1
     
     -- Expect 'in'
     if tokens[pos] ~= "in" then
-        error("Expected 'in' after loop variable")
+        ErrorUtils.expectedTokenError(state, "'in'", tokens[pos], state.sourceLines)
     end
     pos = pos + 1
     
@@ -141,7 +143,7 @@ function Statements.compileForLoop(state: CompilerState, tokens: {string}, pos: 
     
     -- Expect ':'
     if tokens[pos] ~= ":" then
-        error("Expected ':' after for loop expression")
+        ErrorUtils.expectedTokenError(state, "':'", tokens[pos], state.sourceLines)
     end
     pos = pos + 1
     

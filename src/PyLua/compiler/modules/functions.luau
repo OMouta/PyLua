@@ -6,6 +6,7 @@ local opcodes = require('../../vm/opcodes')
 local tokenizer = require('../tokenizer')
 local State = require('./state')
 local Utils = require('./utils')
+local ErrorUtils = require('./error_utils')
 
 type CompilerState = types.CompilerState
 type TokenPosition = types.TokenPosition
@@ -17,20 +18,20 @@ local Functions = {}
 function Functions.compileFunctionDefinition(state: CompilerState, tokens: {string}, pos: TokenPosition): TokenPosition
     -- def function_name(param1, param2, ...):
     if tokens[pos] ~= "def" then
-        error("Expected 'def' keyword")
+        ErrorUtils.expectedTokenError(state, "'def'", tokens[pos], state.sourceLines)
     end
     pos = pos + 1
     
     -- Get function name
     local functionName = tokens[pos]
     if not Utils.isIdentifier(functionName) then
-        error("Expected function name after 'def'")
+        ErrorUtils.expectedTokenError(state, "identifier", tokens[pos], state.sourceLines)
     end
     pos = pos + 1
     
     -- Expect '('
     if tokens[pos] ~= "(" then
-        error("Expected '(' after function name")
+        ErrorUtils.expectedTokenError(state, "'('", tokens[pos], state.sourceLines)
     end
     pos = pos + 1
     
@@ -39,13 +40,13 @@ function Functions.compileFunctionDefinition(state: CompilerState, tokens: {stri
     while tokens[pos] and tokens[pos] ~= ")" do
         if #parameters > 0 then
             if tokens[pos] ~= "," then
-                error("Expected ',' between function parameters")
+                ErrorUtils.expectedTokenError(state, "','", tokens[pos], state.sourceLines)
             end
             pos = pos + 1
         end
         
         if not Utils.isIdentifier(tokens[pos]) then
-            error("Expected parameter name")
+            ErrorUtils.expectedTokenError(state, "identifier", tokens[pos], state.sourceLines)
         end
         
         table.insert(parameters, tokens[pos])
@@ -54,13 +55,13 @@ function Functions.compileFunctionDefinition(state: CompilerState, tokens: {stri
     
     -- Expect ')'
     if tokens[pos] ~= ")" then
-        error("Expected ')' after function parameters")
+        ErrorUtils.expectedTokenError(state, "')'", tokens[pos], state.sourceLines)
     end
     pos = pos + 1
     
     -- Expect ':'
     if tokens[pos] ~= ":" then
-        error("Expected ':' after function signature")
+        ErrorUtils.expectedTokenError(state, "':'", tokens[pos], state.sourceLines)
     end
     pos = pos + 1
     
@@ -103,20 +104,20 @@ function Functions.compileFunctionDefinitionBlock(state: CompilerState, lines: {
     -- Parse the function definition header
     local pos = 1
     if tokens[pos] ~= "def" then
-        error("Expected 'def' keyword")
+        ErrorUtils.expectedTokenError(state, "'def'", tokens[pos], state.sourceLines)
     end
     pos = pos + 1
     
     -- Get function name
     local functionName = tokens[pos]
     if not Utils.isIdentifier(functionName) then
-        error("Expected function name after 'def'")
+        ErrorUtils.expectedTokenError(state, "identifier", tokens[pos], state.sourceLines)
     end
     pos = pos + 1
     
     -- Expect '('
     if tokens[pos] ~= "(" then
-        error("Expected '(' after function name")
+        ErrorUtils.expectedTokenError(state, "'('", tokens[pos], state.sourceLines)
     end
     pos = pos + 1
     
@@ -125,13 +126,13 @@ function Functions.compileFunctionDefinitionBlock(state: CompilerState, lines: {
     while tokens[pos] and tokens[pos] ~= ")" do
         if #parameters > 0 then
             if tokens[pos] ~= "," then
-                error("Expected ',' between function parameters")
+                ErrorUtils.expectedTokenError(state, "','", tokens[pos], state.sourceLines)
             end
             pos = pos + 1
         end
         
         if not Utils.isIdentifier(tokens[pos]) then
-            error("Expected parameter name")
+            ErrorUtils.expectedTokenError(state, "identifier", tokens[pos], state.sourceLines)
         end
         
         table.insert(parameters, tokens[pos])
@@ -140,13 +141,13 @@ function Functions.compileFunctionDefinitionBlock(state: CompilerState, lines: {
     
     -- Expect ')'
     if tokens[pos] ~= ")" then
-        error("Expected ')' after function parameters")
+        ErrorUtils.expectedTokenError(state, "')'", tokens[pos], state.sourceLines)
     end
     pos = pos + 1
     
     -- Expect ':'
     if tokens[pos] ~= ":" then
-        error("Expected ':' after function signature")
+        ErrorUtils.expectedTokenError(state, "':'", tokens[pos], state.sourceLines)
     end
     
     -- Create a new compiler state for the function body
