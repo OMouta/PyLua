@@ -6,29 +6,53 @@ local Tokenizer = {}
 
 -- Simple tokenizer for Python code
 function Tokenizer.tokenize(code)
-	-- First, remove comments
-	local cleanCode = ""
+	-- First, remove comments using table-based approach for better performance
+	local cleanParts = {}
 	local i = 1
+	local partStart = 1
+	
 	while i <= #code do
 		local char = code:sub(i, i)
 		if char == "#" then
+			-- Add the part before the comment
+			if i > partStart then
+				table.insert(cleanParts, code:sub(partStart, i - 1))
+			end
+			
 			-- Skip everything until end of line
 			while i <= #code and code:sub(i, i) ~= "\n" do
 				i = i + 1
 			end
+			
 			-- Add the newline if we found one
 			if i <= #code and code:sub(i, i) == "\n" then
-				cleanCode = cleanCode .. "\n"
+				table.insert(cleanParts, "\n")
+				i = i + 1
 			end
+			partStart = i
 		else
-			cleanCode = cleanCode .. char
+			i = i + 1
 		end
-		i = i + 1
 	end
 	
+	-- Add remaining part
+	if partStart <= #code then
+		table.insert(cleanParts, code:sub(partStart, #code))
+	end
+	
+	local cleanCode = table.concat(cleanParts)
 	local tokens = {}
 	local current = ""
 	i = 1
+	
+	-- Helper function to add current token and a new token
+	local function addTokens(newToken)
+		if current ~= "" then
+			table.insert(tokens, current)
+			current = ""
+		end
+		table.insert(tokens, newToken)
+	end
 	
 	while i <= #cleanCode do
 		local char = cleanCode:sub(i, i)
@@ -41,53 +65,25 @@ function Tokenizer.tokenize(code)
 			end
 		elseif char == "(" then
 			-- Opening parenthesis
-			if current ~= "" then
-				table.insert(tokens, current)
-				current = ""
-			end
-			table.insert(tokens, "(")
+			addTokens("(")
 		elseif char == ")" then
 			-- Closing parenthesis
-			if current ~= "" then
-				table.insert(tokens, current)
-				current = ""
-			end
-			table.insert(tokens, ")")
+			addTokens(")")
 		elseif char == "[" then
 			-- Opening bracket
-			if current ~= "" then
-				table.insert(tokens, current)
-				current = ""
-			end
-			table.insert(tokens, "[")
+			addTokens("[")
 		elseif char == "]" then
 			-- Closing bracket
-			if current ~= "" then
-				table.insert(tokens, current)
-				current = ""
-			end
-			table.insert(tokens, "]")
+			addTokens("]")
 		elseif char == "{" then
 			-- Opening brace
-			if current ~= "" then
-				table.insert(tokens, current)
-				current = ""
-			end
-			table.insert(tokens, "{")
+			addTokens("{")
 		elseif char == "}" then
 			-- Closing brace
-			if current ~= "" then
-				table.insert(tokens, current)
-				current = ""
-			end
-			table.insert(tokens, "}")
+			addTokens("}")
 		elseif char == "," then
 			-- Comma
-			if current ~= "" then
-				table.insert(tokens, current)
-				current = ""
-			end
-			table.insert(tokens, ",")
+			addTokens(",")
 		elseif char == "=" then
 			-- Assignment operator or equality
 			if current ~= "" then

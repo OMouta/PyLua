@@ -1,9 +1,9 @@
 -- PyLua Built-in Functions
 -- Standard library implementations for Python built-in functions
 
-local Builtins = {}
+local objects = require('./objects')
 
--- Built-in functions registry
+local Builtins = {}
 local builtins = {}
 
 -- print() function
@@ -46,25 +46,26 @@ builtins["range"] = function(...)
 end
 
 -- len() function
-builtins["len"] = function(obj) -- Changed from function(args)
-    -- if #args ~= 1 then -- Removed argument count check
-    --     error("len() takes exactly one argument")
-    -- end
-    -- local obj = args[1] -- Removed: obj is now the direct first parameter
-
-    if obj == nil then -- Added a basic check for nil
+builtins["len"] = function(obj)
+    if obj == nil then
         error("len() takes exactly one argument (received nil)")
     end
-    
-    -- Check if it's a Python object first
+
     if type(obj) == "table" and obj.__type then
-        -- Import objects module locally to avoid circular dependency
-        local objects = require(script.Parent.objects)
         return objects.getLength(obj)
     elseif type(obj) == "table" then
         return #obj
     elseif type(obj) == "string" then
-        return string.len(obj)
+        if utf8 and utf8.len then
+            local ok, length = pcall(utf8.len, obj)
+            if ok then
+                return length
+            else
+                error("invalid UTF-8 string")
+            end
+        else
+            return string.len(obj)
+        end
     else
         error("object of type '" .. type(obj) .. "' has no len()")
     end
@@ -152,17 +153,6 @@ end
 builtins["True"] = true
 builtins["False"] = false
 builtins["None"] = "__PYLUA_NIL__"  -- Use placeholder for None since Lua tables can't store nil
-
--- Recursion limit functions (simplified sys module functions)
-builtins["getrecursionlimit"] = function()
-    -- Note: This requires VM context, will be bound at runtime
-    error("getrecursionlimit() requires VM context - this should be bound at runtime")
-end
-
-builtins["setrecursionlimit"] = function(limit)
-    -- Note: This requires VM context, will be bound at runtime
-    error("setrecursionlimit() requires VM context - this should be bound at runtime")
-end
 
 -- Public API
 function Builtins.getBuiltins()

@@ -7,6 +7,11 @@ local Python = {}
 local compiler = require('./compiler/compiler')
 local bytecodeExecutor = require('./vm/bytecode_executor')
 
+local types = require('./core/types')
+type Bytecode = types.Bytecode
+type ExecutionOptions = types.ExecutionOptions
+type Any = types.Any
+
 -- Compile Python source code to bytecode
 function Python.compile(sourceString)
     if type(sourceString) ~= "string" then
@@ -17,19 +22,16 @@ function Python.compile(sourceString)
 end
 
 -- Execute bytecode and return the result
-function Python.runBytecode(bytecode, options)
+function Python.runBytecode(bytecode, options: ExecutionOptions)
     if type(bytecode) ~= "table" then
         error("Python.runBytecode() requires a bytecode table")
     end
     
-    options = options or {}
     return bytecodeExecutor.execute(bytecode, options)
 end
 
 -- Compile and execute Python source code in one step
-function Python.execute(sourceString, options)
-    options = options or {}
-
+function Python.execute(sourceString, options: ExecutionOptions)
     local bytecode = Python.compile(sourceString)
     return Python.runBytecode(bytecode, options)
 end

@@ -33,7 +33,9 @@ function ObjectOps.buildList(vm: VM, instruction: Instruction)
         array[i] = items[i]
     end
 
-    VMUtils.debugLog(vm, "BUILD_LIST with " .. count .. " items")
+    if vm.debug then
+        VMUtils.debugLog(vm, "BUILD_LIST with " .. count .. " items")
+    end
     local list = objects.createList(array)
     VMUtils.push(vm, list)
 end
@@ -54,7 +56,9 @@ function ObjectOps.buildDict(vm: VM, instruction: Instruction)
         items[key] = value
     end
     
-    VMUtils.debugLog(vm, "BUILD_DICT with " .. count .. " pairs")
+    if vm.debug then
+        VMUtils.debugLog(vm, "BUILD_DICT with " .. count .. " pairs")
+    end
     VMUtils.push(vm, objects.createDict(items))
 end
 
@@ -72,7 +76,9 @@ function ObjectOps.buildTuple(vm: VM, instruction: Instruction)
         items[i] = VMUtils.pop(vm)
     end
     
-    VMUtils.debugLog(vm, "BUILD_TUPLE with " .. count .. " items")
+    if vm.debug then
+        VMUtils.debugLog(vm, "BUILD_TUPLE with " .. count .. " items")
+    end
     VMUtils.push(vm, objects.createTuple(items))
 end
 
@@ -91,7 +97,9 @@ function ObjectOps.buildSet(vm: VM, instruction: Instruction)
         items[item_val] = true
     end
     
-    VMUtils.debugLog(vm, "BUILD_SET with " .. count .. " items")
+    if vm.debug then
+        VMUtils.debugLog(vm, "BUILD_SET with " .. count .. " items")
+    end
     VMUtils.push(vm, objects.createSet(items))
 end
 
@@ -100,7 +108,9 @@ function ObjectOps.binarySubscr(vm: VM, instruction: Instruction)
     local index = VMUtils.pop(vm)
     local obj = VMUtils.pop(vm)
     
-    VMUtils.debugLog(vm, "BINARY_SUBSCR: " .. tostring(obj) .. "[" .. tostring(index) .. "]")
+    if vm.debug then
+        VMUtils.debugLog(vm, "BINARY_SUBSCR: " .. tostring(obj) .. "[" .. tostring(index) .. "]")
+    end
     
     local success, result = pcall(objects.getItem, obj, index)
     if not success then
@@ -117,7 +127,9 @@ function ObjectOps.storeSubscr(vm: VM, instruction: Instruction)
     local index = VMUtils.pop(vm)  -- Middle: index/key
     local obj = VMUtils.pop(vm)    -- Bottom: object to assign to
     
-    VMUtils.debugLog(vm, "STORE_SUBSCR: " .. tostring(obj) .. "[" .. tostring(index) .. "] = " .. tostring(value))
+    if vm.debug then
+        VMUtils.debugLog(vm, "STORE_SUBSCR: " .. tostring(obj) .. "[" .. tostring(index) .. "] = " .. tostring(value))
+    end
     
     local success = pcall(objects.setItem, obj, index, value)
     if not success then
@@ -135,61 +147,87 @@ function ObjectOps.loadAttr(vm: VM, instruction: Instruction)
     local attrName = vm.names[nameIndex + 1]
     local obj = VMUtils.pop(vm) -- The object whose attribute is being accessed
 
-    VMUtils.debugLog(vm, string.format("[DEBUG LOAD_ATTR] Start. Object type: %s, Attr name: '%s'", type(obj), attrName))
+    if vm.debug then
+        VMUtils.debugLog(vm, string.format("[DEBUG LOAD_ATTR] Start. Object type: %s, Attr name: '%s'", type(obj), attrName))
+    end
     
     if type(obj) == "table" and obj.__type then -- Ensure obj.__type exists for PyObjects
-        VMUtils.debugLog(vm, string.format("[DEBUG LOAD_ATTR] Object is a table. obj.__type: %s", tostring(obj.__type)))
+        if vm.debug then
+            VMUtils.debugLog(vm, string.format("[DEBUG LOAD_ATTR] Object is a table. obj.__type: %s", tostring(obj.__type)))
+        end
 
         -- 1. Check for a method in __methods
         if obj.__methods and obj.__methods[attrName] then
-            VMUtils.debugLog(vm, string.format("[DEBUG LOAD_ATTR] Found '%s' in obj.__methods of '%s'. Type: %s", attrName, obj.__type, type(obj.__methods[attrName])))
+            if vm.debug then
+                VMUtils.debugLog(vm, string.format("[DEBUG LOAD_ATTR] Found '%s' in obj.__methods of '%s'. Type: %s", attrName, obj.__type, type(obj.__methods[attrName])))
+            end
             local method = obj.__methods[attrName]
             if type(method) == "function" then
                 local boundMethodClosure = function(...)
                     local actualArgsPassedToClosure = {...} -- Capture all arguments passed to the closure
-                    VMUtils.debugLog(vm, string.format("[DEBUG boundMethodClosure] Called for attr '%s' on obj type '%s'. Self type: %s. Args count: %d", attrName, obj.__type, type(obj), #actualArgsPassedToClosure))
-                    if #actualArgsPassedToClosure > 0 then
-                        for i, v_arg in ipairs(actualArgsPassedToClosure) do -- Renamed v to v_arg
-                            VMUtils.debugLog(vm, string.format("  arg %d: Type: %s, Value: %s", i, type(v_arg), tostring(v_arg)))
+                    if vm.debug then
+                        VMUtils.debugLog(vm, string.format("[DEBUG boundMethodClosure] Called for attr '%s' on obj type '%s'. Self type: %s. Args count: %d", attrName, obj.__type, type(obj), #actualArgsPassedToClosure))
+                        if #actualArgsPassedToClosure > 0 then
+                            for i, v_arg in ipairs(actualArgsPassedToClosure) do -- Renamed v to v_arg
+                                VMUtils.debugLog(vm, string.format("  arg %d: Type: %s, Value: %s", i, type(v_arg), tostring(v_arg)))
+                            end
                         end
                     end
                     -- Pass self (obj) and unpacked args to the actual method
                     return method(obj, table.unpack(actualArgsPassedToClosure))
                 end
                 VMUtils.push(vm, boundMethodClosure)
-                VMUtils.debugLog(vm, string.format("[DEBUG LOAD_ATTR] Pushed boundMethodClosure for method '%s' of '%s'. Returning.", attrName, obj.__type))
+                if vm.debug then
+                    VMUtils.debugLog(vm, string.format("[DEBUG LOAD_ATTR] Pushed boundMethodClosure for method '%s' of '%s'. Returning.", attrName, obj.__type))
+                end
                 return -- Successfully handled as a method
             else
                 -- Attribute found in __methods but is not a function.
-                VMUtils.debugLog(vm, string.format("[DEBUG LOAD_ATTR] Attribute '%s' in __methods of '%s' is not a function (type: %s). Falling through.", attrName, obj.__type, type(method)))
+                if vm.debug then
+                    VMUtils.debugLog(vm, string.format("[DEBUG LOAD_ATTR] Attribute '%s' in __methods of '%s' is not a function (type: %s). Falling through.", attrName, obj.__type, type(method)))
+                end
             end
         else
-            VMUtils.debugLog(vm, string.format("[DEBUG LOAD_ATTR] Attribute '%s' not found in __methods of '%s'.", attrName, obj.__type))
+            if vm.debug then
+                VMUtils.debugLog(vm, string.format("[DEBUG LOAD_ATTR] Attribute '%s' not found in __methods of '%s'.", attrName, obj.__type))
+            end
         end
 
         -- 2. Check for an item in __dict (relevant for PyDict data, or other object attributes)
         if obj.__dict and obj.__dict[attrName] then
-            VMUtils.debugLog(vm, string.format("[DEBUG LOAD_ATTR] Attribute '%s' found in __dict of '%s'. Pushing value. Returning.", attrName, obj.__type))
+            if vm.debug then
+                VMUtils.debugLog(vm, string.format("[DEBUG LOAD_ATTR] Attribute '%s' found in __dict of '%s'. Pushing value. Returning.", attrName, obj.__type))
+            end
             VMUtils.push(vm, obj.__dict[attrName])
             return -- Successfully handled as a direct attribute or dict item
         else
-             VMUtils.debugLog(vm, string.format("[DEBUG LOAD_ATTR] Attribute '%s' not found in __dict of '%s'.", attrName, obj.__type))
+            if vm.debug then
+                VMUtils.debugLog(vm, string.format("[DEBUG LOAD_ATTR] Attribute '%s' not found in __dict of '%s'.", attrName, obj.__type))
+            end
         end
 
     elseif type(obj) == "table" then -- Generic Lua table, not a PyObject (obj.__type is nil)
         if obj[attrName] ~= nil then
-            VMUtils.debugLog(vm, string.format("[DEBUG LOAD_ATTR] Attribute '%s' found in generic Lua table. Pushing value. Returning.", attrName))
+            if vm.debug then
+                VMUtils.debugLog(vm, string.format("[DEBUG LOAD_ATTR] Attribute '%s' found in generic Lua table. Pushing value. Returning.", attrName))
+            end
             VMUtils.push(vm, obj[attrName])
             return
         end
-        VMUtils.debugLog(vm, string.format("[DEBUG LOAD_ATTR] Object is a generic Lua table (no __type), attribute '%s' not found.", attrName))
+        if vm.debug then
+            VMUtils.debugLog(vm, string.format("[DEBUG LOAD_ATTR] Object is a generic Lua table (no __type), attribute '%s' not found.", attrName))
+        end
 
     else -- Object is not a table
-        VMUtils.debugLog(vm, string.format("[DEBUG LOAD_ATTR] Object is not a table (type: %s). Cannot get attribute '%s'.", type(obj), attrName))
+        if vm.debug then
+            VMUtils.debugLog(vm, string.format("[DEBUG LOAD_ATTR] Object is not a table (type: %s). Cannot get attribute '%s'.", type(obj), attrName))
+        end
     end
 
     -- If we reach here, the attribute was not found or not handled appropriately
-    VMUtils.debugLog(vm, string.format("[DEBUG LOAD_ATTR] Failed to load attribute '%s' for object type %s (value: %s). Erroring.", attrName, tostring(obj and obj.__type or type(obj)), tostring(obj)))
+    if vm.debug then
+        VMUtils.debugLog(vm, string.format("[DEBUG LOAD_ATTR] Failed to load attribute '%s' for object type %s (value: %s). Erroring.", attrName, tostring(obj and obj.__type or type(obj)), tostring(obj)))
+    end
     error(VMUtils.createRuntimeError(vm, "AttributeError",
         "'" .. tostring(obj and obj.__type or type(obj)) .. "' object has no attribute '" .. attrName .. "' or it's not accessible/callable as expected"))
 end
@@ -204,7 +242,9 @@ function ObjectOps.storeAttr(vm: VM, instruction: Instruction)
     local obj = VMUtils.pop(vm)
     local value = VMUtils.pop(vm)
     
-    VMUtils.debugLog(vm, "STORE_ATTR: " .. tostring(obj) .. "." .. attrName .. " = " .. tostring(value))
+    if vm.debug then
+        VMUtils.debugLog(vm, "STORE_ATTR: " .. tostring(obj) .. "." .. attrName .. " = " .. tostring(value))
+    end
     
     if type(obj) == "table" and obj.__dict then
         obj.__dict[attrName] = value

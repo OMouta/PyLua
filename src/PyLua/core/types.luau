@@ -100,7 +100,7 @@ export type PySet = {
 -- Execution options
 export type ExecutionOptions = {
     debug: boolean?       -- Enable debug mode
-}
+}?
 
 -- Runtime error information
 export type RuntimeErrorInfo = {

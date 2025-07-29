@@ -54,9 +54,15 @@ local function compileLines(state: CompilerState, lines: {string}): CompilerStat
     while i <= #lines do
         state.lineNumber = i
         local line = lines[i]
-        local trimmed = line:match("^%s*(.-)%s*$") or ""
         
-        if trimmed ~= "" and not trimmed:match("^#") then  -- Skip empty lines and comments
+        -- Fast path: check for empty lines and comments without regex
+        local firstChar = line:match("^%s*(.)")
+        if not firstChar or firstChar == "#" then
+            -- Empty line or comment, skip
+            i = i + 1
+        else
+            -- Only trim when we have content
+            local trimmed = line:match("^%s*(.-)%s*$") or ""
             local tokens = tokenizer.tokenize(trimmed)
             
             -- Check if this line has unclosed delimiters (multi-line statement)
@@ -83,8 +89,6 @@ local function compileLines(state: CompilerState, lines: {string}): CompilerStat
             else
                 i = i + 1
             end
-        else
-            i = i + 1
         end
     end
     
@@ -95,10 +99,23 @@ end
 function Compiler.compile(sourceCode: string): Bytecode
     local state = State.createCompilerState()
     
-    -- Split source code into lines
-    local lines: {string} = {}
-    for line in sourceCode:gmatch("[^\r\n]+") do
-        table.insert(lines, line)
+    -- Split source code into lines efficiently
+    local lines: {string}
+    if string.split then
+        -- Use built-in split if available (Roblox/Lune)
+        lines = sourceCode:split("\n")
+        -- Remove carriage returns if present
+        for i, line in ipairs(lines) do
+            if line:sub(-1) == "\r" then
+                lines[i] = line:sub(1, -2)
+            end
+        end
+    else
+        -- Fallback to gmatch
+        lines = {}
+        for line in sourceCode:gmatch("[^\r\n]+") do
+            table.insert(lines, line)
+        end
     end
     
     -- Compile all lines
