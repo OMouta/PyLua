@@ -23,7 +23,16 @@ end
 
 -- Add a constant to the constants table and return its index
 function State.addConstant(state: CompilerState, value: Any): number
-    local key = tostring(value) .. "_" .. type(value)
+    -- Use value itself as key for primitives, handle nil and tables separately  
+    local key
+    if value == nil then
+        key = "__NIL__"
+    elseif type(value) == "table" then
+        key = tostring(value)  -- Use table's memory address as key
+    else
+        key = value  -- Use the value directly as key for primitives
+    end
+    
     if state.constantsMap[key] then
         return state.constantsMap[key]
     end

@@ -47,7 +47,9 @@ end
 function VMUtils.push(vm: VM, value: Any)
     vm.stackPointer = vm.stackPointer + 1
     vm.stack[vm.stackPointer] = value
-    VMUtils.debugLog(vm, "PUSH " .. tostring(value) .. " (stack size: " .. vm.stackPointer .. ")")
+    if vm.debug then
+        VMUtils.debugLog(vm, "PUSH " .. tostring(value) .. " (stack size: " .. vm.stackPointer .. ")")
+    end
 end
 
 function VMUtils.pop(vm: VM): Any
@@ -58,7 +60,9 @@ function VMUtils.pop(vm: VM): Any
     local value = vm.stack[vm.stackPointer]
     vm.stack[vm.stackPointer] = nil
     vm.stackPointer = vm.stackPointer - 1
-    VMUtils.debugLog(vm, "POP " .. tostring(value) .. " (stack size: " .. vm.stackPointer .. ")")
+    if vm.debug then
+        VMUtils.debugLog(vm, "POP " .. tostring(value) .. " (stack size: " .. vm.stackPointer .. ")")
+    end
     return value
 end
 

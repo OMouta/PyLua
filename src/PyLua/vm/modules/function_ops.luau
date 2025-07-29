@@ -30,16 +30,20 @@ function FunctionOps.callFunction(vm: VM, instruction: Instruction)
     end
     
     local func = VMUtils.pop(vm) -- Function to call
-    VMUtils.debugLog(vm, string.format("[DEBUG CALL_FUNCTION] Attempting to call func. Type: %s, Value: %s, ArgCount: %d", type(func), tostring(func), argCount))
-    if #args_table > 0 then
-        VMUtils.debugLog(vm, "[DEBUG CALL_FUNCTION] Args table content:")
-        for i, v in ipairs(args_table) do
-            VMUtils.debugLog(vm, string.format("  args_table[%d]: Type: %s, Value: %s", i, type(v), tostring(v)))
+    if vm.debug then
+        VMUtils.debugLog(vm, string.format("[DEBUG CALL_FUNCTION] Attempting to call func. Type: %s, Value: %s, ArgCount: %d", type(func), tostring(func), argCount))
+        if #args_table > 0 then
+            VMUtils.debugLog(vm, "[DEBUG CALL_FUNCTION] Args table content:")
+            for i, v in ipairs(args_table) do
+                VMUtils.debugLog(vm, string.format("  args_table[%d]: Type: %s, Value: %s", i, type(v), tostring(v)))
+            end
         end
     end
 
     if type(func) == "function" then
-        VMUtils.debugLog(vm, "CALL_FUNCTION with " .. argCount .. " arguments")
+        if vm.debug then
+            VMUtils.debugLog(vm, "CALL_FUNCTION with " .. argCount .. " arguments")
+        end
         
         -- Track recursion for native Luau functions
         VMUtils.enterFunction(vm, tostring(func))
@@ -51,19 +55,25 @@ function FunctionOps.callFunction(vm: VM, instruction: Instruction)
 
         if not success then
             local originalError = tostring(result)
-            VMUtils.debugLog(vm, string.format("[DEBUG CALL_FUNCTION] pcall FAILED. Error: %s", originalError))
+            if vm.debug then
+                VMUtils.debugLog(vm, string.format("[DEBUG CALL_FUNCTION] pcall FAILED. Error: %s", originalError))
+            end
             error(VMUtils.createRuntimeError(vm, "RuntimeError", 
                 "Error in function call: " .. originalError,
                 "Check the function arguments and their types"))
         else
-            VMUtils.debugLog(vm, string.format("[DEBUG CALL_FUNCTION] pcall SUCCEEDED. Result type: %s", type(result)))
+            if vm.debug then
+                VMUtils.debugLog(vm, string.format("[DEBUG CALL_FUNCTION] pcall SUCCEEDED. Result type: %s", type(result)))
+            end
         end
         
         VMUtils.push(vm, result)
     elseif type(func) == "table" and func.__type == "function" then
         -- Handle Python function objects
         local funcName = func.__value.name or "<anonymous>"
-        VMUtils.debugLog(vm, "CALL_FUNCTION: Calling Python function '" .. funcName .. "' with " .. argCount .. " arguments")
+        if vm.debug then
+            VMUtils.debugLog(vm, "CALL_FUNCTION: Calling Python function '" .. funcName .. "' with " .. argCount .. " arguments")
+        end
         
         -- Execute Python function (recursion tracking is handled inside executePythonFunction)
         local result = nil
@@ -77,7 +87,9 @@ function FunctionOps.callFunction(vm: VM, instruction: Instruction)
         
         VMUtils.push(vm, result)
     else
-        VMUtils.debugLog(vm, string.format("[DEBUG CALL_FUNCTION] func is NOT a function. Type: %s, Value: %s", type(func), tostring(func)))
+        if vm.debug then
+            VMUtils.debugLog(vm, string.format("[DEBUG CALL_FUNCTION] func is NOT a function. Type: %s, Value: %s", type(func), tostring(func)))
+        end
         local suggestion = "Make sure you're calling a function, not a variable"
         if type(func) == "string" then
             suggestion = "The value '" .. func .. "' is a string, not a function. Did you mean to call a function with this name?"
@@ -134,9 +146,11 @@ function FunctionOps.makeFunction(vm: VM, instruction: Instruction)
     local parameters = instruction.parameters or {}
     local functionBytecode = instruction.bytecode or {}
     local defaults = instruction.defaults or {}
-    local closure = instruction.closure or {}
+    local closure: {} = instruction.closure or {}
     
-    VMUtils.debugLog(vm, "MAKE_FUNCTION: Creating function '" .. name .. "' with " .. #parameters .. " parameters")
+    if vm.debug then
+        VMUtils.debugLog(vm, "MAKE_FUNCTION: Creating function '" .. name .. "' with " .. #parameters .. " parameters")
+    end
     
     local functionObj = objects.createFunction(name, parameters, functionBytecode, defaults, closure)
     VMUtils.push(vm, functionObj)

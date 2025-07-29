@@ -38,22 +38,30 @@ function MemoryOps.storeName(vm: VM, instruction: Instruction)
     local name = vm.names[nameIndex + 1] -- Lua arrays are 1-indexed
     local value = VMUtils.pop(vm)
     
-    VMUtils.debugLog(vm, string.format("STORE_NAME: nameIndex=%d, name='%s', value=%s (type: %s)", 
-        nameIndex, tostring(name), tostring(value), type(value)))
+    if vm.debug then
+        VMUtils.debugLog(vm, string.format("STORE_NAME: nameIndex=%d, name='%s', value=%s (type: %s)", 
+            nameIndex, tostring(name), tostring(value), type(value)))
+    end
     
     -- Handle nil values specially since Lua tables can't store nil
     if value == nil then
         vm.variables[name] = "__PYLUA_NIL__"
-        VMUtils.debugLog(vm, string.format("STORE_NAME: Stored NIL placeholder for '%s'", name))
+        if vm.debug then
+            VMUtils.debugLog(vm, string.format("STORE_NAME: Stored NIL placeholder for '%s'", name))
+        end
     else
         vm.variables[name] = value
-        VMUtils.debugLog(vm, string.format("STORE_NAME: Stored value for '%s'", name))
+        if vm.debug then
+            VMUtils.debugLog(vm, string.format("STORE_NAME: Stored value for '%s'", name))
+        end
     end
     
     -- Debug: Print current variables table
-    VMUtils.debugLog(vm, "STORE_NAME: Current variables table:")
-    for k, v in pairs(vm.variables) do
-        VMUtils.debugLog(vm, string.format("  variables['%s'] = %s (type: %s)", k, tostring(v), type(v)))
+    if vm.debug then
+        VMUtils.debugLog(vm, "STORE_NAME: Current variables table:")
+        for k, v in pairs(vm.variables) do
+            VMUtils.debugLog(vm, string.format("  variables['%s'] = %s (type: %s)", k, tostring(v), type(v)))
+        end
     end
 end
 
@@ -90,17 +98,23 @@ function MemoryOps.loadName(vm: VM, instruction: Instruction)
     if value == "__PYLUA_NIL__" then
         value = nil
         found = true
-        VMUtils.debugLog(vm, string.format("LOAD_NAME: Converted NIL placeholder to nil for '%s'", name))
+        if vm.debug then
+            VMUtils.debugLog(vm, string.format("LOAD_NAME: Converted NIL placeholder to nil for '%s'", name))
+        end
     elseif value ~= nil then
         found = true
     end
     
     if not found then
         -- If not found in variables, check built-ins
-        VMUtils.debugLog(vm, string.format("LOAD_NAME: Variable '%s' not found, checking builtins", name))
+        if vm.debug then
+            VMUtils.debugLog(vm, string.format("LOAD_NAME: Variable '%s' not found, checking builtins", name))
+        end
         local builtinValue = vm.builtins[name]
-        VMUtils.debugLog(vm, string.format("LOAD_NAME: Builtin value=%s (type: %s) for name='%s'", 
-            tostring(builtinValue), type(builtinValue), name))
+        if vm.debug then
+            VMUtils.debugLog(vm, string.format("LOAD_NAME: Builtin value=%s (type: %s) for name='%s'", 
+                tostring(builtinValue), type(builtinValue), name))
+        end
         
         value = builtinValue
         
@@ -108,7 +122,9 @@ function MemoryOps.loadName(vm: VM, instruction: Instruction)
         if value == "__PYLUA_NIL__" then
             value = nil
             found = true
-            VMUtils.debugLog(vm, string.format("LOAD_NAME: Converted builtin NIL placeholder to nil for '%s'", name))
+            if vm.debug then
+                VMUtils.debugLog(vm, string.format("LOAD_NAME: Converted builtin NIL placeholder to nil for '%s'", name))
+            end
         elseif value ~= nil then
             found = true
         end
@@ -122,8 +138,10 @@ function MemoryOps.loadName(vm: VM, instruction: Instruction)
         error(VMUtils.createRuntimeError(vm, "NameError", "name '" .. name .. "' is not defined", suggestion))
     end
     
-    VMUtils.debugLog(vm, "LOAD_NAME " .. name .. " = " .. tostring(value))
-    VMUtils.debugLog(vm, string.format("LOAD_NAME: Pushing value=%s onto stack for '%s'", tostring(value), name))
+    if vm.debug then
+        VMUtils.debugLog(vm, "LOAD_NAME " .. name .. " = " .. tostring(value))
+        VMUtils.debugLog(vm, string.format("LOAD_NAME: Pushing value=%s onto stack for '%s'", tostring(value), name))
+    end
     VMUtils.push(vm, value)
 end
 

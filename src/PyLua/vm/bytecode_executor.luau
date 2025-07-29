@@ -56,7 +56,9 @@ function BytecodeExecutor.execute(bytecode: Bytecode, options: ExecutionOptions?
     -- Get instruction handlers
     local instructionHandlers = createInstructionHandlers()
     
-    VMUtils.debugLog(vm, "Starting bytecode execution with " .. #vm.code .. " instructions")
+    if vm.debug then
+        VMUtils.debugLog(vm, "Starting bytecode execution with " .. #vm.code .. " instructions")
+    end
     
     -- Main execution loop
     local originalPC = vm.pc
@@ -64,11 +66,15 @@ function BytecodeExecutor.execute(bytecode: Bytecode, options: ExecutionOptions?
         local instruction = vm.code[vm.pc]
         
         if not instruction then
-            VMUtils.debugLog(vm, "No instruction at PC " .. vm.pc .. ", ending execution")
+            if vm.debug then
+                VMUtils.debugLog(vm, "No instruction at PC " .. vm.pc .. ", ending execution")
+            end
             break
         end
         
-        VMUtils.debugLog(vm, string.format("PC:%d Executing: %s", vm.pc, instruction.op))
+        if vm.debug then
+            VMUtils.debugLog(vm, string.format("PC:%d Executing: %s", vm.pc, instruction.op))
+        end
         
         local handler = instructionHandlers[instruction.op]
         if handler then
@@ -77,7 +83,9 @@ function BytecodeExecutor.execute(bytecode: Bytecode, options: ExecutionOptions?
                 handler(vm, instruction)
             end)
             if not success then
-                VMUtils.debugLog(vm, "Instruction failed: " .. tostring(errorMessage))
+                if vm.debug then
+                    VMUtils.debugLog(vm, "Instruction failed: " .. tostring(errorMessage))
+                end
                 error(errorMessage) -- Re-raise the error
             end
         else
@@ -92,7 +100,9 @@ function BytecodeExecutor.execute(bytecode: Bytecode, options: ExecutionOptions?
         end
     end
     
-    VMUtils.debugLog(vm, "Bytecode execution completed")
+    if vm.debug then
+        VMUtils.debugLog(vm, "Bytecode execution completed")
+    end
     
     -- Return execution results
     return {
