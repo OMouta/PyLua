@@ -16,35 +16,21 @@ Runtime.__index = Runtime
 
 -- Create a new Python runtime instance
 function PyLua.new(options: {debug: boolean?, timeout: number?}?): Runtime
-
-    -- Handle nil options case
-    if options == nil then
+    -- Ensure options is a table
+    if type(options) ~= "table" then
         options = {}
     end
-    
-    local debug = false
-    local timeout = nil
-    
-    -- Use rawget to avoid type checker issues
-    if type(options) == "table" then
-        local optDebug = rawget(options, "debug")
-        local optTimeout = rawget(options, "timeout")
-        
-        if optDebug ~= nil then
-            debug = optDebug
-        end
-        if optTimeout ~= nil then
-            timeout = optTimeout
-        end
-    end
-    
+
+    local debug = (options and options.debug) or false
+    local timeout = options and options.timeout
+
     local runtime = {
         _options = options,
         _globals = {} :: any,  -- Cast to any to allow dynamic property addition
         _debug = debug,
         _timeout = timeout
     }
-    
+
     setmetatable(runtime, Runtime)
     return runtime :: any  -- Cast to any to avoid type conflicts
 end

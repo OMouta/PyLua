@@ -16,7 +16,7 @@ endless_loop()
 ]]
 
 local success, result = pcall(function()
-    return python.execute(infiniteRecursionCode, {})
+    return python:execute(infiniteRecursionCode)
 end)
 
 if success then
@@ -46,7 +46,7 @@ print("New recursion limit:", new_limit)
 ]]
 
 local success2, result2 = pcall(function()
-    return python.execute(sysRecursionLimitCode, {})
+    return python:execute(sysRecursionLimitCode)
 end)
 
 if success2 then
@@ -72,7 +72,7 @@ recursive_function(10)
 ]]
 
 local success3, result3 = pcall(function()
-    return python.execute(reducedLimitCode, {})
+    return python:execute(reducedLimitCode)
 end)
 
 if success3 then
@@ -104,7 +104,7 @@ print("Current recursion limit:", sys.getrecursionlimit())
 ]]
 
 local success4, result4 = pcall(function()
-    return python.execute(validRecursionCode, {})
+    return python:execute(validRecursionCode)
 end)
 
 if success4 then
@@ -123,7 +123,7 @@ print("Max size:", sys.maxsize)
 ]]
 
 local success5, result5 = pcall(function()
-    return python.execute(sysInfoCode, {})
+    return python:execute(sysInfoCode)
 end)
 
 if success5 then
