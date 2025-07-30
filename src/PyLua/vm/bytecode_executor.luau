@@ -47,6 +47,13 @@ function BytecodeExecutor.execute(bytecode: Bytecode, options: ExecutionOptions?
     local vm = VMState.createVM()
     vm.debug = (options and options.debug) or false
     
+    -- Merge in any pre-existing globals from runtime
+    if options and options.globals then
+        for name, value in pairs(options.globals) do
+            vm.variables[name] = value
+        end
+    end
+    
     -- Load bytecode into VM
     vm.constants = bytecode.constants or {}
     vm.names = bytecode.names or {}
@@ -104,10 +111,26 @@ function BytecodeExecutor.execute(bytecode: Bytecode, options: ExecutionOptions?
         VMUtils.debugLog(vm, "Bytecode execution completed")
     end
     
+    -- Handle different execution modes
+    local mode = (options and options.mode) or "exec"
+    local finalReturnValue = vm.returnValue
+    
+    if mode == "eval" then
+        -- In eval mode, if there's no explicit return value, use the top of stack
+        if not finalReturnValue and #vm.stack > 0 then
+            finalReturnValue = vm.stack[#vm.stack]
+            -- Pop the value since we're returning it
+            table.remove(vm.stack)
+        end
+    elseif mode == "exec" then
+        -- In exec mode, clear any remaining stack values (like Python exec())
+        vm.stack = {}
+    end
+    
     -- Return execution results
     return {
         variables = vm.variables,
-        returnValue = vm.returnValue,
+        returnValue = finalReturnValue,
         stack = vm.stack,
         callDepth = vm.callDepth -- Include recursion info for debugging
     }

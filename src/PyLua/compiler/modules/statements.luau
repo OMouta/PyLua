@@ -205,17 +205,13 @@ function Statements.compileStatement(state: CompilerState, tokens: {string}, pos
         if foundEquals then
             return Statements.compileAssignment(state, tokens, pos)
         else
-            -- Expression statement (like function calls)
+            -- Expression statement - leave value on stack for execution context to handle
             pos = Expressions.compileExpression(state, tokens, pos)
-            -- Pop the result since it's not being assigned
-            State.emit(state, opcodes.Opcodes.POP_TOP)
             return pos
         end
     else
-        -- Expression statement (like function calls)
+        -- Expression statement - leave value on stack for execution context to handle
         pos = Expressions.compileExpression(state, tokens, pos)
-        -- Pop the result since it's not being assigned
-        State.emit(state, opcodes.Opcodes.POP_TOP)
         return pos
     end
 end

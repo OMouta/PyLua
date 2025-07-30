@@ -1,7 +1,7 @@
 -- Test Recursion Limit with Pythonic Sys Module
 -- Tests recursion limit using the proper Python sys module syntax
 
-local python = require('../src/PyLua/python')
+local python = require('../src/PyLua')
 
 print("=== Testing Recursion Limit ===")
 

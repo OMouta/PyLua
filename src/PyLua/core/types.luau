@@ -99,8 +99,23 @@ export type PySet = {
 
 -- Execution options
 export type ExecutionOptions = {
-    debug: boolean?       -- Enable debug mode
+    debug: boolean?,      -- Enable debug mode
+    globals: {[string]: Any}?, -- Pre-existing global variables
+    mode: string?         -- Execution mode: "exec" (default) or "eval"
 }?
+
+-- Runtime instance type
+export type Runtime = {
+    _options: {debug: boolean?, timeout: number?}?,
+    _globals: {[string]: Any},
+    _debug: boolean,
+    _timeout: number?,
+    eval: (Runtime, string) -> Any,
+    execute: (Runtime, string) -> (),
+    globals: (Runtime) -> {[string]: Any},
+    compile: (Runtime, string) -> Bytecode,
+    runBytecode: (Runtime, Bytecode, ExecutionOptions?) -> Any
+}
 
 -- Runtime error information
 export type RuntimeErrorInfo = {
