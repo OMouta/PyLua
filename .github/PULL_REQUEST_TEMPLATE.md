@@ -9,7 +9,7 @@ Thank you for your contribution to **PyLua**!
 
 - [ ] My code was tested with the provided test suite in `tests/`
 - [ ] Documentation in `README.md` or code comments was updated if needed
-- [ ] I followed the code style and architecture of PyLua (see `REFACTOR_PLAN.md`)
+- [ ] I followed the code style and architecture of PyLua
 - [ ] I have not introduced breaking changes to the public API unless discussed
 - [ ] I have added or updated tests for new/changed features
 
