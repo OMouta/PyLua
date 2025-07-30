@@ -47,11 +47,11 @@ local PyLua = require('PyLua')
 local python = PyLua.new()
 
 -- Simple evaluation (like lupa's lua.eval)
-local result = python.eval('2 + 3')  -- Returns 5
+local result = python:eval('2 + 3')  -- Returns 5
 print(result)  -- 5
 
 -- Execute code without return value
-python.execute('print("Hello, PyLua!")')
+python:execute('print("Hello, PyLua!")')
 ```
 
 ### Multiple Isolated Runtimes
@@ -64,12 +64,12 @@ local player_runtime = PyLua.new()
 local admin_runtime = PyLua.new()
 
 -- Each runtime has its own isolated environment
-player_runtime.globals().player_level = 5
-admin_runtime.globals().admin_privileges = true
+player_runtime:globals().player_level = 5
+admin_runtime:globals().admin_privileges = true
 
 -- They don't interfere with each other
-local player_result = player_runtime.eval('player_level * 10')  -- Returns 50
-local admin_result = admin_runtime.eval('admin_privileges and "Admin" or "User"')  -- Returns "Admin"
+local player_result = player_runtime:eval('player_level * 10')  -- Returns 50
+local admin_result = admin_runtime:eval('admin_privileges and "Admin" or "User"')  -- Returns "Admin"
 ```
 
 ### Function Definitions and Reuse
@@ -79,7 +79,7 @@ local PyLua = require('PyLua')
 local python = PyLua.new()
 
 -- Define a Python function
-local calc_func = python.eval([[
+local calc_func = python:eval([[
 def calculate_damage(base, multiplier):
     return int(base * multiplier * 1.5)
 ]])
@@ -96,16 +96,16 @@ local PyLua = require('PyLua')
 local python = PyLua.new()
 
 -- Add Luau functions to Python environment (like lupa's lua.globals())
-python.globals().get_player_data = function()
+python:globals().get_player_data = function()
     return {health = 100, mana = 50, level = 5}
 end
 
-python.globals().log_event = function(message)
+python:globals().log_event = function(message)
     print("[GAME]", message)
 end
 
 -- Python can now call Luau functions
-python.execute([[
+python:execute([[
 player = get_player_data()
 if player["health"] < 30:
     log_event("Player health is low!")
@@ -123,16 +123,16 @@ local PyLua = require('PyLua')
 local player_runtime = PyLua.new()
 
 -- Set up game functions for Python to use
-player_runtime.globals().player_health = 15  -- Low health scenario
-player_runtime.globals().set_player_speed = function(speed)
+player_runtime:globals().player_health = 15  -- Low health scenario
+player_runtime:globals().set_player_speed = function(speed)
     print("Setting player speed to", speed)
 end
-player_runtime.globals().set_jump_height = function(height)
+player_runtime:globals().set_jump_height = function(height)
     print("Setting jump height to", height)
 end
 
 -- Execute player's custom script
-player_runtime.execute([[
+player_runtime:execute([[
 # Player writes this Python code to customize their experience
 player_speed = 16
 jump_height = 50
@@ -159,8 +159,8 @@ function createPlayerRuntime(playerId)
     local runtime = PyLua.new()
     
     -- Player-specific functions
-    runtime.globals().get_player_id = function() return playerId end
-    runtime.globals().send_message = function(msg)
+    runtime:globals().get_player_id = function() return playerId end
+    runtime:globals().send_message = function(msg)
         print("[Player " .. playerId .. "]", msg)
     end
     
@@ -170,14 +170,14 @@ end
 
 -- Player 1's script
 local player1 = createPlayerRuntime("Alice")
-player1.execute([[
+player1:execute([[
 player_id = get_player_id()
 send_message(f"Hello from {player_id}!")
 ]])
 
 -- Player 2's script (completely isolated)
 local player2 = createPlayerRuntime("Bob")
-player2.execute([[
+player2:execute([[
 player_id = get_player_id()
 send_message(f"Greetings from {player_id}!")
 ]])
@@ -190,7 +190,7 @@ local PyLua = require('PyLua')
 local python = PyLua.new()
 
 -- Process game data and get the result
-local sorted_players = python.eval([[
+local sorted_players = python:eval([[
 # Process high score data
 high_scores = [
     {"player": "Alice", "score": 8500},
@@ -238,7 +238,7 @@ Evaluates Python code and returns the result (like Lupa's `lua.eval()`).
 
 - **Parameters**: `code` (string) - Python expression or statements
 - **Returns**: Result value or Python function object
-- **Example**: `local result = python.eval('2 + 3')` returns `5`
+- **Example**: `local result = python:eval('2 + 3')` returns `5`
 
 #### `runtime.execute(code)`
 
@@ -246,14 +246,14 @@ Executes Python code without returning a value (for side effects).
 
 - **Parameters**: `code` (string) - Python statements
 - **Returns**: Nothing
-- **Example**: `python.execute('print("Hello, World!")')`
+- **Example**: `python:execute('print("Hello, World!")')`
 
 #### `runtime.globals()`
 
 Access the Python global environment (like Lupa's `lua.globals()`).
 
 - **Returns**: Table that can be used to set Python global variables
-- **Example**: `python.globals().my_func = function(x) return x * 2 end`
+- **Example**: `python:globals().my_func = function(x) return x * 2 end`
 
 ### Advanced API (Bytecode)
 
@@ -266,12 +266,12 @@ Compiles Python source code to bytecode for later execution.
 - **Parameters**: `code` (string) - Python source code
 - **Returns**: `bytecode` (table), `error` (string|nil) - Compiled bytecode or error message
 
-#### `runtime.runBytecode(bytecode, options?)`
+#### `runtime:runBytecode(bytecode, options?)`
 
 Executes pre-compiled bytecode in a sandboxed environment.
 
 - **Parameters:**
-  - `bytecode` (table) - Compiled bytecode from `runtime.compile()`
+  - `bytecode` (table) - Compiled bytecode from `runtime:compile()`
   - `options` (table, optional) - Execution options
     - `debug` (boolean) - Enable debug output
     - `globals` (table) - Custom global environment
@@ -297,25 +297,25 @@ local PyLua = require('PyLua')
 
 -- Trusted admin runtime with full permissions
 local admin_runtime = PyLua.new()
-admin_runtime.globals().delete_player = function(id)
+admin_runtime:globals().delete_player = function(id)
     print("Deleting player", id)
 end
-admin_runtime.globals().ban_user = function(id)
+admin_runtime:globals().ban_user = function(id)
     print("Banning user", id)
 end
 
 -- Restricted player runtime with limited permissions
 local player_runtime = PyLua.new()
-player_runtime.globals().get_stats = function()
+player_runtime:globals().get_stats = function()
     return {score = 100, level = 5}
 end
 -- Note: No admin functions available to players
 
 -- Admin can execute dangerous operations
-admin_runtime.execute('delete_player("cheater123")')
+admin_runtime:execute('delete_player("cheater123")')
 
 -- Player cannot access admin functions (would error)
--- player_runtime.execute('delete_player("someone")')  -- Error: delete_player not defined
+-- player_runtime:execute('delete_player("someone")')  -- Error: delete_player not defined
 ```
 
 ### Custom Environment Functions
@@ -327,20 +327,20 @@ local PyLua = require('PyLua')
 local python = PyLua.new()
 
 -- Set up custom environment using globals() (like Lupa)
-python.globals().get_player_position = function()
+python:globals().get_player_position = function()
     return {x = 10, y = 5, z = 3}
 end
 
-python.globals().move_player = function(x, y, z)
+python:globals().move_player = function(x, y, z)
     print("Moving player to", x, y, z)
 end
 
-python.globals().get_game_time = function()
+python:globals().get_game_time = function()
     return os.time()
 end
 
 -- Python can now use these functions directly
-python.execute([[
+python:execute([[
 pos = get_player_position()
 print("Current position:", pos["x"], pos["y"], pos["z"])
 
@@ -385,8 +385,8 @@ local PyLua = require('PyLua')
 local python = PyLua.new({debug = true})
 
 -- Or enable debug mode for bytecode execution
-local bytecode = python.compile('x = 42\nprint("x =", x)')
-python.runBytecode(bytecode, {debug = true})
+local bytecode = python:compile('x = 42\nprint("x =", x)')
+python:runBytecode(bytecode, {debug = true})
 ```
 
 Debug output includes:
