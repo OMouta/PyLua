@@ -63,7 +63,3 @@ local runtime5 = PyLua.new()
 local bytecode = runtime5:compile('result = 10 * 5')
 local exec_result = runtime5:runBytecode(bytecode)
 print("Bytecode execution completed")
-
-print()
-print("🎉 All PyLua v0.3 API tests passed!")
-print("New runtime-based architecture is working correctly.")

@@ -8,5 +8,5 @@
 # Rojo files
 /*sourcemap.json
 
-# Python source files for reference
-cpython-source
+# Build files
+/build/*
