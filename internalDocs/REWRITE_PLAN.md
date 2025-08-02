@@ -1,10 +1,13 @@
 # PyLua v3.0 Rewrite Plan
 
 > **Complete rewrite of PyLua from scratch with proper Python syntax and core functionality**
+> Check [LANGUAGE_IMPLEMENTATION.md](LANGUAGE_IMPLEMENTATION.md) for in-depth CPython internals research.
 
 ## Overview
 
 This document outlines the complete rewrite of PyLua to create a proper Python interpreter in Luau, inspired by Lupa's API design but inverse (Python-in-Luau instead of Lua-in-Python).
+
+**Python Version Support**: PyLua v3.0 targets Python 3.12 syntax and below. Supporting Python 3.13+ would add unnecessary complexity for an embedded language interpreter.
 
 ## Current Issues with PyLua v0.2
 
@@ -237,7 +240,7 @@ python:execute("result = lua_func(6, 7)")
 
 ## Design Principles
 
-1. **Python Compliance**: Follow Python semantics as closely as possible
+1. **Python 3.12 Compliance**: Follow Python 3.12 and below semantics as closely as possible
 2. **Extensibility**: Clean module boundaries for future features
 3. **Performance**: Efficient bytecode execution
 4. **Memory Management**: Proper object lifecycle

@@ -1,53 +1,158 @@
-name: "Bug report"
-description: "Report a bug in PyLua (Python-in-Luau for Roblox) to help us improve."
-title: "[BUG] <short description>"
-labels: [bug]
+name: "🐛 Bug Report"
+description: "Report a bug in PyLua v3.0 (Python-in-Luau for Roblox) to help us improve."
+title: "[BUG] "
+labels: ["bug", "needs-triage"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thank you for taking the time to report a bug in **PyLua**!
+        Thank you for taking the time to report a bug in **PyLua v3.0**!
+        
+        **Important**: We are currently in a major rewrite phase (v3.0). Please specify which version you're using.
+        
         Please provide as much detail as possible so we can reproduce and fix the issue.
-  - type: input
+  
+  - type: dropdown
+    id: version
+    attributes:
+      label: "PyLua Version"
+      description: "Which version of PyLua are you using?"
+      options:
+        - "v3.0 (current rewrite - src/PyLua/)"
+        - "v0.2 (legacy - old/PyLua/)"
+        - "Custom build/fork"
+        - "Not sure"
+    validations:
+      required: true
+  
+  - type: textarea
     id: what-happened
     attributes:
-      label: "What happened?"
+      label: "🔍 What happened?"
       description: "Describe the bug in detail. Include any error messages, stack traces, or unexpected behavior."
+      placeholder: "PyLua threw an error when I tried to parse Python code with..."
     validations:
       required: true
-  - type: input
+  
+  - type: textarea
     id: expected-behavior
     attributes:
-      label: "Expected behavior"
-      description: "What did you expect PyLua to do?"
+      label: "✅ Expected behavior"
+      description: "What did you expect PyLua to do? How should this work according to Python 3.12?"
+      placeholder: "I expected PyLua to parse/execute the code successfully because in Python 3.12..."
     validations:
       required: true
+  
   - type: textarea
-    id: steps-to-reproduce
+    id: python-code
     attributes:
-      label: "Steps to reproduce"
-      description: |
-        How can we reproduce the bug? Please provide a minimal Python code sample and describe how you ran it in PyLua (e.g. via `python.execute`, `python.compile`, or test file). Example:
-        1. Python code used
-        2. Luau code or test file used
-        3. Output or error seen
+      label: "🐍 Python Code"
+      description: "The Python code that causes the issue (minimal reproduction case)"
+      render: python
       placeholder: |
-        1. Python code: ...
-        2. Luau code: ...
-        3. See error: ...
+        # Python code that triggers the bug
+        x = [1, 2, 3]
+        print(f"List: {x}")
     validations:
       required: true
-  - type: input
-    id: environment
+  
+  - type: textarea
+    id: luau-code
     attributes:
-      label: "Environment"
-      description: "Roblox version, OS, PyLua version/commit, and any relevant configuration."
+      label: "🌙 Luau Code"
+      description: "The Luau code used to run PyLua (how you called the interpreter)"
+      render: lua
+      placeholder: |
+        local PyLua = require('src.PyLua')
+        local python = PyLua.new()
+        python:execute([[
+          # Your Python code here
+        ]])
+    validations:
+      required: true
+  
+  - type: textarea
+    id: error-output
+    attributes:
+      label: "❌ Error Output"
+      description: "Full error message, stack trace, or unexpected output"
+      render: text
+      placeholder: "Copy and paste the complete error message or unexpected output here"
     validations:
       required: false
-  - type: checkboxes
-    id: affected-area
+  
+  - type: textarea
+    id: environment
     attributes:
-      label: "Affected area(s)"
+      label: "🔧 Environment"
+      description: "Your development environment details"
+      placeholder: |
+        - OS: Windows 11 / macOS 14 / Ubuntu 22.04
+        - Roblox Studio Version: 
+        - Luau Version (if applicable): 
+        - PyLua Commit/Version: 
+      value: |
+        - OS: 
+        - Roblox Studio Version: 
+        - Luau Version (if applicable): 
+        - PyLua Commit/Version: 
+    validations:
+      required: false
+  
+  - type: checkboxes
+    id: affected-components
+    attributes:
+      label: "🎯 Affected Components"
+      description: "Which part of PyLua seems to be affected? (Check all that apply)"
+      options:
+        - label: "Lexer/Tokenizer (`lexer.luau`)"
+        - label: "Parser (`parser.luau`)"
+        - label: "AST System (`ast/`)"
+        - label: "Compiler (`compiler.luau`)"
+        - label: "Virtual Machine (`vm/`)"
+        - label: "Object System (`objects/`)"
+        - label: "Built-in Functions (`builtins/`)"
+        - label: "API/Interface (`init.luau`)"
+        - label: "Not sure"
+  
+  - type: checkboxes
+    id: python-feature
+    attributes:
+      label: "🐍 Python Feature"
+      description: "What Python feature is involved? (Check all that apply)"
+      options:
+        - label: "Basic syntax (variables, operators)"
+        - label: "Data structures (lists, dicts, tuples)"
+        - label: "Control flow (if/else, loops)"
+        - label: "Functions and calls"
+        - label: "String operations/f-strings"
+        - label: "Built-in functions (print, len, etc.)"
+        - label: "Python 3.12 specific features"
+        - label: "Error handling/exceptions"
+        - label: "Other"
+  
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: "📋 Checklist"
+      description: "Please confirm you have done the following:"
+      options:
+        - label: "I have searched existing issues to make sure this isn't a duplicate"
+          required: true
+        - label: "I have provided a minimal reproduction case"
+          required: true
+        - label: "I have tested this with the latest version of PyLua"
+          required: false
+        - label: "I have checked if this works correctly in standard Python 3.12"
+          required: false
+  
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: "📝 Additional Context"
+      description: "Any other information that might be helpful (screenshots, related issues, etc.)"
+    validations:
+      required: false
       description: "Which part of PyLua is affected?"
       options:
         - label: "Compiler (`src/PyLua/compiler/`)"

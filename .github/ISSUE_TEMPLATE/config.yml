@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📚 Documentation
+    url: https://github.com/OMouta/PyLua/blob/master/InternalDocs/README.md
+    about: Read the internal documentation for development information
+  - name: 🗺️ Development Plan
+    url: https://github.com/OMouta/PyLua/blob/master/InternalDocs/REWRITE_PLAN.md
+    about: Check the current development phase and roadmap
+  - name: 🤝 Contributing Guide
+    url: https://github.com/OMouta/PyLua/blob/master/CONTRIBUTING.md
+    about: Learn how to contribute to PyLua v3.0
+  - name: 💬 Discussions
+    url: https://github.com/OMouta/PyLua/discussions
+    about: Ask questions and discuss ideas with the community

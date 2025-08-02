@@ -1,0 +1,157 @@
+name: "❓ Question / Help"
+description: "Ask a question about PyLua usage, development, or get help with an issue."
+title: "[QUESTION] "
+labels: ["question", "help-wanted"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for asking a question about **PyLua v3.0**!
+        
+        **Before asking**: Please check the documentation first:
+        - [InternalDocs/README.md](https://github.com/OMouta/PyLua/blob/master/InternalDocs/README.md) - Documentation overview
+        - [InternalDocs/REWRITE_PLAN.md](https://github.com/OMouta/PyLua/blob/master/InternalDocs/REWRITE_PLAN.md) - Current development status
+        - [CONTRIBUTING.md](https://github.com/OMouta/PyLua/blob/master/CONTRIBUTING.md) - Development guidelines
+        
+        We're here to help! Please provide as much context as possible.
+  
+  - type: dropdown
+    id: question-type
+    attributes:
+      label: "❓ Question Type"
+      description: "What type of question do you have?"
+      options:
+        - "Usage help (how to use PyLua)"
+        - "Development help (contributing to PyLua)"
+        - "Python compatibility question"
+        - "Roblox/Luau integration question"
+        - "Architecture/design question"
+        - "Installation/setup question"
+        - "Performance question"
+        - "General question"
+    validations:
+      required: true
+  
+  - type: dropdown
+    id: experience-level
+    attributes:
+      label: "👤 Experience Level"
+      description: "What's your experience level with the relevant technologies?"
+      options:
+        - "Beginner (new to Python/Luau/Roblox)"
+        - "Intermediate (some experience)"
+        - "Advanced (experienced developer)"
+        - "Expert (very experienced)"
+    validations:
+      required: false
+  
+  - type: textarea
+    id: question
+    attributes:
+      label: "❓ Your Question"
+      description: "Ask your question clearly and provide context. What are you trying to achieve?"
+      placeholder: "I'm trying to... but I'm having trouble with... How can I..."
+    validations:
+      required: true
+  
+  - type: textarea
+    id: what-tried
+    attributes:
+      label: "🔍 What You've Tried"
+      description: "What have you already tried? Include any code, error messages, or research you've done."
+      placeholder: |
+        I tried:
+        1. Looking at the documentation...
+        2. Testing this code...
+        3. Searching for similar issues...
+    validations:
+      required: false
+  
+  - type: textarea
+    id: code-example
+    attributes:
+      label: "💻 Code Example (if applicable)"
+      description: "Share any relevant code that demonstrates what you're trying to do"
+      render: python
+      placeholder: |
+        # Python code you're trying to run
+        x = [1, 2, 3]
+        print(f"List: {x}")
+    validations:
+      required: false
+  
+  - type: textarea
+    id: luau-code
+    attributes:
+      label: "🌙 Luau Code (if applicable)"
+      description: "Show how you're using PyLua in your Luau/Roblox code"
+      render: lua
+      placeholder: |
+        local PyLua = require('src.PyLua')
+        local python = PyLua.new()
+        -- Your Luau code here
+    validations:
+      required: false
+  
+  - type: textarea
+    id: expected-outcome
+    attributes:
+      label: "✅ Expected Outcome"
+      description: "What would you like to happen? What's your goal?"
+      placeholder: "I expect to be able to... so that I can..."
+    validations:
+      required: false
+  
+  - type: textarea
+    id: environment
+    attributes:
+      label: "🔧 Environment (if relevant)"
+      description: "Your development environment details"
+      placeholder: |
+        - OS: Windows 11 / macOS 14 / Ubuntu 22.04
+        - Roblox Studio Version: 
+        - PyLua Version: v3.0 rewrite / v0.2 legacy
+        - Luau Version (if applicable): 
+      value: |
+        - OS: 
+        - Roblox Studio Version: 
+        - PyLua Version: 
+        - Luau Version (if applicable): 
+    validations:
+      required: false
+  
+  - type: checkboxes
+    id: area-of-interest
+    attributes:
+      label: "🎯 Related Areas"
+      description: "Which areas of PyLua are you interested in or having questions about?"
+      options:
+        - label: "Basic usage and API"
+        - label: "Python syntax and compatibility"
+        - label: "Roblox/Luau integration"
+        - label: "Performance and optimization"
+        - label: "Contributing to development"
+        - label: "Architecture and design"
+        - label: "Testing and debugging"
+        - label: "Documentation"
+  
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: "📋 Checklist"
+      description: "Please confirm:"
+      options:
+        - label: "I have searched existing issues and discussions for similar questions"
+          required: true
+        - label: "I have checked the relevant documentation"
+          required: true
+        - label: "I have provided enough context for others to understand my question"
+          required: true
+  
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: "📝 Additional Context"
+      description: "Any other information that might be helpful for answering your question"
+    validations:
+      required: false

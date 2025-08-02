@@ -1,10 +1,8 @@
 # PyLua - Embedded Python Interpreter for Luau
 
-> **⚠️ Documentation Notice**: This documentation is for PyLua v0.3 with the new Lupa-inspired API. For v0.2 documentation, see [README_v0.2.md](README_v0.2.md).
+PyLua is a Lua module that embeds a Python interpreter, allowing you to run Python code within your Luau scripts. It supports Python 3.12 syntax and below, making it lightweight and focused while still providing comprehensive Python functionality. PyLua is designed to be easy to use, making it ideal for Roblox game modding.
 
-PyLua is a Lua module that embeds a Python interpreter, allowing you to run Python code within your Luau scripts. It is designed to be lightweight and easy to use, making it ideal for Roblox game modding.
-
-> Please read the [REWRITE_PLAN.md](REWRITE_PLAN.md) for details on the upcoming v3.0 rewrite.
+> **⚠️ Documentation Notice**: Please read the [REWRITE_PLAN.md](InternalDocs/REWRITE_PLAN.md) for details on the upcoming v3.0 rewrite. For v0.2 documentation, see [README_v0.2.md](README_v0.2.md).
 
 ## 📝 License
 

@@ -4,6 +4,8 @@
 
 You are working on **PyLua v3.0**, a complete rewrite of a Python interpreter implementation in Luau for Roblox. The goal is to create a proper Python interpreter that runs inside Roblox, with a Lupa-inspired API (inverse - Python-in-Luau instead of Lua-in-Python).
 
+**Python Version Support**: PyLua targets Python 3.12 syntax and below. Supporting Python 3.13+ would add unnecessary complexity for an embedded language interpreter.
+
 ## Current Context
 
 - **Old Implementation**: Located in `old/PyLua/` - this is poorly written, basic tokenizer, no proper AST
@@ -36,7 +38,7 @@ Python Source → Lexer → Parser → AST → Compiler → Bytecode → VM → 
 - Return module table at end: `return ModuleName`
 
 ### Python Compliance
-- Follow Python semantics exactly where possible
+- Follow Python 3.12 and below semantics exactly where possible
 - Use Python-like naming for opcodes (LOAD_CONST, STORE_FAST, etc.)
 - Implement Python operator precedence correctly
 - Handle Python's dynamic typing properly
@@ -208,9 +210,9 @@ end
 
 ## References
 
-- Python Language Reference: https://docs.python.org/3/reference/
-- CPython source code for implementation details
+- Python 3.12 Language Reference: https://docs.python.org/3.12/reference/
+- CPython 3.12 source code for implementation details
 - Lupa documentation for API inspiration
 - Python AST module documentation for node types
 
-Remember: This is a complete rewrite focusing on correctness, maintainability, and Python compliance. Take time to get the architecture right from the start.
+Remember: This is a complete rewrite focusing on correctness, maintainability, and Python 3.12 compliance. Take time to get the architecture right from the start.
