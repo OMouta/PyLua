@@ -77,10 +77,10 @@ src/PyLua/
 
 #### 1.3 AST System Foundation
 
-- [ ] **Base AST node**: Common interface for all nodes
-- [ ] **Node types**: Module, Statement, Expression hierarchies
-- [ ] **Visitor pattern**: For AST traversal and manipulation
-- [ ] **Source location**: Track original source positions
+- [x] **Base AST node**: Common interface for all nodes
+- [x] **Node types**: Module, Statement, Expression hierarchies
+- [x] **Visitor pattern**: For AST traversal and manipulation
+- [x] **Source location**: Track original source positions
 
 **Key Files**: `ast/nodes.luau`, `ast/visitor.luau`
 
@@ -248,7 +248,7 @@ python:execute("result = lua_func(6, 7)")
 
 ### Unit Tests
 
-- [x] Lexer: Token generation from source
+- [ ] Lexer: Token generation from source
 - [ ] Parser: AST generation from tokens
 - [ ] Objects: Python object behavior
 - [ ] VM: Bytecode execution
