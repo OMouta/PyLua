@@ -1,0 +1,312 @@
+# PyLua v3.0 Rewrite Plan
+
+> **Complete rewrite of PyLua from scratch with proper Python syntax and core functionality**
+
+## Overview
+
+This document outlines the complete rewrite of PyLua to create a proper Python interpreter in Luau, inspired by Lupa's API design but inverse (Python-in-Luau instead of Lua-in-Python).
+
+## Current Issues with PyLua v0.2
+
+- ❌ Primitive tokenizer with poor Python syntax support
+- ❌ No proper Abstract Syntax Tree (AST) parsing
+- ❌ Limited Python compliance and missing core features
+- ❌ Brittle, tightly-coupled architecture
+- ❌ Incomplete Python object model
+- ❌ Poor error handling and debugging support
+
+## Target Architecture
+
+### Pipeline Design (Following CPython)
+
+```txt
+Python Source → Lexer → Parser → AST → Compiler → Bytecode → VM → Results
+```
+
+### Directory Structure
+
+```txt
+src/PyLua/
+├── init.luau              # Main API (Lupa-inspired interface)
+├── lexer.luau            # Python-compliant tokenization
+├── parser.luau           # AST generation from tokens  
+├── ast/                  # AST node definitions
+│   ├── nodes.luau        # All AST node types
+│   └── visitor.luau      # AST visitor pattern
+├── compiler.luau         # AST → Bytecode compilation
+├── bytecode/             # Bytecode system
+│   ├── opcodes.luau      # Python-like opcodes
+│   └── instructions.luau # Instruction definitions
+├── vm/                   # Virtual Machine
+│   ├── interpreter.luau  # Main execution loop
+│   ├── frame.luau        # Execution frames
+│   └── stack.luau        # Value stack management
+├── objects/              # Python object system
+│   ├── base.luau         # Base PyObject
+│   ├── builtins.luau     # Built-in types
+│   ├── collections.luau  # list, dict, tuple, set
+│   └── functions.luau    # Function objects
+└── builtins/             # Built-in functions
+    ├── functions.luau    # print, len, type, etc.
+    └── exceptions.luau   # Exception handling
+```
+
+## Implementation Phases
+
+### Phase 1: Foundation
+
+**Goal**: Establish core infrastructure
+
+#### 1.1 Project Setup
+
+- [x] Create new `src/PyLua/` directory structure
+- [x] Set up basic module system and exports
+- [x] Create comprehensive test framework
+- [x] Set up documentation structure
+
+#### 1.2 Lexer Implementation
+
+- [x] **Token definitions**: All Python tokens (keywords, operators, literals)
+- [x] **String handling**: Raw strings, f-strings, escape sequences
+- [x] **Indentation parsing**: Python's whitespace significance
+- [x] **Number parsing**: Integers, floats, scientific notation
+- [x] **Comment handling**: Single-line and documentation strings
+- [x] **Error reporting**: Line/column information for debugging
+
+**Key Files**: `lexer.luau`, `tokens.luau`
+
+#### 1.3 AST System Foundation
+
+- [ ] **Base AST node**: Common interface for all nodes
+- [ ] **Node types**: Module, Statement, Expression hierarchies
+- [ ] **Visitor pattern**: For AST traversal and manipulation
+- [ ] **Source location**: Track original source positions
+
+**Key Files**: `ast/nodes.luau`, `ast/visitor.luau`
+
+### Phase 2: Core Parser
+
+**Goal**: Convert tokens to proper AST
+
+#### 2.1 Expression Parser
+
+- [ ] **Literals**: Numbers, strings, booleans, None
+- [ ] **Variables**: Name resolution and binding
+- [ ] **Binary operations**: Arithmetic, comparison, logical
+- [ ] **Unary operations**: Negation, not, bitwise
+- [ ] **Operator precedence**: Correct Python precedence rules
+- [ ] **Parentheses**: Grouping and function calls
+
+#### 2.2 Statement Parser
+
+- [ ] **Assignment**: Simple and multiple assignment
+- [ ] **Expression statements**: Function calls, method calls
+- [ ] **Control flow**: if/elif/else parsing
+- [ ] **Loops**: for and while loop parsing
+- [ ] **Function definitions**: def statement parsing
+
+#### 2.3 Advanced Parsing
+
+- [ ] **Collections**: List, dict, tuple, set literals
+- [ ] **Indexing**: Subscript operations
+- [ ] **Attribute access**: Dot notation
+- [ ] **Function calls**: Arguments and keyword arguments
+
+**Key Files**: `parser.luau`, `ast/nodes.luau`
+
+### Phase 3: Object System
+
+**Goal**: Implement Python's object model
+
+#### 3.1 Base Object System
+
+- [ ] **PyObject**: Base class with __type, __value, __dict
+- [ ] **Type system**: Runtime type checking and conversion
+- [ ] **Attribute access**: __getattr__, __setattr__ mechanisms
+- [ ] **Method resolution**: Finding and calling methods
+
+#### 3.2 Built-in Types
+
+- [ ] **Numbers**: int, float with proper arithmetic
+- [ ] **Strings**: str with methods and operations
+- [ ] **Booleans**: bool with truthiness rules
+- [ ] **None**: Python's null value
+- [ ] **Type objects**: Representing types themselves
+
+#### 3.3 Collections
+
+- [ ] **Lists**: Dynamic arrays with Python list methods
+- [ ] **Dictionaries**: Hash maps with Python dict interface
+- [ ] **Tuples**: Immutable sequences
+- [ ] **Sets**: Unique value collections
+- [ ] **Iterators**: Protocol for iteration
+
+**Key Files**: `objects/base.luau`, `objects/builtins.luau`, `objects/collections.luau`
+
+### Phase 4: Bytecode & Virtual Machine
+
+**Goal**: Execute AST through bytecode
+
+#### 4.1 Bytecode System
+
+- [ ] **Opcodes**: Python-like instruction set
+  - LOAD_CONST, LOAD_FAST, STORE_FAST
+  - BINARY_ADD, BINARY_SUBTRACT, etc.
+  - CALL_FUNCTION, RETURN_VALUE
+  - JUMP_FORWARD, POP_JUMP_IF_FALSE
+- [ ] **Code objects**: Bytecode containers with metadata
+- [ ] **Compilation**: AST → Bytecode transformation
+
+#### 4.2 Virtual Machine
+
+- [ ] **Execution frames**: Function call contexts
+- [ ] **Value stack**: Operand stack for calculations
+- [ ] **Instruction dispatch**: Main execution loop
+- [ ] **Variable storage**: Local, global, and builtin scopes
+- [ ] **Function calls**: Parameter passing and return values
+
+#### 4.3 Control Flow
+
+- [ ] **Conditionals**: if/elif/else execution
+- [ ] **Loops**: for and while loop execution
+- [ ] **Break/continue**: Loop control statements
+- [ ] **Function returns**: Return value handling
+
+**Key Files**: `compiler.luau`, `bytecode/opcodes.luau`, `vm/interpreter.luau`, `vm/frame.luau`
+
+### Phase 5: Built-ins & Advanced Features
+
+**Goal**: Essential Python functionality
+
+#### 5.1 Built-in Functions
+
+- [ ] **print()**: Output with proper formatting
+- [ ] **len()**: Length of collections
+- [ ] **type()**: Runtime type inspection  
+- [ ] **range()**: Number sequence generation
+- [ ] **int(), float(), str(), bool()**: Type conversions
+- [ ] **sum(), min(), max()**: Aggregate functions
+
+#### 5.2 Advanced Language Features
+
+- [ ] **List comprehensions**: [x for x in iterable]
+- [ ] **Lambda functions**: Anonymous functions
+- [ ] **Generators**: yield expressions and iteration
+- [ ] **Exception handling**: Basic try/except (future)
+
+#### 5.3 Python-Luau Interop
+
+- [ ] **Luau function calls**: Call Luau from Python
+- [ ] **Object conversion**: Python ↔ Luau type mapping
+- [ ] **Error translation**: Python exceptions ↔ Luau errors
+
+**Key Files**: `builtins/functions.luau`, `builtins/exceptions.luau`
+
+## API Design (Lupa-inspired)
+
+### Target Usage
+
+```lua
+local PyLua = require('src.PyLua')
+
+-- Create runtime instance
+local python = PyLua.new({
+    debug = false,
+    timeout = 5.0
+})
+
+-- Execute Python code
+python:execute([[
+    x = [1, 2, 3]
+    y = {'name': 'test', 'value': 42}
+    print(f"List: {x}, Dict: {y}")
+]])
+
+-- Evaluate expressions
+local result = python:eval("sum([1, 2, 3, 4, 5])")
+print(result) -- 15
+
+-- Access globals
+local globals = python:globals()
+print(globals.x)  -- {1, 2, 3}
+
+-- Pass Luau functions to Python
+python:globals().lua_func = function(a, b) return a * b end
+python:execute("result = lua_func(6, 7)")
+```
+
+## Design Principles
+
+1. **Python Compliance**: Follow Python semantics as closely as possible
+2. **Extensibility**: Clean module boundaries for future features
+3. **Performance**: Efficient bytecode execution
+4. **Memory Management**: Proper object lifecycle
+5. **Error Handling**: Meaningful error messages with source location
+6. **Lupa-like API**: Familiar interface for Python-Lua interop users
+
+## Testing Strategy
+
+### Unit Tests
+
+- [x] Lexer: Token generation from source
+- [ ] Parser: AST generation from tokens
+- [ ] Objects: Python object behavior
+- [ ] VM: Bytecode execution
+- [ ] Built-ins: Function behavior
+
+### Integration Tests
+
+- [ ] End-to-end: Python source → execution
+- [ ] Interop: Python ↔ Luau communication
+- [ ] Error handling: Proper error propagation
+
+### Performance Tests
+
+- [ ] Benchmarks: Execution speed comparisons
+- [ ] Memory usage: Object lifecycle tracking
+
+## Future Roadmap
+
+### v3.1 - Classes & Modules
+
+- [ ] Class definitions and inheritance
+- [ ] Module system and imports
+- [ ] Package structure
+
+### v3.2 - Advanced Features
+
+- [ ] Decorators
+- [ ] Context managers
+- [ ] Async/await (coroutines)
+
+### v3.3 - Standard Library
+
+- [ ] Core modules (math, string, etc.)
+- [ ] File I/O operations
+- [ ] JSON handling
+
+### v3.4 - Optimization
+
+- [ ] Bytecode optimization
+- [ ] JIT compilation possibilities
+- [ ] Memory optimizations
+
+## Success Criteria
+
+- ✅ **Correctness**: Python code executes with proper semantics
+- ✅ **Completeness**: Core Python features are implemented
+- ✅ **Performance**: Reasonable execution speed for interpreted code
+- ✅ **Usability**: Clean, Lupa-inspired API
+- ✅ **Maintainability**: Modular, well-documented codebase
+- ✅ **Extensibility**: Easy to add new Python features
+
+## Getting Started
+
+1. Review this plan and the current PyLua codebase in `old/`
+2. Set up the new directory structure in `src/`
+3. Use test-driven development throughout
+4. Refer to CPython source and Python language reference for accuracy
+
+---
+
+*This rewrite represents a complete architectural overhaul to create a production-quality Python interpreter in Luau.*

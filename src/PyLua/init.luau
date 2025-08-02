@@ -1,163 +1,144 @@
--- PyLua Main API - Runtime-based architecture inspired by Lupa
+--!strict
+-- PyLua v3.0 - Python Interpreter for Luau
+-- Main API module with Lupa-inspired interface (inverse: Python-in-Luau)
+
 local PyLua = {}
 
--- Import components
-local compiler = require('@self/compiler/compiler')
-local bytecodeExecutor = require('@self/vm/bytecode_executor')
-local types = require('@self/core/types')
+-- Version information
+PyLua.version = "3.0.0-dev"
+PyLua.description = "PyLua - Embedded Python interpreter for Luau"
 
-type Runtime = types.Runtime
-type Bytecode = types.Bytecode
-type ExecutionOptions = types.ExecutionOptions
+-- Import core components (will be implemented in later phases)
+-- local lexer = require('./lexer')
+-- local parser = require('./parser')
+-- local compiler = require('./compiler')
+-- local vm = require('./vm/interpreter')
 
--- Runtime class definition
+-- Type definitions for the API
+export type RuntimeOptions = {
+    debug: boolean?,
+    timeout: number?,
+    maxRecursion: number?,
+}
+
+export type Runtime = {
+    -- Core execution methods
+    execute: (self: Runtime, code: string) -> (),
+    eval: (self: Runtime, code: string) -> any,
+    
+    -- Advanced methods
+    compile: (self: Runtime, code: string) -> any, -- Will return bytecode
+    runBytecode: (self: Runtime, bytecode: any) -> any,
+    
+    -- Environment access
+    globals: (self: Runtime) -> {[string]: any},
+    setGlobal: (self: Runtime, name: string, value: any) -> (),
+    getGlobal: (self: Runtime, name: string) -> any,
+    
+    -- Internal state (private)
+    _options: RuntimeOptions,
+    _globals: {[string]: any},
+    _debug: boolean,
+}
+
+-- Runtime class implementation
 local Runtime = {}
 Runtime.__index = Runtime
 
 -- Create a new Python runtime instance
-function PyLua.new(options: {debug: boolean?, timeout: number?}?): Runtime
-    -- Ensure options is a table
-    if type(options) ~= "table" then
-        options = {}
-    end
-
-    local debug = (options and options.debug) or false
-    local timeout = options and options.timeout
-
+function PyLua.new(options: RuntimeOptions?): Runtime
+    local opts: RuntimeOptions = options or {}
+    
     local runtime = {
-        _options = options,
-        _globals = {} :: any,  -- Cast to any to allow dynamic property addition
-        _debug = debug,
-        _timeout = timeout
+        _options = opts,
+        _globals = {},
+        _debug = if opts.debug ~= nil then opts.debug else false,
     }
-
+    
     setmetatable(runtime, Runtime)
-    return runtime :: any  -- Cast to any to avoid type conflicts
+    return runtime :: any -- Cast to bypass type checker temporarily
 end
 
--- Runtime method: Evaluate Python code and return result
-function Runtime:eval(code)
+-- Execute Python code without returning a value (for statements)
+function Runtime:execute(code: string)
     if type(code) ~= "string" then
-        error("runtime.eval() requires a string argument")
+        error("Runtime.execute() requires a string argument", 2)
     end
     
-    local bytecode = compiler.compile(code)
-    if not bytecode then
-        error("Python compilation failed")
-    end
+    -- TODO: Implement the full pipeline
+    -- 1. Lexer: code -> tokens
+    -- 2. Parser: tokens -> AST
+    -- 3. Compiler: AST -> bytecode
+    -- 4. VM: execute bytecode
     
-    local result = bytecodeExecutor.execute(bytecode, {
-        debug = self._debug,
-        globals = self._globals,
-        mode = "eval"  -- Use eval mode to capture stack top as return value
-    })
-    
-    if not result then
-        error("Python execution failed")
-    end
-    
-    -- Update our globals with any new variables
-    if self._globals then
-        for name, value in pairs(result.variables) do
-            self._globals[name] = value
-        end
-    end
-    
-    -- Return the actual return value, or nil if no value was produced
-    return result.returnValue
+    error("Not implemented yet - Phase 1 in progress", 2)
 end
 
--- Runtime method: Execute Python code without return value
-function Runtime:execute(code)
+-- Evaluate Python expression and return the result
+function Runtime:eval(code: string): any
     if type(code) ~= "string" then
-        error("runtime.execute() requires a string argument")
+        error("Runtime.eval() requires a string argument", 2)
     end
     
-    local bytecode = compiler.compile(code)
-    if not bytecode then
-        error("Python compilation failed")
-    end
-    
-    local result = bytecodeExecutor.execute(bytecode, {
-        debug = self._debug,
-        globals = self._globals,
-        mode = "exec"  -- Use exec mode to discard unused stack values
-    })
-    
-    if not result then
-        error("Python execution failed")
-    end
-    
-    -- Execute doesn't return a value, it's for side effects only
-    -- But we update our globals with any new variables
-    if self._globals then
-        for name, value in pairs(result.variables) do
-            self._globals[name] = value
-        end
-    end
+    -- TODO: Implement the full pipeline for expressions
+    error("Not implemented yet - Phase 1 in progress", 2)
 end
 
--- Runtime method: Access global environment (like lua.globals())
-function Runtime:globals()
+-- Compile Python source to bytecode (advanced API)
+function Runtime:compile(code: string): any
+    if type(code) ~= "string" then
+        error("Runtime.compile() requires a string argument", 2)
+    end
+    
+    -- TODO: Implement compilation pipeline
+    error("Not implemented yet - Phase 1 in progress", 2)
+end
+
+-- Execute pre-compiled bytecode
+function Runtime:runBytecode(bytecode: any): any
+    if type(bytecode) ~= "table" then
+        error("Runtime.runBytecode() requires a bytecode table", 2)
+    end
+    
+    -- TODO: Implement bytecode execution
+    error("Not implemented yet - Phase 1 in progress", 2)
+end
+
+-- Access the global environment
+function Runtime:globals(): {[string]: any}
     return self._globals
 end
 
--- Advanced API: Compile Python source code to bytecode
-function Runtime:compile(code)
-    if type(code) ~= "string" then
-        error("runtime.compile() requires a string argument")
+-- Set a global variable
+function Runtime:setGlobal(name: string, value: any)
+    if type(name) ~= "string" then
+        error("Runtime.setGlobal() requires a string name", 2)
     end
     
-    return compiler.compile(code)
+    self._globals[name] = value
 end
 
--- Advanced API: Execute pre-compiled bytecode
-function Runtime:runBytecode(bytecode, options)
-    if type(bytecode) ~= "table" then
-        error("runtime.runBytecode() requires a bytecode table")
+-- Get a global variable
+function Runtime:getGlobal(name: string): any
+    if type(name) ~= "string" then
+        error("Runtime.getGlobal() requires a string name", 2)
     end
     
-    options = options or {}
-    
-    -- Use rawget to avoid type checker issues
-    local debugOption = rawget(options, "debug")
-    
-    -- Merge runtime options with call-specific options
-    local execOptions = {
-        debug = debugOption or self._debug,
-        globals = self._globals,
-        mode = "exec"  -- Default to exec mode for explicit bytecode execution
-    }
-    
-    return bytecodeExecutor.execute(bytecode, execOptions)
+    return self._globals[name]
 end
 
--- Backward compatibility functions (deprecated, will be removed in v0.4)
-function PyLua.compile(sourceString)
-    warn("PyLua.compile() is deprecated. Use PyLua.new():compile() instead.")
-    local runtime = PyLua.new({})
-    return (runtime :: any):compile(sourceString)
+-- Backward compatibility functions (deprecated)
+-- These will be removed in a future version
+function PyLua.execute(code: string)
+    warn("PyLua.execute() is deprecated. Use PyLua.new():execute() instead.")
+    local runtime = PyLua.new()
+    runtime:execute(code)
 end
 
-function PyLua.runBytecode(bytecode, options)
-    warn("PyLua.runBytecode() is deprecated. Use PyLua.new():runBytecode() instead.")
-    local runtime = PyLua.new({})
-    return (runtime :: any):runBytecode(bytecode, options)
+function PyLua.eval(code: string): any
+    warn("PyLua.eval() is deprecated. Use PyLua.new():eval() instead.")
+    local runtime = PyLua.new()
+    return runtime:eval(code)
 end
-
-function PyLua.execute(sourceString, options)
-    warn("PyLua.execute() is deprecated. Use PyLua.new():eval() or :execute() instead.")
-    local runtime = PyLua.new({})
-    return (runtime :: any):eval(sourceString)
-end
-
-function PyLua.getVariable(variables, name)
-    warn("PyLua.getVariable() is deprecated. Variables are handled automatically in v0.3.")
-    return bytecodeExecutor.getVariable(variables, name)
-end
-
--- Export version information
-PyLua.version = "0.3.0"
-PyLua.description = "PyLua - Embedded Python interpreter for Luau"
 
 return PyLua

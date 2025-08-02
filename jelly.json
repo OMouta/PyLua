@@ -1,7 +1,7 @@
 {
   "name": "OMouta/PyLua",
   "version": "0.3.0",
-  "description": "A Roblox project managed with Jelly",
+  "description": "Embedded Python Interpreter for Luau",
   "license": "MIT",
   "authors": [
     "OMouta"
