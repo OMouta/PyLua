@@ -93,20 +93,20 @@ src/PyLua/
 
 #### 2.1 Expression Parser
 
-- [ ] **Literals**: Numbers, strings, booleans, None
-- [ ] **Variables**: Name resolution and binding
-- [ ] **Binary operations**: Arithmetic, comparison, logical
-- [ ] **Unary operations**: Negation, not, bitwise
-- [ ] **Operator precedence**: Correct Python precedence rules
-- [ ] **Parentheses**: Grouping and function calls
+- [x] **Literals**: Numbers, strings, booleans, None
+- [x] **Variables**: Name resolution and binding
+- [x] **Binary operations**: Arithmetic, comparison, logical
+- [x] **Unary operations**: Negation, not, bitwise
+- [x] **Operator precedence**: Correct Python precedence rules
+- [x] **Parentheses**: Grouping and function calls
 
 #### 2.2 Statement Parser
 
-- [ ] **Assignment**: Simple and multiple assignment
-- [ ] **Expression statements**: Function calls, method calls
-- [ ] **Control flow**: if/elif/else parsing
-- [ ] **Loops**: for and while loop parsing
-- [ ] **Function definitions**: def statement parsing
+- [x] **Assignment**: Simple and multiple assignment
+- [x] **Expression statements**: Function calls, method calls
+- [x] **Control flow**: if/elif/else parsing
+- [x] **Loops**: for and while loop parsing
+- [x] **Function definitions**: def statement parsing
 
 #### 2.3 Advanced Parsing
 

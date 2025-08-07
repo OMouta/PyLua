@@ -70,7 +70,6 @@ local KEYWORDS: {[string]: TokenType} = {
     ["not"] = "NOT",
     ["or"] = "OR",
     ["pass"] = "PASS",
-    ["print"] = "PRINT",
     ["raise"] = "RAISE",
     ["return"] = "RETURN",
     ["try"] = "TRY",
