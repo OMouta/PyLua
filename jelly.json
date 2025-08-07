@@ -20,11 +20,13 @@
   "dependencies": {},
   "devDependencies": {},
   "scripts": {
-    "build": "rojo build default.project.json --output build/PyLua.rbxm"
+    "build": "rojo build default.project.json --output build/PyLua.rbxm",
+    "test": "lune run tests/run_tests.luau"
   },
   "jelly": {
     "cleanup": true,
     "optimize": true,
-    "packagesPath": "Packages"
+    "packagesPath": "Packages",
+    "updateProjectFile": false
   }
 }
