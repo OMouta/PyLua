@@ -214,7 +214,7 @@ export type Tuple = Expr & {
 -- Dictionary literal: {'key': 'value'}
 export type Dict = Expr & {
     type: "Dict",
-    keys: {Expr?},          -- Keys (None for ** unpacking)
+    keys: {Expr},           -- Keys (DictUnpack sentinel nodes for ** entries)
     values: {Expr},         -- Values
 }
 
@@ -222,6 +222,19 @@ export type Dict = Expr & {
 export type Set = Expr & {
     type: "Set",
     elts: {Expr},           -- Elements
+}
+
+-- Starred expression: *value (in lists, tuples, calls)
+export type Starred = Expr & {
+    type: "Starred",
+    value: Expr,
+    ctx: ExprContext,
+}
+
+-- Dict **unpack sentinel inside a dict literal (mirrors CPython using None in keys list)
+export type DictUnpack = Expr & {
+    type: "DictUnpack",
+    value: Expr,
 }
 
 -- ========== HELPER TYPES ==========
@@ -264,7 +277,7 @@ export type Keyword = {
 export type AnyStmt = Assign | AugAssign | ExprStmt | If | While | For | FunctionDef | ClassDef | Return | Break | Continue | Pass
 
 -- Union type for all expression types
-export type AnyExpr = BinOpNode | UnaryOpNode | BoolOpNode | Compare | Call | Attribute | Subscript | Name | Constant | List | Tuple | Dict | Set
+export type AnyExpr = BinOpNode | UnaryOpNode | BoolOpNode | Compare | Call | Attribute | Subscript | Name | Constant | List | Tuple | Dict | Set | Starred | DictUnpack
 
 -- Union type for all AST node types
 export type AnyNode = Module | AnyStmt | AnyExpr

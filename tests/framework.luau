@@ -4,16 +4,52 @@
 
 local TestFramework = {}
 
--- Test result tracking
-local totalTests = 0
-local passedTests = 0
-local failedTests = 0
+-- Configuration (can be overridden via configure())
+export type FrameworkConfig = {
+    showPassed: boolean?,         -- Print each passed assertion
+    color: boolean?,              -- Use ANSI colors
+    showFailuresInline: boolean?, -- Show failure details immediately
+    autoSummaryPerFile: boolean?, -- Automatically print summary after each suite (for single-file runs)
+}
+
+local config: FrameworkConfig = {
+    showPassed = false,
+    color = true,
+    showFailuresInline = true,
+    autoSummaryPerFile = true,
+}
+
+-- ANSI color helpers
+local ANSI = {
+    reset = "\27[0m",
+    bold = "\27[1m",
+    dim = "\27[2m",
+    red = "\27[31m",
+    green = "\27[32m",
+    yellow = "\27[33m",
+    cyan = "\27[36m",
+}
+
+local function colorize(code: string, text: string): string
+    if not config.color then return text end
+    return code .. text .. ANSI.reset
+end
+
+-- Test result tracking (assertion-level)
+local totalAssertions = 0
+local passedAssertions = 0
+local failedAssertions = 0
+
+-- Test case tracking
+local totalTestCases = 0
+local failedTestCases = 0
+
+-- Failure records
+type FailureRecord = { testName: string, message: string, trace: string }
+local failures: {FailureRecord} = {}
 
 -- Test suite definition
-export type TestSuite = {
-    name: string,
-    tests: {TestCase},
-}
+export type TestSuite = { name: string, tests: {TestCase} }
 
 export type TestCase = {
     name: string,
@@ -22,15 +58,18 @@ export type TestCase = {
 
 -- Assert functions
 function TestFramework.assert(condition: boolean, message: string?)
-    totalTests = totalTests + 1
-    
+    totalAssertions += 1
     if condition then
-        passedTests = passedTests + 1
-        print("✓ " .. (message or "Assertion passed"))
+        passedAssertions += 1
+        if config.showPassed then
+            print(colorize(ANSI.green, "✓ " .. (message or "Assertion passed")))
+        end
     else
-        failedTests = failedTests + 1
+        failedAssertions += 1
         local msg = message or "Assertion failed"
-        print("✗ " .. msg)
+        if config.showFailuresInline then
+            print(colorize(ANSI.red, "✗ " .. msg))
+        end
         error(msg, 2)
     end
 end
@@ -62,59 +101,85 @@ function TestFramework.assertFalse(condition: boolean, message: string?)
 end
 
 function TestFramework.assertError(func: () -> any, message: string?)
-    totalTests = totalTests + 1
-    
+    totalAssertions += 1
     local success, err = pcall(func)
     if success then
-        failedTests = failedTests + 1
+        failedAssertions += 1
         local msg = message or "Expected error but none occurred"
-        print("✗ " .. msg)
+        if config.showFailuresInline then
+            print(colorize(ANSI.red, "✗ " .. msg))
+        end
         error(msg, 2)
     else
-        passedTests = passedTests + 1
-        print("✓ " .. (message or "Expected error occurred: " .. tostring(err)))
+        passedAssertions += 1
+        if config.showPassed then
+            print(colorize(ANSI.green, "✓ " .. (message or ("Expected error occurred: " .. tostring(err)))))
+        end
+    end
+end
+
+-- Allow external configuration
+function TestFramework.configure(userConfig: FrameworkConfig)
+    for k, v in pairs(userConfig) do
+        (config :: any)[k] = v
     end
 end
 
 -- Run a test suite
 function TestFramework.runSuite(suite: TestSuite)
-    print("\n=== Running Test Suite: " .. suite.name .. " ===")
-    
+    print("\n" .. colorize(ANSI.cyan, "Suite: " .. suite.name))
+    local line = {}
     for _, testCase in ipairs(suite.tests) do
-        print("\nRunning test: " .. testCase.name)
-        
+        totalTestCases += 1
+        local testName = testCase.name
         local success, err = pcall(function()
             testCase.test()
         end)
-        
-        if not success then
-            print("✗ Test failed with error: " .. tostring(err))
-            failedTests = failedTests + 1
+        if success then
+            table.insert(line, config.showPassed and colorize(ANSI.green, "·") or ".")
+        else
+            failedTestCases += 1
+            table.insert(line, colorize(ANSI.red, "F"))
+            table.insert(failures, { testName = testName, message = tostring(err), trace = debug.traceback() })
+            if config.showFailuresInline then
+                print(colorize(ANSI.red, "\nFailure: " .. testName .. " -> " .. tostring(err)))
+            end
         end
+    end
+    print(table.concat(line))
+    if config.autoSummaryPerFile then
+        -- Print incremental summary without resetting counts so a single file run is informative
+        TestFramework.printSummary()
     end
 end
 
 -- Print test results summary
 function TestFramework.printSummary()
-    print("\n=== Test Summary ===")
-    print("Total tests: " .. totalTests)
-    print("Passed: " .. passedTests)
-    print("Failed: " .. failedTests)
-    
-    if failedTests == 0 then
-        print("🎉 All tests passed!")
-    else
-        print("❌ " .. failedTests .. " tests failed")
+    if #failures > 0 then
+        print("\n" .. colorize(ANSI.red, "Failures (" .. tostring(#failures) .. "):"))
+        for i, f in ipairs(failures) do
+            print(colorize(ANSI.red, tostring(i) .. ") " .. f.testName .. ": " .. f.message))
+        end
     end
-    
-    return failedTests == 0
+    print("\n" .. colorize(ANSI.bold, "=== Test Summary ==="))
+    print(string.format("Test cases: %d total, %d failed", totalTestCases, failedTestCases))
+    print(string.format("Assertions : %d total, %d passed, %d failed", totalAssertions, passedAssertions, failedAssertions))
+    if failedTestCases == 0 and failedAssertions == 0 then
+        print(colorize(ANSI.green, "✅ All tests passed"))
+    else
+        print(colorize(ANSI.red, "❌ Some tests failed"))
+    end
+    return failedTestCases == 0 and failedAssertions == 0
 end
 
 -- Reset test counters
 function TestFramework.reset()
-    totalTests = 0
-    passedTests = 0
-    failedTests = 0
+    totalAssertions = 0
+    passedAssertions = 0
+    failedAssertions = 0
+    totalTestCases = 0
+    failedTestCases = 0
+    failures = {}
 end
 
 return TestFramework

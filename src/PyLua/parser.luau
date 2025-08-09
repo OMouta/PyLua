@@ -126,6 +126,16 @@ local PRECEDENCE = {
 -- Forward declarations
 local parseExpression: (ParserState) -> Expr
 local parsePrimary: (ParserState) -> Expr
+local parsePostfix: (ParserState, Expr) -> Expr
+
+-- Small lookahead utility
+local function lookahead(state: ParserState, offset: number): Token?
+    local idx = state.pos + offset
+    if idx >= 1 and idx <= #state.tokens then
+        return state.tokens[idx]
+    end
+    return nil
+end
 
 -- Parse a primary expression (literals, names, parentheses)
 parsePrimary = function(state: ParserState): Expr
@@ -221,54 +231,268 @@ parsePrimary = function(state: ParserState): Expr
     -- Names (variables)
     if current.type == "NAME" then
         advance(state)
-        local name = {
+        local node: Expr = {
             type = "Name",
             id = current.value,
             ctx = "Load",
             lineno = current.line,
             col_offset = current.column,
         } :: any
-        
-        -- Check for function call
-        if match(state, "LPAR") then
-            advance(state) -- consume '('
-            
-            -- Parse arguments (simplified - just expressions for now)
-            local args = {}
-            
-            while not match(state, "RPAR") and state.current do
-                local arg = parseExpression(state)
-                table.insert(args, arg)
-                
-                if match(state, "COMMA") then
+        return parsePostfix(state, node)
+    end
+
+    -- List literal: [a, b, c]
+    if current.type == "LSQB" then
+        advance(state) -- consume '['
+        local elts: {Expr} = {}
+        while state.current and not match(state, "RSQB") do
+            if match(state, "STAR") then
+                advance(state)
+                local starredValue = parseExpression(state)
+                table.insert(elts, { type = "Starred", value = starredValue, ctx = "Load", lineno = starredValue.lineno, col_offset = starredValue.col_offset } :: any)
+            else
+                local elt = parseExpression(state)
+                table.insert(elts, elt)
+            end
+            if match(state, "COMMA") then
+                advance(state)
+            else
+                break
+            end
+        end
+        consume(state, "RSQB", "Expected ']' to close list literal")
+        local listNode: Expr = {
+            type = "List",
+            elts = elts,
+            ctx = "Load",
+            lineno = current.line,
+            col_offset = current.column,
+        } :: any
+        return parsePostfix(state, listNode)
+    end
+
+    -- Tuple literal or parenthesized (handled later after LPAR)
+    -- Dict / Set literal starting with '{'
+    if current.type == "LBRACE" then
+        advance(state) -- consume '{'
+        local keys: {Expr?} = {}
+        local values: {Expr} = {}
+        local elts: {Expr} = {}
+        local isDict = false
+        local hasElements = false
+        while state.current and not match(state, "RBRACE") do
+            hasElements = true
+            -- Look ahead for ':' to decide dict vs set
+            local firstExpr: Expr
+            if match(state, "DOUBLESTAR") then
+                -- dict unpack **expr -> represented by DictUnpack node in keys array
+                advance(state)
+                local unpackExpr = parseExpression(state)
+                local unpackNode: Expr = { type = "DictUnpack", value = unpackExpr, lineno = unpackExpr.lineno, col_offset = unpackExpr.col_offset } :: any
+                table.insert(keys, unpackNode)
+                table.insert(values, unpackExpr)
+                isDict = true
+            else
+                if match(state, "STAR") then
+                    -- set starred element *a
                     advance(state)
+                    local starredInner = parseExpression(state)
+                    firstExpr = { type = "Starred", value = starredInner, ctx = "Load", lineno = starredInner.lineno, col_offset = starredInner.col_offset } :: any
+                else
+                    firstExpr = parseExpression(state)
+                end
+                if match(state, "COLON") then
+                    isDict = true
+                    advance(state) -- consume ':'
+                    local valueExpr = parseExpression(state)
+                    table.insert(keys, firstExpr)
+                    table.insert(values, valueExpr)
+                else
+                    if isDict then
+                        error("Mixed set and dict elements in literal")
+                    end
+                    table.insert(elts, firstExpr)
                 end
             end
-            
-            consume(state, "RPAR", "Expected ')' after function arguments")
-            
-            return {
-                type = "Call",
-                func = name,
-                args = args,
-                keywords = {},
+            if match(state, "COMMA") then
+                advance(state)
+            else
+                break
+            end
+        end
+        consume(state, "RBRACE", "Expected '}' to close literal")
+        local node: Expr
+        if not hasElements then
+            -- Empty dict: {}
+            node = {
+                type = "Dict",
+                keys = {},
+                values = {},
+                lineno = current.line,
+                col_offset = current.column,
+            } :: any
+        elseif isDict then
+            node = {
+                type = "Dict",
+                keys = keys,
+                values = values,
+                lineno = current.line,
+                col_offset = current.column,
+            } :: any
+        else
+            node = {
+                type = "Set",
+                elts = elts,
                 lineno = current.line,
                 col_offset = current.column,
             } :: any
         end
-        
-        return name
+        return parsePostfix(state, node)
     end
     
-    -- Parenthesized expressions
+    -- Parenthesized expressions / tuple literal
     if current.type == "LPAR" then
         advance(state) -- consume '('
-        local expr = parseExpression(state)
-        consume(state, "RPAR", "Expected ')' after expression")
-        return expr
+        if match(state, "RPAR") then
+            advance(state)
+            -- Empty tuple
+            local tupleNode: Expr = {
+                type = "Tuple",
+                elts = {},
+                ctx = "Load",
+                lineno = current.line,
+                col_offset = current.column,
+            } :: any
+            return parsePostfix(state, tupleNode)
+        end
+        local elements: {Expr} = {}
+        local first: Expr
+        if match(state, "STAR") then
+            advance(state)
+            local starredInner = parseExpression(state)
+            first = { type = "Starred", value = starredInner, ctx = "Load", lineno = starredInner.lineno, col_offset = starredInner.col_offset } :: any
+        else
+            first = parseExpression(state)
+        end
+        if match(state, "COMMA") then
+            -- Tuple with at least two elements
+            table.insert(elements, first)
+            while match(state, "COMMA") do
+                advance(state)
+                if match(state, "RPAR") then break end
+                local nextExpr: Expr
+                if match(state, "STAR") then
+                    advance(state)
+                    local starredInner = parseExpression(state)
+                    nextExpr = { type = "Starred", value = starredInner, ctx = "Load", lineno = starredInner.lineno, col_offset = starredInner.col_offset } :: any
+                else
+                    nextExpr = parseExpression(state)
+                end
+                table.insert(elements, nextExpr)
+            end
+            consume(state, "RPAR", "Expected ')' to close tuple")
+            local tupleNode: Expr = {
+                type = "Tuple",
+                elts = elements,
+                ctx = "Load",
+                lineno = first.lineno,
+                col_offset = first.col_offset,
+            } :: any
+            return parsePostfix(state, tupleNode)
+        else
+            -- Single element or grouped expression
+            consume(state, "RPAR", "Expected ')' after expression")
+            return parsePostfix(state, first)
+        end
     end
     
     error("Unexpected token in expression: " .. current.type)
+end
+
+-- Parse function call arguments and keywords
+local function parseCallArgs(state: ParserState): ({Expr}, {any})
+    local args: {Expr} = {}
+    local keywords: {any} = {}
+    while state.current and not match(state, "RPAR") do
+        -- keyword if NAME and next token is '='
+        if match(state, "NAME") and state.pos < #state.tokens and state.tokens[state.pos + 1].type == "EQUAL" then
+            local nameTok = state.current :: Token
+            advance(state) -- name
+            advance(state) -- '='
+            local valueExpr = parseExpression(state)
+            table.insert(keywords, {
+                arg = nameTok.value,
+                value = valueExpr,
+                lineno = nameTok.line,
+                col_offset = nameTok.column,
+            })
+        elseif match(state, "STAR") then
+            advance(state)
+            local starredValue = parseExpression(state)
+            table.insert(args, { type = "Starred", value = starredValue, ctx = "Load", lineno = starredValue.lineno, col_offset = starredValue.col_offset } :: any)
+        elseif match(state, "DOUBLESTAR") then
+            advance(state)
+            local kwValue = parseExpression(state)
+            table.insert(keywords, { arg = nil, value = kwValue, lineno = kwValue.lineno, col_offset = kwValue.col_offset })
+        else
+            local expr = parseExpression(state)
+            table.insert(args, expr)
+        end
+        if match(state, "COMMA") then
+            advance(state)
+            if match(state, "RPAR") then break end
+        else
+            break
+        end
+    end
+    return args, keywords
+end
+
+-- Parse attribute / subscript / call chains (postfix operations)
+parsePostfix = function(state: ParserState, expr: Expr): Expr
+    while true do
+        local current = peek(state)
+        if not current then break end
+        if current.type == "DOT" then
+            advance(state)
+            local nameTok = consume(state, "NAME", "Expected attribute name after '.'")
+            expr = {
+                type = "Attribute",
+                value = expr,
+                attr = nameTok.value,
+                ctx = "Load",
+                lineno = nameTok.line,
+                col_offset = nameTok.column,
+            } :: any
+        elseif current.type == "LSQB" then
+            advance(state) -- consume '['
+            local indexExpr = parseExpression(state)
+            consume(state, "RSQB", "Expected ']' after subscript expression")
+            expr = {
+                type = "Subscript",
+                value = expr,
+                slice = indexExpr,
+                ctx = "Load",
+                lineno = indexExpr.lineno,
+                col_offset = indexExpr.col_offset,
+            } :: any
+        elseif current.type == "LPAR" then
+            advance(state) -- consume '('
+            local args, keywords = parseCallArgs(state)
+            consume(state, "RPAR", "Expected ')' to close call arguments")
+            expr = {
+                type = "Call",
+                func = expr,
+                args = args,
+                keywords = keywords,
+                lineno = expr.lineno,
+                col_offset = expr.col_offset,
+            } :: any
+        else
+            break
+        end
+    end
+    return expr
 end
 
 -- Parse unary expressions (-, +, ~, not)
@@ -349,66 +573,95 @@ local function getBinaryOp(tokenType: TokenType): nodes.BinOpType?
 end
 
 -- Get comparison operator from token
-local function getCompareOp(tokenType: TokenType): nodes.CmpOp?
+local function getCompareOp(tokenType: TokenType, nextTok: Token?): nodes.CmpOp?
     if tokenType == "EQEQUAL" then return "Eq" end
     if tokenType == "NOTEQUAL" then return "NotEq" end
     if tokenType == "LESS" then return "Lt" end
     if tokenType == "LESSEQUAL" then return "LtE" end
     if tokenType == "GREATER" then return "Gt" end
     if tokenType == "GREATEREQUAL" then return "GtE" end
-    if tokenType == "IS" then return "Is" end
+    if tokenType == "IS" then
+        if nextTok and nextTok.type == "NOT" then
+            return "IsNot"
+        end
+        return "Is"
+    end
     if tokenType == "IN" then return "In" end
+    if tokenType == "NOT" and nextTok and nextTok.type == "IN" then
+        return "NotIn"
+    end
     return nil
 end
 
 -- Parse binary expressions with precedence climbing
 local function parseBinaryExpression(state: ParserState, minPrec: number): Expr
     local left = parseUnary(state)
-    
+
+    local function foldComparison(base: Expr, firstTok: Token, firstOp: nodes.CmpOp): Expr
+        local ops = {firstOp}
+        local comparators: {Expr} = {}
+        local rhs = parseUnary(state)
+        table.insert(comparators, rhs)
+        while true do
+            local t = peek(state)
+            if not t then break end
+            local nextTok = lookahead(state, 1)
+            local op2 = getCompareOp(t.type, nextTok)
+            if not op2 then break end
+            if t.type == "IS" and nextTok and nextTok.type == "NOT" then
+                advance(state); advance(state)
+            elseif t.type == "NOT" and nextTok and nextTok.type == "IN" then
+                advance(state); advance(state)
+            else
+                advance(state)
+            end
+            local r2 = parseUnary(state)
+            table.insert(ops, op2)
+            table.insert(comparators, r2)
+        end
+        return { type = "Compare", left = base, ops = ops, comparators = comparators, lineno = firstTok.line, col_offset = firstTok.column } :: any
+    end
+
     while true do
         local current = peek(state)
-        if not current then
-            break
-        end
-        
+        if not current then break end
         local prec = PRECEDENCE[current.type]
-        if not prec or prec < minPrec then
-            break
-        end
-        
-        local op = getBinaryOp(current.type)
-        if op then
-            -- Binary arithmetic operator
-            advance(state)
-            local right = parseBinaryExpression(state, prec + 1)
-            left = {
-                type = "BinOp",
-                left = left,
-                op = op,
-                right = right,
-                lineno = current.line,
-                col_offset = current.column,
-            } :: any
+        if not prec or prec < minPrec then break end
+
+        if current.type == "AND" or current.type == "OR" then
+            local boolType = (current.type == "AND") and "And" or "Or"
+            local values = {left}
+            repeat
+                advance(state)
+                local rhs = parseBinaryExpression(state, PRECEDENCE[current.type] + 1)
+                table.insert(values, rhs)
+                current = peek(state)
+            until not current or current.type ~= ((boolType == "And") and "AND" or "OR")
+            left = { type = "BoolOp", op = boolType, values = values, lineno = values[1].lineno, col_offset = values[1].col_offset } :: any
         else
-            -- Could be comparison or other operators
-            local cmpOp = getCompareOp(current.type)
+            local nextTok = lookahead(state, 1)
+            local cmpOp: nodes.CmpOp? = getCompareOp(current.type, nextTok)
             if cmpOp then
+                -- consume operator token(s)
+                    local opToken = current
+                    if current.type == "IS" and nextTok and nextTok.type == "NOT" then
+                        advance(state); advance(state)
+                    elseif current.type == "NOT" and nextTok and nextTok.type == "IN" then
+                        advance(state); advance(state)
+                    else
+                        advance(state)
+                    end
+                    left = foldComparison(left, opToken, cmpOp :: nodes.CmpOp)
+            else
+                local op = getBinaryOp(current.type)
+                if not op then break end
                 advance(state)
                 local right = parseBinaryExpression(state, prec + 1)
-                left = {
-                    type = "Compare",
-                    left = left,
-                    ops = {cmpOp},
-                    comparators = {right},
-                    lineno = current.line,
-                    col_offset = current.column,
-                } :: any
-            else
-                break
+                left = { type = "BinOp", left = left, op = op, right = right, lineno = current.line, col_offset = current.column } :: any
             end
         end
     end
-    
+
     return left
 end
 
@@ -424,17 +677,25 @@ local parseStatement: (ParserState) -> Stmt
 local parseSimpleStatement: (ParserState) -> Stmt
 local parseCompoundStatement: (ParserState) -> Stmt
 
+-- Parse a potential assignment target without consuming binary operators
+local function parseTargetOnly(state: ParserState): Expr?
+    local tok = peek(state)
+    if not tok then return nil end
+    -- Only attempt if it could start a simple assignment target (Name, possibly with postfix)
+    if tok.type == "NAME" then
+        return parsePrimary(state)
+    end
+    return nil
+end
+
 -- Parse assignment target (for Store context)
 local function parseAssignmentTarget(expr: Expr): Expr
-    -- Convert Load context to Store context for assignment
-    if expr.type == "Name" then
-        local nameExpr = expr :: any
-        nameExpr.ctx = "Store"
-        return nameExpr
+    if expr.type == "Name" or expr.type == "Attribute" or expr.type == "Subscript" then
+        local e = expr :: any
+        e.ctx = "Store"
+        return e
     end
-    
-    -- TODO: Handle other assignment targets (subscripts, attributes, etc.)
-    return expr
+    return expr -- fallback
 end
 
 -- Parse a simple statement (assignment, expression statement)
@@ -463,33 +724,39 @@ parseSimpleStatement = function(state: ParserState): Stmt
         } :: any
     end
     
-    -- Try to parse as an expression first
-    local expr = parseExpression(state)
-    
-    -- Check if this is an assignment
-    if match(state, "EQUAL") then
-        advance(state) -- consume '='
-        local value = parseExpression(state)
-        
-        -- Convert expression to assignment target
-        local target = parseAssignmentTarget(expr)
-        
-        return {
-            type = "Assign",
-            targets = {target},
-            value = value,
-            lineno = expr.lineno,
-            col_offset = expr.col_offset,
-        } :: any
+    -- Attempt target-only parse for assignment / augassign
+    local savePos = state.pos
+    local saveCurrent = state.current
+    local targetCandidate = parseTargetOnly(state)
+    if targetCandidate then
+        local afterTarget = peek(state)
+        if afterTarget and afterTarget.type == "EQUAL" then
+            advance(state) -- '='
+            local value = parseExpression(state)
+            local target = parseAssignmentTarget(targetCandidate)
+            return { type = "Assign", targets = {target}, value = value, lineno = target.lineno, col_offset = target.col_offset } :: any
+        elseif afterTarget then
+            local opTok = afterTarget
+            local nextTok = lookahead(state, 1)
+            local opMap: {[string]: nodes.BinOpType} = { PLUS = "Add", MINUS = "Sub", STAR = "Mult", SLASH = "Div", DOUBLESLASH = "FloorDiv", PERCENT = "Mod", DOUBLESTAR = "Pow", LEFTSHIFT = "LShift", RIGHTSHIFT = "RShift", AMPER = "BitAnd", CIRCUMFLEX = "BitXor", VBAR = "BitOr", AT = "MatMult" }
+            if nextTok and nextTok.type == "EQUAL" and opMap[opTok.type] then
+                advance(state) -- operator
+                advance(state) -- '='
+                local value = parseExpression(state)
+                local target = parseAssignmentTarget(targetCandidate)
+                return { type = "AugAssign", target = target, op = opMap[opTok.type], value = value, lineno = target.lineno, col_offset = target.col_offset } :: any
+            end
+        end
+        -- Not an assignment, restore state and parse as expression
+        state.pos = savePos
+        state.current = saveCurrent
+    else
+        -- No viable assignment target start, restore position (parseTargetOnly consumed nothing)
+        state.pos = savePos
+        state.current = saveCurrent
     end
-    
-    -- Otherwise, it's an expression statement
-    return {
-        type = "Expr",
-        value = expr,
-        lineno = expr.lineno,
-        col_offset = expr.col_offset,
-    } :: any
+    local expr = parseExpression(state)
+    return { type = "Expr", value = expr, lineno = expr.lineno, col_offset = expr.col_offset } :: any
 end
 
 -- Parse compound statement (if, while, for, def)

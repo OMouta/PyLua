@@ -110,12 +110,56 @@ src/PyLua/
 
 #### 2.3 Advanced Parsing
 
-- [ ] **Collections**: List, dict, tuple, set literals
-- [ ] **Indexing**: Subscript operations
-- [ ] **Attribute access**: Dot notation
-- [ ] **Function calls**: Arguments and keyword arguments
+- [x] **Collections**: List, dict, tuple, set literals
+- [x] **Indexing**: Subscript operations
+- [x] **Attribute access**: Dot notation
+- [x] **Function calls**: Arguments and keyword arguments
 
 **Key Files**: `parser.luau`, `ast/nodes.luau`
+
+#### 2.4 Parser Enhancements (Follow-ups)
+
+Further refinement of parser toward fuller Python 3.12 compliance before compilation phase.
+
+- [x] **Boolean operations**: Collapse chained `and` / `or` into `BoolOp` nodes (short-circuit semantics)
+- [x] **Chained comparisons**: Support `a < b < c` producing single `Compare` with multiple ops/comparators
+- [x] **Augmented assignment**: Parse `+=, -=, *=, /=, //=, %=, **=, <<=, >>=, &=, ^=, |=, @=` into `AugAssign`
+- [x] **Starred expressions in literals**: `[ *a, *b ]`, `(*a, b)`, `{*a}` unpacking
+- [x] **Dict unpacking**: `{**d1, **d2, 'k': v}` handling (keys = nil for unpack parts)
+- [x] **Starred call arguments**: `func(*seq, **mapping)` argument unpacking
+- [x] **Function parameters**: Parse full signature forms (pos-only `/`, `*` marker, defaults, `*args`, `**kwargs`, keyword-only)
+- [x] **Assignment targets**: Allow attribute and subscript targets (`obj.attr =`, `seq[i] =`)
+- [x] **Compound comparison keywords**: Properly distinguish `is not` and `not in`
+- [-] **Error reporting**: Rich, recovery-friendly parse errors with expected token sets | Deferred (no structured recovery yet)
+
+**Key Files**: `parser.luau`, `ast/nodes.luau`
+
+#### 2.5 Parser Modularization & Maintenance
+
+Goal: Reduce `parser.luau` size / complexity, improve readability, and prepare for future grammar extensions (comprehensions, lambdas, pattern matching if ever added) while keeping clear unit boundaries.
+
+- [ ] **File Decomposition**: Split monolithic `parser.luau` into submodules:
+    `parser/init.luau` (public API + orchestration)
+    `parser/expressions.luau` (expression grammar & precedence climbing)
+    `parser/statements.luau` (simple + compound statements)
+    `parser/postfix.luau` (attribute / subscript / call chaining & argument parsing)
+    `parser/collections.luau` (list / tuple / set / dict + unpack forms)
+    `parser/errors.luau` (diagnostics helpers, formatted expectation lists)
+    `parser/precedence.luau` (central precedence & operator tables)
+- [ ] **Node Builders**: Introduce small constructor helpers (e.g. `makeName`, `makeBinOp`) to reduce inline table repetition.
+- [ ] **Context Handling**: Central function to transform Load -> Store contexts for assignment targets (supports attribute & subscript targets).
+- [ ] **Error Recovery**: Implement lightweight synchronization (skip until one of `NEWLINE`, `DEDENT`, `ENDMARKER`) to continue parsing after an error for multi-error reporting.
+- [ ] **Chained Comparison Unification**: Move comparison folding logic into dedicated helper for reuse.
+- [ ] **AugAssign Support**: Parse augmented assignment operators (links with Enhancements checklist) via a dispatch table.
+- [ ] **Argument Parser Upgrade**: Single function handling positional-only, normal, var-positional, keyword-only, var-keyword parameters + defaults mapping.
+- [ ] **Performance Profiling**: Add optional debug flag to collect token consumption counts & timing.
+- [ ] **Test Restructure**: Split `test_parser.luau` into `test_parser_expr.luau`, `test_parser_stmt.luau`, `test_parser_adv.luau` for targeted coverage.
+- [ ] **Grammar Doc Sync**: Add `internalDocs/GRAMMAR_NOTES.md` summarizing supported subset & deviations from CPython.
+- [ ] **Line/Column End Tracking**: Enhance to set `end_lineno` / `end_col_offset` for all new nodes consistently.
+
+**Key Files (new)**: `src/PyLua/parser/*.luau`
+
+Completion Criteria: Original `parser.luau` shrinks to thin façade (<150 lines), cyclomatic complexity per module reduced, tests green, and no regression in previously implemented features.
 
 ### Phase 3: Object System
 

@@ -297,6 +297,205 @@ local parserTests: TestFramework.TestSuite = {
                 TestFramework.assertEqual(ast.body[2].type, "If", "Second should be if statement")
             end
         },
+        -- ========== ADVANCED PARSING (2.3) TESTS ==========
+        {
+            name = "Parse List Literal",
+            test = function()
+                local tokens = Lexer.tokenize("[1, 2, x]")
+                local ast = Parser.parse(tokens)
+                local expr = ast.body[1].value
+                TestFramework.assertEqual(expr.type, "List", "Should be List node")
+                TestFramework.assertEqual(#expr.elts, 3, "List should have 3 elements")
+                TestFramework.assertEqual(expr.elts[1].value, 1, "First element 1")
+            end
+        },
+        {
+            name = "Parse Dict Literal",
+            test = function()
+                local tokens = Lexer.tokenize('{"a": 1, "b": x}')
+                local ast = Parser.parse(tokens)
+                local expr = ast.body[1].value
+                TestFramework.assertEqual(expr.type, "Dict", "Should be Dict node")
+                TestFramework.assertEqual(#expr.keys, 2, "Two keys")
+                TestFramework.assertEqual(expr.values[1].value, 1, "First value 1")
+            end
+        },
+        {
+            name = "Parse Empty Dict Literal",
+            test = function()
+                local tokens = Lexer.tokenize('{}')
+                local ast = Parser.parse(tokens)
+                local expr = ast.body[1].value
+                TestFramework.assertEqual(expr.type, "Dict", "Should be Dict node")
+                TestFramework.assertEqual(#expr.keys, 0, "No keys")
+            end
+        },
+        {
+            name = "Parse Set Literal",
+            test = function()
+                local tokens = Lexer.tokenize('{1, 2, 3}')
+                local ast = Parser.parse(tokens)
+                local expr = ast.body[1].value
+                TestFramework.assertEqual(expr.type, "Set", "Should be Set node")
+                TestFramework.assertEqual(#expr.elts, 3, "3 elements")
+            end
+        },
+        {
+            name = "Parse Tuple Literal",
+            test = function()
+                local tokens = Lexer.tokenize('(1, 2, 3)')
+                local ast = Parser.parse(tokens)
+                local expr = ast.body[1].value
+                TestFramework.assertEqual(expr.type, "Tuple", "Should be Tuple node")
+                TestFramework.assertEqual(#expr.elts, 3, "3 elements")
+            end
+        },
+        {
+            name = "Parse Indexing",
+            test = function()
+                local tokens = Lexer.tokenize('x[0]')
+                local ast = Parser.parse(tokens)
+                local expr = ast.body[1].value
+                TestFramework.assertEqual(expr.type, "Subscript", "Should be Subscript node")
+                TestFramework.assertEqual(expr.value.type, "Name", "Base name")
+            end
+        },
+        {
+            name = "Parse Attribute Access",
+            test = function()
+                local tokens = Lexer.tokenize('obj.field')
+                local ast = Parser.parse(tokens)
+                local expr = ast.body[1].value
+                TestFramework.assertEqual(expr.type, "Attribute", "Should be Attribute node")
+                TestFramework.assertEqual(expr.attr, "field", "Attr name")
+            end
+        },
+        {
+            name = "Parse Call With Args And Keywords",
+            test = function()
+                local tokens = Lexer.tokenize('func(1, 2, x=3, y=foo)')
+                local ast = Parser.parse(tokens)
+                local expr = ast.body[1].value
+                TestFramework.assertEqual(expr.type, "Call", "Should be Call")
+                TestFramework.assertEqual(#expr.args, 2, "Two positional args")
+                TestFramework.assertEqual(#expr.keywords, 2, "Two keyword args")
+                TestFramework.assertEqual(expr.keywords[1].arg, 'x', 'First kw name x')
+            end
+        },
+        {
+            name = "Parse Chained Postfix",
+            test = function()
+                local tokens = Lexer.tokenize('obj.method(1).attr[2]')
+                local ast = Parser.parse(tokens)
+                local expr = ast.body[1].value
+                TestFramework.assertEqual(expr.type, 'Subscript', 'Ends with subscript')
+                TestFramework.assertEqual(expr.value.type, 'Attribute' or 'Call', 'Previous node exists')
+            end
+        },
+        -- Phase 2.4 enhancements
+        {
+            name = "Parse Boolean And/Or Chain",
+            test = function()
+                local tokens = Lexer.tokenize('a and b or c')
+                local ast = Parser.parse(tokens)
+                local expr = ast.body[1].value
+                TestFramework.assertEqual(expr.type, 'BoolOp', 'Top should be BoolOp')
+            end
+        },
+        {
+            name = "Parse Chained Comparisons",
+            test = function()
+                local tokens = Lexer.tokenize('a < b < c')
+                local ast = Parser.parse(tokens)
+                local expr = ast.body[1].value
+                TestFramework.assertEqual(expr.type, 'Compare', 'Compare node')
+                TestFramework.assertEqual(#expr.ops, 2, 'Two ops')
+            end
+        },
+        {
+            name = "Parse Augmented Assignment",
+            test = function()
+                local tokens = Lexer.tokenize('x += 1')
+                local ast = Parser.parse(tokens)
+                local stmt = ast.body[1]
+                TestFramework.assertEqual(stmt.type, 'AugAssign', 'AugAssign node')
+                TestFramework.assertEqual(stmt.op, 'Add', 'Add op')
+            end
+        },
+        {
+            name = "Parse Starred List Literal",
+            test = function()
+                local tokens = Lexer.tokenize('[*a, b]')
+                local ast = Parser.parse(tokens)
+                local expr = ast.body[1].value
+                TestFramework.assertEqual(expr.type, 'List', 'List node')
+                TestFramework.assertEqual(expr.elts[1].type, 'Starred', 'First element starred')
+            end
+        },
+        {
+            name = "Parse Dict Unpacking",
+            test = function()
+                local tokens = Lexer.tokenize('{**d1, "k": v}')
+                local ast = Parser.parse(tokens)
+                local expr = ast.body[1].value
+                TestFramework.assertEqual(expr.type, 'Dict', 'Dict node')
+                TestFramework.assertEqual(expr.keys[1].type, 'DictUnpack', 'First key is DictUnpack sentinel')
+                TestFramework.assertEqual(expr.values[1].type, 'Name', 'Value for unpack entry is expression')
+            end
+        },
+        {
+            name = "Parse Starred Call Args",
+            test = function()
+                local tokens = Lexer.tokenize('f(*a, **k)')
+                local ast = Parser.parse(tokens)
+                local expr = ast.body[1].value
+                TestFramework.assertEqual(expr.type, 'Call', 'Call node')
+                TestFramework.assertEqual(expr.args[1].type, 'Starred', 'Starred arg')
+                TestFramework.assertEqual(expr.keywords[1].arg, nil, 'Keyword unpack')
+            end
+        },
+        {
+            name = "Parse Compound Comparison Keywords",
+            test = function()
+                local tokens = Lexer.tokenize('a is not b')
+                local ast = Parser.parse(tokens)
+                local expr = ast.body[1].value
+                TestFramework.assertEqual(expr.type, 'Compare', 'Compare node')
+                TestFramework.assertEqual(expr.ops[1], 'IsNot', 'IsNot op')
+            end
+        },
+        {
+            name = "Parse Not In Comparison",
+            test = function()
+                local tokens = Lexer.tokenize('x not in y')
+                local ast = Parser.parse(tokens)
+                local expr = ast.body[1].value
+                TestFramework.assertEqual(expr.type, 'Compare', 'Compare node')
+                TestFramework.assertEqual(expr.ops[1], 'NotIn', 'NotIn op')
+            end
+        },
+        {
+            name = "Parse Attribute Assignment Target",
+            test = function()
+                local tokens = Lexer.tokenize('obj.attr = 1')
+                local ast = Parser.parse(tokens)
+                local stmt = ast.body[1]
+                TestFramework.assertEqual(stmt.type, 'Assign', 'Assign node')
+                TestFramework.assertEqual(stmt.targets[1].type, 'Attribute', 'Attribute target')
+                TestFramework.assertEqual(stmt.targets[1].ctx, 'Store', 'Store context')
+            end
+        },
+        {
+            name = "Parse Subscript Assignment Target",
+            test = function()
+                local tokens = Lexer.tokenize('arr[0] = x')
+                local ast = Parser.parse(tokens)
+                local stmt = ast.body[1]
+                TestFramework.assertEqual(stmt.type, 'Assign', 'Assign node')
+                TestFramework.assertEqual(stmt.targets[1].type, 'Subscript', 'Subscript target')
+                TestFramework.assertEqual(stmt.targets[1].ctx, 'Store', 'Store context')
+            end
+        },
     }
 }
 
