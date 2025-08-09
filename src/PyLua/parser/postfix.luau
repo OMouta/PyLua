@@ -33,16 +33,13 @@ local function parseCallArgs(state: any, parseExpression: ExpressionParser): ({ 
 		elseif state.current.type == "STAR" then
 			state:advance()
 			local starredValue = parseExpression(state)
-			table.insert(
-				args,
-				{
-					type = "Starred",
-					value = starredValue,
-					ctx = "Load",
-					lineno = starredValue.lineno,
-					col_offset = starredValue.col_offset,
-				}
-			)
+			table.insert(args, {
+				type = "Starred",
+				value = starredValue,
+				ctx = "Load",
+				lineno = starredValue.lineno,
+				col_offset = starredValue.col_offset,
+			})
 		elseif state.current.type == "DOUBLESTAR" then
 			state:advance()
 			local kwValue = parseExpression(state)

@@ -117,16 +117,13 @@ local function parsePrimary(state: any): Expr
 			if state.current.type == "STAR" then
 				state:advance()
 				local starredValue = expressions.parse(state)
-				table.insert(
-					elts,
-					{
-						type = "Starred",
-						value = starredValue,
-						ctx = "Load",
-						lineno = starredValue.lineno,
-						col_offset = starredValue.col_offset,
-					}
-				)
+				table.insert(elts, {
+					type = "Starred",
+					value = starredValue,
+					ctx = "Load",
+					lineno = starredValue.lineno,
+					col_offset = starredValue.col_offset,
+				})
 			else
 				local elt = expressions.parse(state)
 				table.insert(elts, elt)

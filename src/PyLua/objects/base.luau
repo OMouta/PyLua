@@ -25,7 +25,7 @@ export type PyBoundMethod = PyObject & {
 		self: PyObject,
 		name: string,
 		func: (self: PyObject, args: { PyObject }?) -> PyObject,
-	}
+	},
 }
 
 -- Internal registry of types
@@ -143,7 +143,8 @@ function Base.getattr(obj: PyObject, name: string): PyObject
 	if methods and methods[name] then
 		local func = methods[name]
 		-- Bind method to instance
-		local builtinType = typeRegistry["builtin_function_or_method"] or Base.registerType("builtin_function_or_method", {})
+		local builtinType = typeRegistry["builtin_function_or_method"]
+			or Base.registerType("builtin_function_or_method", {})
 		local boundAny: any = {
 			__type = "builtin_function_or_method",
 			__value = {
@@ -198,6 +199,85 @@ function Base.call(callable: PyObject, args: { PyObject }?): PyObject
 		return inner.func(inner.self, args)
 	end
 	error("TypeError: object of type '" .. callable.__type .. "' is not callable", 2)
+end
+
+---------------------------------------------------------------------
+-- Operator / protocol helpers (initial subset)
+---------------------------------------------------------------------
+
+local opNameMap: { [string]: string } = {
+	add = "__add__",
+	sub = "__sub__",
+	mul = "__mul__",
+	truediv = "__truediv__",
+	floordiv = "__floordiv__",
+	mod = "__mod__",
+	pow = "__pow__",
+	neg = "__neg__",
+	pos = "__pos__",
+}
+
+function Base.operate(op: string, left: PyObject, right: PyObject): PyObject
+	local dunder = opNameMap[op]
+	if not dunder then
+		error("Unsupported operator: " .. op, 2)
+	end
+	-- Try left.__op__(right)
+	local okLeft, method = pcall(function()
+		return Base.getattr(left, dunder)
+	end)
+	if okLeft then
+		return Base.call(method, { right })
+	end
+	-- Try right.__rop__(left)
+	local rdunder = string.gsub(dunder, "__", "__r", 1) -- __add__ -> __radd__
+	local okRight, rmethod = pcall(function()
+		return Base.getattr(right, rdunder)
+	end)
+	if okRight then
+		return Base.call(rmethod, { left })
+	end
+	error(
+		"TypeError: unsupported operand type(s) for " .. op .. ": '" .. left.__type .. "' and '" .. right.__type .. "'",
+		2
+	)
+end
+
+function Base.unary(op: string, obj: PyObject): PyObject
+	local dunder = opNameMap[op]
+	if not dunder then
+		error("Unsupported unary operator: " .. op, 2)
+	end
+	local ok, method = pcall(function()
+		return Base.getattr(obj, dunder)
+	end)
+	if ok then
+		return Base.call(method, {})
+	end
+	error("TypeError: bad operand type for unary '" .. op .. "': '" .. obj.__type .. "'", 2)
+end
+
+function Base.truthy(obj: PyObject): boolean
+	local t = obj.__type
+	if t == "NoneType" then
+		return false
+	elseif t == "bool" then
+		return obj.__value == true
+	elseif t == "int" or t == "float" then
+		local num: number = obj.__value
+		return num ~= 0
+	elseif t == "str" then
+		return (obj.__value :: any) ~= ""
+	elseif t == "list" or t == "tuple" then
+		return #(obj.__value :: { PyObject }) > 0
+	elseif t == "dict" or t == "set" then
+		for _ in pairs(obj.__value) do
+			return true
+		end
+		return false
+	end
+	-- Collections will be added later (empty -> false)
+	return true
 end
 
 ---------------------------------------------------------------------

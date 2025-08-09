@@ -177,7 +177,7 @@ end
 function Tokens.isIdentifierStart(char: string): boolean
 	local byte = string.byte(char)
 	return (byte >= 65 and byte <= 90) -- A-Z
-		or (byte >= 97 and byte <= 122) -- a-z  
+		or (byte >= 97 and byte <= 122) -- a-z
 		or byte == 95 -- _
 end
 

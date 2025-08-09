@@ -174,19 +174,19 @@ Completion Criteria: Original `parser.luau` shrinks to thin façade (<150 lines)
 
 #### 3.2 Built-in Types
 
-- [ ] **Numbers**: int, float with proper arithmetic
-- [ ] **Strings**: str with methods and operations
-- [ ] **Booleans**: bool with truthiness rules
-- [ ] **None**: Python's null value
-- [ ] **Type objects**: Representing types themselves
+- [x] **Numbers**: int, float with proper arithmetic
+- [x] **Strings**: str with methods and operations
+- [x] **Booleans**: bool with truthiness rules
+- [x] **None**: Python's null value
+- [x] **Type objects**: Representing types themselves (placeholder minimal)
 
 #### 3.3 Collections
 
-- [ ] **Lists**: Dynamic arrays with Python list methods
-- [ ] **Dictionaries**: Hash maps with Python dict interface
-- [ ] **Tuples**: Immutable sequences
-- [ ] **Sets**: Unique value collections
-- [ ] **Iterators**: Protocol for iteration
+- [x] **Lists**: Dynamic arrays with Python list methods
+- [x] **Dictionaries**: Hash maps with Python dict interface
+- [x] **Tuples**: Immutable sequences
+- [x] **Sets**: Unique value collections
+- [x] **Iterators**: Protocol for iteration
 
 **Key Files**: `objects/base.luau`, `objects/builtins.luau`, `objects/collections.luau`
 
