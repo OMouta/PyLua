@@ -167,10 +167,10 @@ Completion Criteria: Original `parser.luau` shrinks to thin façade (<150 lines)
 
 #### 3.1 Base Object System
 
-- [ ] **PyObject**: Base class with __type, __value, __dict
-- [ ] **Type system**: Runtime type checking and conversion
-- [ ] **Attribute access**: __getattr__, __setattr__ mechanisms
-- [ ] **Method resolution**: Finding and calling methods
+- [x] **PyObject**: Base class with `__type`, `__value`, `__dict`
+- [x] **Type system**: Runtime type checking and conversion
+- [x] **Attribute access**: `__getattr__`, `__setattr__` mechanisms
+- [x] **Method resolution**: Finding and calling methods
 
 #### 3.2 Built-in Types
 

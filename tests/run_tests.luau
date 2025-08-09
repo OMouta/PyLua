@@ -9,6 +9,7 @@ require('./test_api')
 require('./test_ast')
 require('./test_lexer')
 require('./test_parser')
+require('./test_objects_base')
 
 TestFramework.printSummary()
 
