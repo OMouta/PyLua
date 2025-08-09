@@ -138,7 +138,7 @@ Further refinement of parser toward fuller Python 3.12 compliance before compila
 
 Goal: Reduce `parser.luau` size / complexity, improve readability, and prepare for future grammar extensions (comprehensions, lambdas, pattern matching if ever added) while keeping clear unit boundaries.
 
-- [ ] **File Decomposition**: Split monolithic `parser.luau` into submodules:
+- [x] **File Decomposition**: Split monolithic `parser.luau` into submodules:
     `parser/init.luau` (public API + orchestration)
     `parser/expressions.luau` (expression grammar & precedence climbing)
     `parser/statements.luau` (simple + compound statements)
@@ -146,16 +146,16 @@ Goal: Reduce `parser.luau` size / complexity, improve readability, and prepare f
     `parser/collections.luau` (list / tuple / set / dict + unpack forms)
     `parser/errors.luau` (diagnostics helpers, formatted expectation lists)
     `parser/precedence.luau` (central precedence & operator tables)
-- [ ] **Node Builders**: Introduce small constructor helpers (e.g. `makeName`, `makeBinOp`) to reduce inline table repetition.
-- [ ] **Context Handling**: Central function to transform Load -> Store contexts for assignment targets (supports attribute & subscript targets).
-- [ ] **Error Recovery**: Implement lightweight synchronization (skip until one of `NEWLINE`, `DEDENT`, `ENDMARKER`) to continue parsing after an error for multi-error reporting.
-- [ ] **Chained Comparison Unification**: Move comparison folding logic into dedicated helper for reuse.
-- [ ] **AugAssign Support**: Parse augmented assignment operators (links with Enhancements checklist) via a dispatch table.
-- [ ] **Argument Parser Upgrade**: Single function handling positional-only, normal, var-positional, keyword-only, var-keyword parameters + defaults mapping.
-- [ ] **Performance Profiling**: Add optional debug flag to collect token consumption counts & timing.
-- [ ] **Test Restructure**: Split `test_parser.luau` into `test_parser_expr.luau`, `test_parser_stmt.luau`, `test_parser_adv.luau` for targeted coverage.
-- [ ] **Grammar Doc Sync**: Add `internalDocs/GRAMMAR_NOTES.md` summarizing supported subset & deviations from CPython.
-- [ ] **Line/Column End Tracking**: Enhance to set `end_lineno` / `end_col_offset` for all new nodes consistently.
+- [x] **Node Builders**: Introduce small constructor helpers (e.g. `makeName`, `makeBinOp`) to reduce inline table repetition.
+- [x] **Context Handling**: Central function to transform Load -> Store contexts for assignment targets (supports attribute & subscript targets).
+- [x] **Error Recovery**: Implement lightweight synchronization (skip until one of `NEWLINE`, `DEDENT`, `ENDMARKER`) to continue parsing after an error for multi-error reporting.
+- [x] **Chained Comparison Unification**: Move comparison folding logic into dedicated helper for reuse.
+- [x] **AugAssign Support**: Parse augmented assignment operators (links with Enhancements checklist) via a dispatch table.
+- [x] **Argument Parser Upgrade**: Single function handling positional-only, normal, var-positional, keyword-only, var-keyword parameters + defaults mapping.
+- [x] **Performance Profiling**: Add optional debug flag to collect token consumption counts & timing.
+- [x] **Test Restructure**: Split `test_parser.luau` into `test_parser_expr.luau`, `test_parser_stmt.luau`, `test_parser_adv.luau` for targeted coverage.
+- [x] **Grammar Doc Sync**: Add `internalDocs/GRAMMAR_NOTES.md` summarizing supported subset & deviations from CPython.
+- [x] **Line/Column End Tracking**: Enhance to set `end_lineno` / `end_col_offset` for all new nodes consistently.
 
 **Key Files (new)**: `src/PyLua/parser/*.luau`
 
