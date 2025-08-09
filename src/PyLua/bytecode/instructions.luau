@@ -4,14 +4,14 @@
 
 local Instructions = {}
 
-local opcodes = require('./opcodes')
+local opcodes = require("./opcodes")
 type Opcode = opcodes.Opcode
 
 -- Bytecode instruction
 export type Instruction = {
-    opcode: Opcode,
-    arg: number?,
-    lineno: number?,
+	opcode: Opcode,
+	arg: number?,
+	lineno: number?,
 }
 
 -- TODO: Implement instruction utilities in Phase 4

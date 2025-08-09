@@ -1,0 +1,197 @@
+--!strict
+-- Statement parsing (simple + compound)
+
+local nodes = require("../ast/nodes")
+local precedence = require("./precedence")
+local expressions = require("./expressions")
+
+export type Expr = nodes.Expr
+export type Stmt = nodes.Stmt
+
+local statements = {}
+
+local function assignmentTarget(expr: Expr): Expr
+	if expr.type == "Name" or expr.type == "Attribute" or expr.type == "Subscript" then
+		(expr :: any).ctx = "Store"
+	end
+	return expr
+end
+
+-- Parse a simple statement (assignment, augassign, expression, return)
+function statements.parseSimple(state: any): Stmt
+	local current = state.current
+	if not current then
+		state:raise("Unexpected end of input in statement")
+	end
+	if current.type == "RETURN" then
+		state:advance()
+		local value: Expr? = nil
+		if
+			state.current
+			and state.current.type ~= "NEWLINE"
+			and state.current.type ~= "ENDMARKER"
+			and state.current.type ~= "DEDENT"
+		then
+			value = expressions.parse(state)
+		end
+		return { type = "Return", value = value, lineno = current.line, col_offset = current.column }
+	end
+	-- Attempt target-only parse for assignment/augassign
+	local savePos = state.pos
+	local saveCurrent = current
+	local targetCandidate = expressions.parsePrimaryForTarget(state)
+	if targetCandidate then
+		local afterTarget = state.current
+		if afterTarget and afterTarget.type == "EQUAL" then
+			state:advance()
+			local value = expressions.parse(state)
+			local target = assignmentTarget(targetCandidate)
+			return {
+				type = "Assign",
+				targets = { target },
+				value = value,
+				lineno = target.lineno,
+				col_offset = target.col_offset,
+			}
+		elseif afterTarget then
+			local opTok = afterTarget
+			local nextTok = state:lookahead(1)
+			local opMap = precedence.BINOP_MAP
+			if nextTok and nextTok.type == "EQUAL" and opMap[opTok.type] then
+				state:advance()
+				state:advance()
+				local value = expressions.parse(state)
+				local target = assignmentTarget(targetCandidate)
+				return {
+					type = "AugAssign",
+					target = target,
+					op = opMap[opTok.type],
+					value = value,
+					lineno = target.lineno,
+					col_offset = target.col_offset,
+				}
+			end
+		end
+		state.pos = savePos
+		state.current = saveCurrent
+	else
+		state.pos = savePos
+		state.current = saveCurrent
+	end
+	local expr = expressions.parse(state)
+	return { type = "Expr", value = expr, lineno = expr.lineno, col_offset = expr.col_offset }
+end
+
+local function parseSuiteAfterColon(state: any): { Stmt }
+	if state.current and state.current.type == "NEWLINE" then
+		state:advance()
+	end
+	if state.current and state.current.type == "INDENT" then
+		state:advance()
+	end
+	local body: { Stmt } = {}
+	while
+		state.current
+		and state.current.type ~= "ENDMARKER"
+		and state.current.type ~= "DEDENT"
+		and state.current.type ~= "ELIF"
+		and state.current.type ~= "ELSE"
+	do
+		local stmt = statements.parse(state)
+		table.insert(body, stmt)
+		while state.current and state.current.type == "NEWLINE" do
+			state:advance()
+		end
+	end
+	if state.current and state.current.type == "DEDENT" then
+		state:advance()
+	end
+	return body
+end
+
+function statements.parseCompound(state: any): Stmt
+	local current = state.current
+	if not current then
+		state:raise("Unexpected end of input in compound statement")
+	end
+	if current.type == "IF" then
+		state:advance()
+		local test = expressions.parse(state)
+		state:consume("COLON", "Expected ':' after if condition")
+		local body = parseSuiteAfterColon(state)
+		return { type = "If", test = test, body = body, orelse = {}, lineno = current.line, col_offset = current.column }
+	end
+	if current.type == "WHILE" then
+		state:advance()
+		local test = expressions.parse(state)
+		state:consume("COLON", "Expected ':' after while condition")
+		local body = parseSuiteAfterColon(state)
+		return {
+			type = "While",
+			test = test,
+			body = body,
+			orelse = {},
+			lineno = current.line,
+			col_offset = current.column,
+		}
+	end
+	if current.type == "FOR" then
+		state:advance()
+		local targetOpt = expressions.parsePrimaryForTarget(state)
+		if not targetOpt then
+			state:raise("Invalid for target")
+		end
+		local target = targetOpt :: Expr
+		state:consume("IN", "Expected 'in' after for target")
+		local iter = expressions.parse(state)
+		state:consume("COLON", "Expected ':' after for clause")
+		local body = parseSuiteAfterColon(state)
+		target = assignmentTarget(target)
+		return {
+			type = "For",
+			target = target,
+			iter = iter,
+			body = body,
+			orelse = {},
+			lineno = current.line,
+			col_offset = current.column,
+		}
+	end
+	if current.type == "DEF" then
+		state:advance()
+		local nameToken = state:consume("NAME", "Expected function name after 'def'")
+		local name = nameToken.value
+		state:consume("LPAR", "Expected '(' after function name")
+		-- Minimal args placeholder
+		local args =
+			{ posonlyargs = {}, args = {}, vararg = nil, kwonlyargs = {}, kw_defaults = {}, kwarg = nil, defaults = {} }
+		state:consume("RPAR", "Expected ')' after function arguments")
+		state:consume("COLON", "Expected ':' after function signature")
+		local body = parseSuiteAfterColon(state)
+		return {
+			type = "FunctionDef",
+			name = name,
+			args = args,
+			body = body,
+			decorator_list = {},
+			returns = nil,
+			lineno = current.line,
+			col_offset = current.column,
+		}
+	end
+	state:raise("Unknown compound statement: " .. current.type)
+	error("unreachable")
+end
+
+function statements.parse(state: any): Stmt
+	local current = state.current
+	if not current then
+		state:raise("Unexpected end of input in statement")
+	end
+	if current.type == "IF" or current.type == "WHILE" or current.type == "FOR" or current.type == "DEF" then
+		return statements.parseCompound(state)
+	end
+	return statements.parseSimple(state)
+end
+
+return statements
