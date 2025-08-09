@@ -13,6 +13,10 @@ You are working on **PyLua v3.0**, a complete rewrite of a Python interpreter im
 - **Target**: Production-quality Python interpreter following CPython design principles
 - **API Style**: Lupa-inspired but inverse (Python running in Luau)
 
+## Luau Runtime
+
+We are using lune, a luau runtime for executing Luau code instead of the luau runtime. Use lune run <file> to execute a Luau file.
+
 ## Architecture Overview
 
 ### Pipeline Design (Following CPython)
