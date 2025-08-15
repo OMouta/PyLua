@@ -12,5 +12,6 @@ require("./test_parser")
 require("./test_objects_base")
 require("./test_objects_builtins")
 require("./test_objects_collections")
+require("./test_bytecode")
 
 TestFramework.printSummary()

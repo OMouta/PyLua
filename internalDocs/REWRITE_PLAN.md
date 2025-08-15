@@ -196,13 +196,13 @@ Completion Criteria: Original `parser.luau` shrinks to thin façade (<150 lines)
 
 #### 4.1 Bytecode System
 
-- [ ] **Opcodes**: Python-like instruction set
+- [x] **Opcodes**: Python-like instruction set
   - LOAD_CONST, LOAD_FAST, STORE_FAST
   - BINARY_ADD, BINARY_SUBTRACT, etc.
   - CALL_FUNCTION, RETURN_VALUE
   - JUMP_FORWARD, POP_JUMP_IF_FALSE
-- [ ] **Code objects**: Bytecode containers with metadata
-- [ ] **Compilation**: AST → Bytecode transformation
+- [x] **Code objects**: Bytecode containers with metadata
+- [x] **Compilation**: AST → Bytecode transformation
 
 #### 4.2 Virtual Machine
 
