@@ -8,7 +8,7 @@ contact_links:
     about: Check the current development phase and roadmap
   - name: 🤝 Contributing Guide
     url: https://github.com/OMouta/PyLua/blob/master/CONTRIBUTING.md
-    about: Learn how to contribute to PyLua v3.0
+    about: Learn how to contribute to PyLua v0.3
   - name: 💬 Discussions
     url: https://github.com/OMouta/PyLua/discussions
     about: Ask questions and discuss ideas with the community

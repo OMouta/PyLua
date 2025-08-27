@@ -157,7 +157,7 @@ function PyLua.getVariable(variables, name)
 end
 
 -- Export version information
-PyLua.version = "0.3.0"
+PyLua.version = "0.0.3"
 PyLua.description = "PyLua - Embedded Python interpreter for Luau"
 
 return PyLua

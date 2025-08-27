@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thank you for asking a question about **PyLua v3.0**!
+        Thank you for asking a question about **PyLua v0.3**!
         
         **Before asking**: Please check the documentation first:
         - [InternalDocs/README.md](https://github.com/OMouta/PyLua/blob/master/InternalDocs/README.md) - Documentation overview
@@ -110,7 +110,7 @@ body:
       placeholder: |
         - OS: Windows 11 / macOS 14 / Ubuntu 22.04
         - Roblox Studio Version: 
-        - PyLua Version: v3.0 rewrite / v0.2 legacy
+        - PyLua Version: v0.3 rewrite / v0.2 legacy
         - Luau Version (if applicable): 
       value: |
         - OS: 

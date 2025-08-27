@@ -1,10 +1,10 @@
 # Contributing to PyLua
 
-Thank you for your interest in contributing to PyLua! This document provides guidelines and information for contributors to the PyLua v3.0 rewrite project.
+Thank you for your interest in contributing to PyLua! This document provides guidelines and information for contributors to the PyLua v0.3 rewrite project.
 
 ## 🎯 Project Overview
 
-PyLua v3.0 is a complete rewrite of the Python interpreter for Luau/Roblox. We're building a production-quality Python 3.12-compliant interpreter following CPython's design principles with a Lupa-inspired API.
+PyLua v0.3 is a complete rewrite of the Python interpreter for Luau/Roblox. We're building a production-quality Python 3.12-compliant interpreter following CPython's design principles with a Lupa-inspired API.
 
 **Important**: We are currently in a major rewrite phase. Please read the [InternalDocs/REWRITE_PLAN.md](./InternalDocs/REWRITE_PLAN.md) to understand the current development phase and architecture goals.
 

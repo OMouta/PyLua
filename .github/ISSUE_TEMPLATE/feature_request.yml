@@ -1,12 +1,12 @@
 name: "💡 Feature Request"
-description: "Suggest an idea or improvement for PyLua v3.0 (Python-in-Luau for Roblox)."
+description: "Suggest an idea or improvement for PyLua v0.3 (Python-in-Luau for Roblox)."
 title: "[FEATURE] "
 labels: ["enhancement", "needs-triage"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thank you for suggesting a feature for **PyLua v3.0**!
+        Thank you for suggesting a feature for **PyLua v0.3**!
         
         **Important**: We are currently in a major rewrite phase following a specific [development plan](https://github.com/OMouta/PyLua/blob/master/InternalDocs/REWRITE_PLAN.md). Please check if your feature aligns with our current development phase and Python 3.12 compliance goals.
         

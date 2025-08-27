@@ -1,8 +1,8 @@
-# GitHub Copilot Instructions for PyLua v3.0 Rewrite
+# GitHub Copilot Instructions for PyLua v0.3 Rewrite
 
 ## Project Overview
 
-You are working on **PyLua v3.0**, a complete rewrite of a Python interpreter implementation in Luau for Roblox. The goal is to create a proper Python interpreter that runs inside Roblox, with a Lupa-inspired API (inverse - Python-in-Luau instead of Lua-in-Python).
+You are working on **PyLua v0.3**, a complete rewrite of a Python interpreter implementation in Luau for Roblox. The goal is to create a proper Python interpreter that runs inside Roblox, with a Lupa-inspired API (inverse - Python-in-Luau instead of Lua-in-Python).
 
 **Python Version Support**: PyLua targets Python 3.12 syntax and below. Supporting Python 3.13+ would add unnecessary complexity for an embedded language interpreter.
 

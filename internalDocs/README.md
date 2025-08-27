@@ -1,6 +1,6 @@
 # PyLua Internal Documentation
 
-This directory contains comprehensive internal documentation for PyLua v3.0 development. These documents are intended for contributors, maintainers, and anyone interested in understanding the deep technical implementation details of the PyLua interpreter.
+This directory contains comprehensive internal documentation for PyLua v0.3 development. These documents are intended for contributors, maintainers, and anyone interested in understanding the deep technical implementation details of the PyLua interpreter.
 
 ## Documents Overview
 
@@ -8,7 +8,7 @@ This directory contains comprehensive internal documentation for PyLua v3.0 deve
 
 #### Complete development roadmap and architecture specification
 
-This is the master planning document for PyLua v3.0. It outlines:
+This is the master planning document for PyLua v0.3. It outlines:
 
 - Current issues with v0.2 and motivation for the rewrite
 - Target architecture following CPython's design principles
@@ -51,7 +51,7 @@ This document provides comprehensive background on how programming language inte
 
 ## Key Design Principles
 
-Based on these documents, PyLua v3.0 follows these core principles:
+Based on these documents, PyLua v0.3 follows these core principles:
 
 1. **Python 3.12 Compliance**: Support Python 3.12 syntax and below for focused, manageable scope
 2. **CPython-Inspired Architecture**: Follow proven interpreter design patterns
@@ -61,7 +61,7 @@ Based on these documents, PyLua v3.0 follows these core principles:
 
 ## Current Development Phase
 
-As of the latest update, PyLua v3.0 is in **Phase 1: Foundation**, focusing on:
+As of the latest update, PyLua v0.3 is in **Phase 1: Foundation**, focusing on:
 
 - ✅ Project structure and module system
 - ✅ Comprehensive lexer with Python 3.12 tokenization
@@ -72,7 +72,7 @@ See `REWRITE_PLAN.md` for detailed phase information and completion status.
 
 ## Contributing Guidelines
 
-When contributing to PyLua v3.0:
+When contributing to PyLua v0.3:
 
 1. **Read both documents** to understand the architecture and goals
 2. **Follow the phase plan** - implement features in the correct order

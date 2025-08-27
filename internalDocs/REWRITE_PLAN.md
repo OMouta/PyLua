@@ -1,4 +1,4 @@
-# PyLua v3.0 Rewrite Plan
+# PyLua v0.3 Rewrite Plan
 
 > **Complete rewrite of PyLua from scratch with proper Python syntax and core functionality**
 > Check [LANGUAGE_IMPLEMENTATION.md](LANGUAGE_IMPLEMENTATION.md) for in-depth CPython internals research.
@@ -7,7 +7,7 @@
 
 This document outlines the complete rewrite of PyLua to create a proper Python interpreter in Luau, inspired by Lupa's API design but inverse (Python-in-Luau instead of Lua-in-Python).
 
-**Python Version Support**: PyLua v3.0 targets Python 3.12 syntax and below. Supporting Python 3.13+ would add unnecessary complexity for an embedded language interpreter.
+**Python Version Support**: PyLua v0.3 targets Python 3.12 syntax and below. Supporting Python 3.13+ would add unnecessary complexity for an embedded language interpreter.
 
 ## Current Issues with PyLua v0.2
 

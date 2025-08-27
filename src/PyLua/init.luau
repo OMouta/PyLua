@@ -1,11 +1,11 @@
 --!strict
--- PyLua v3.0 - Python Interpreter for Luau
+-- PyLua v0.3 - Python Interpreter for Luau
 -- Main API module with Lupa-inspired interface (inverse: Python-in-Luau)
 
 local PyLua = {}
 
 -- Version information
-PyLua.version = "3.0.0-dev"
+PyLua.version = "0.3.0-dev"
 PyLua.description = "PyLua - Embedded Python interpreter for Luau"
 
 -- Import core components (will be implemented in later phases)

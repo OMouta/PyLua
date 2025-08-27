@@ -1,14 +1,14 @@
 name: "🐛 Bug Report"
-description: "Report a bug in PyLua v3.0 (Python-in-Luau for Roblox) to help us improve."
+description: "Report a bug in PyLua v0.3 (Python-in-Luau for Roblox) to help us improve."
 title: "[BUG] "
 labels: ["bug", "needs-triage"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thank you for taking the time to report a bug in **PyLua v3.0**!
+        Thank you for taking the time to report a bug in **PyLua v0.3**!
         
-        **Important**: We are currently in a major rewrite phase (v3.0). Please specify which version you're using.
+        **Important**: We are currently in a major rewrite phase (v0.3). Please specify which version you're using.
         
         Please provide as much detail as possible so we can reproduce and fix the issue.
   
@@ -18,7 +18,7 @@ body:
       label: "PyLua Version"
       description: "Which version of PyLua are you using?"
       options:
-        - "v3.0 (current rewrite - src/PyLua/)"
+        - "v0.3 (current rewrite - src/PyLua/)"
         - "v0.2 (legacy - old/PyLua/)"
         - "Custom build/fork"
         - "Not sure"

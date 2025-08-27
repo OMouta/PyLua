@@ -78,8 +78,8 @@ local apiTests: TestFramework.TestSuite = {
 				TestFramework.assertType(PyLua.version, "string", "Version should be a string")
 				TestFramework.assertType(PyLua.description, "string", "Description should be a string")
 
-				-- Version should contain "3.0"
-				TestFramework.assert(string.find(PyLua.version, "3.0") ~= nil, "Version should contain '3.0'")
+				-- Version should contain "0.3"
+				TestFramework.assert(string.find(PyLua.version, "0.3") ~= nil, "Version should contain '0.3'")
 			end,
 		},
 	},
