@@ -13,5 +13,6 @@ require("./test_objects_base")
 require("./test_objects_builtins")
 require("./test_objects_collections")
 require("./test_bytecode")
+require("./test_vm")
 
 TestFramework.printSummary()

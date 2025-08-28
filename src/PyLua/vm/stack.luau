@@ -55,4 +55,65 @@ function Stack.isEmpty(stack: Stack): boolean
 	return stack.top <= 0
 end
 
+-- Rotate top 2 stack items (equivalent to ROT_TWO)
+function Stack.rotTwo(stack: Stack)
+	if stack.top < 2 then
+		error("Not enough items on stack for ROT_TWO", 2)
+	end
+	
+	local a = stack.values[stack.top]
+	local b = stack.values[stack.top - 1]
+	
+	stack.values[stack.top] = b
+	stack.values[stack.top - 1] = a
+end
+
+-- Rotate top 3 stack items (equivalent to ROT_THREE)
+function Stack.rotThree(stack: Stack)
+	if stack.top < 3 then
+		error("Not enough items on stack for ROT_THREE", 2)
+	end
+	
+	local a = stack.values[stack.top]
+	local b = stack.values[stack.top - 1]
+	local c = stack.values[stack.top - 2]
+	
+	stack.values[stack.top] = c
+	stack.values[stack.top - 1] = a
+	stack.values[stack.top - 2] = b
+end
+
+-- Duplicate top stack item (equivalent to DUP_TOP)
+function Stack.duplicate(stack: Stack)
+	local value = Stack.peek(stack)
+	Stack.push(stack, value)
+end
+
+-- Pop multiple values and return as array
+function Stack.popN(stack: Stack, n: number): { any }
+	if n <= 0 then
+		return {}
+	end
+	
+	if stack.top < n then
+		error("Not enough items on stack to pop " .. n, 2)
+	end
+	
+	local values: { any } = {}
+	for i = 1, n do
+		values[i] = Stack.pop(stack) -- Keep popped order (top first)
+	end
+	
+	return values
+end
+
+-- Get item at relative position from top (0 = top, 1 = second from top, etc.)
+function Stack.getRelative(stack: Stack, offset: number): any
+	local index = stack.top - offset
+	if index <= 0 or index > stack.top then
+		error("Stack index out of bounds", 2)
+	end
+	return stack.values[index]
+end
+
 return Stack

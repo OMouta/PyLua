@@ -206,20 +206,20 @@ Completion Criteria: Original `parser.luau` shrinks to thin façade (<150 lines)
 
 #### 4.2 Virtual Machine
 
-- [ ] **Execution frames**: Function call contexts
-- [ ] **Value stack**: Operand stack for calculations
-- [ ] **Instruction dispatch**: Main execution loop
-- [ ] **Variable storage**: Local, global, and builtin scopes
-- [ ] **Function calls**: Parameter passing and return values
+- [x] **Execution frames**: Function call contexts
+- [x] **Value stack**: Operand stack for calculations
+- [x] **Instruction dispatch**: Main execution loop
+- [x] **Variable storage**: Local, global, and builtin scopes
+- [x] **Function calls**: Parameter passing and return values
 
 #### 4.3 Control Flow
 
 - [ ] **Conditionals**: if/elif/else execution
 - [ ] **Loops**: for and while loop execution
 - [ ] **Break/continue**: Loop control statements
-- [ ] **Function returns**: Return value handling
+- [x] **Function returns**: Return value handling
 
-**Key Files**: `compiler.luau`, `bytecode/opcodes.luau`, `vm/interpreter.luau`, `vm/frame.luau`
+**Key Files**: `compiler.luau`, `bytecode/opcodes.luau`, `vm/interpreter.luau`, `vm/frame.luau`, `vm/stack.luau`
 
 ### Phase 5: Built-ins & Advanced Features
 

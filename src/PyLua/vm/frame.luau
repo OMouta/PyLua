@@ -4,16 +4,149 @@
 
 local Frame = {}
 
+local Stack = require("./stack")
+local Instructions = require("../bytecode/instructions")
+
+type Stack = Stack.Stack
+type Instruction = Instructions.Instruction
+
 -- Execution frame for function calls
 export type Frame = {
-	code: any, -- Bytecode being executed
-	locals: { [string]: any }, -- Local variables
+	code: { Instruction }, -- Bytecode being executed
+	locals: { [string]: any }, -- Local variables (by name)
+	fast_locals: { any }, -- Fast locals (by index)
 	globals: { [string]: any }, -- Global variables
-	stack: { any }, -- Local value stack
-	pc: number, -- Program counter
+	builtins: { [string]: any }, -- Builtin namespace
+	stack: Stack, -- Local value stack
+	pc: number, -- Program counter (instruction index)
 	lineno: number, -- Current line number
+	function_name: string?, -- Function name for debugging
+	previous: Frame?, -- Previous frame (call stack)
 }
 
--- TODO: Implement frame management in Phase 4
+-- Create a new execution frame
+function Frame.new(
+	code: { Instruction },
+	globals: { [string]: any }?,
+	builtins: { [string]: any }?,
+	locals: { [string]: any }?,
+	function_name: string?
+): Frame
+	return {
+		code = code,
+		locals = locals or {},
+		fast_locals = {},
+		globals = globals or {},
+		builtins = builtins or {},
+		stack = Stack.new(),
+		pc = 1, -- Luau uses 1-based indexing
+		lineno = 1,
+		function_name = function_name,
+		previous = nil,
+	}
+end
+
+-- Get current instruction
+function Frame.getCurrentInstruction(frame: Frame): Instruction?
+	if frame.pc <= 0 or frame.pc > #frame.code then
+		return nil
+	end
+	return frame.code[frame.pc]
+end
+
+-- Advance program counter
+function Frame.advance(frame: Frame, delta: number?)
+	frame.pc = frame.pc + (delta or 1)
+end
+
+-- Jump to absolute position
+function Frame.jump(frame: Frame, target: number)
+	frame.pc = target
+end
+
+-- Check if frame has more instructions
+function Frame.hasNext(frame: Frame): boolean
+	return frame.pc > 0 and frame.pc <= #frame.code
+end
+
+-- Get variable by name (searches locals -> globals -> builtins)
+function Frame.getVariable(frame: Frame, name: string): any
+	-- Search order: locals, globals, builtins
+	if frame.locals[name] ~= nil then
+		return frame.locals[name]
+	end
+	
+	if frame.globals[name] ~= nil then
+		return frame.globals[name]
+	end
+	
+	if frame.builtins[name] ~= nil then
+		return frame.builtins[name]
+	end
+	
+	error("NameError: name '" .. name .. "' is not defined", 2)
+end
+
+-- Set variable by name (in locals)
+function Frame.setVariable(frame: Frame, name: string, value: any)
+	frame.locals[name] = value
+end
+
+-- Get fast local by index
+function Frame.getFastLocal(frame: Frame, index: number): any
+	local value = frame.fast_locals[index]
+	if value == nil then
+		error("UnboundLocalError: local variable referenced before assignment", 2)
+	end
+	return value
+end
+
+-- Set fast local by index
+function Frame.setFastLocal(frame: Frame, index: number, value: any)
+	frame.fast_locals[index] = value
+end
+
+-- Get global variable
+function Frame.getGlobal(frame: Frame, name: string): any
+	local value = frame.globals[name]
+	if value == nil then
+		-- Try builtins as fallback
+		value = frame.builtins[name]
+		if value == nil then
+			error("NameError: name '" .. name .. "' is not defined", 2)
+		end
+	end
+	return value
+end
+
+-- Set global variable
+function Frame.setGlobal(frame: Frame, name: string, value: any)
+	frame.globals[name] = value
+end
+
+-- Update line number from current instruction
+function Frame.updateLineNumber(frame: Frame)
+	local inst = Frame.getCurrentInstruction(frame)
+	if inst and inst.lineno then
+		frame.lineno = inst.lineno
+	end
+end
+
+-- Stack operations (convenience wrappers)
+function Frame.push(frame: Frame, value: any)
+	Stack.push(frame.stack, value)
+end
+
+function Frame.pop(frame: Frame): any
+	return Stack.pop(frame.stack)
+end
+
+function Frame.peek(frame: Frame): any
+	return Stack.peek(frame.stack)
+end
+
+function Frame.stackSize(frame: Frame): number
+	return Stack.size(frame.stack)
+end
 
 return Frame
