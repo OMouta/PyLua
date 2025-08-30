@@ -9,10 +9,10 @@ PyLua.version = "0.3.0-dev"
 PyLua.description = "PyLua - Embedded Python interpreter for Luau"
 
 -- Import core components (will be implemented in later phases)
--- local lexer = require('./lexer')
--- local parser = require('./parser')
--- local compiler = require('./compiler')
--- local vm = require('./vm/interpreter')
+local lexer = require("@self/lexer")
+local parser = require("@self/parser")
+local compiler = require("@self/compiler")
+local vm = require("@self/vm/interpreter")
 
 -- Type definitions for the API
 export type RuntimeOptions = {
@@ -65,13 +65,18 @@ function Runtime:execute(code: string)
 		error("Runtime.execute() requires a string argument", 2)
 	end
 
-	-- TODO: Implement the full pipeline
+	-- Implement the full pipeline
 	-- 1. Lexer: code -> tokens
-	-- 2. Parser: tokens -> AST
-	-- 3. Compiler: AST -> bytecode
-	-- 4. VM: execute bytecode
+	local tokens = lexer.tokenize(code)
 
-	error("Not implemented yet - Phase 1 in progress", 2)
+	-- 2. Parser: tokens -> AST
+	local ast = parser.parse(tokens)
+
+	-- 3. Compiler: AST -> bytecode
+	local bytecode = compiler.compile(ast)
+
+	-- 4. VM: execute bytecode
+	vm.execute(bytecode.bytecode, self._globals, {}, bytecode.constants)
 end
 
 -- Evaluate Python expression and return the result
@@ -80,8 +85,20 @@ function Runtime:eval(code: string): any
 		error("Runtime.eval() requires a string argument", 2)
 	end
 
-	-- TODO: Implement the full pipeline for expressions
-	error("Not implemented yet - Phase 1 in progress", 2)
+	-- Implement the full pipeline for expressions
+	-- 1. Lexer: code -> tokens
+	local tokens = lexer.tokenize(code)
+
+	-- 2. Parser: tokens -> AST
+	local ast = parser.parse(tokens)
+
+	-- 3. Compiler: AST -> bytecode
+	local bytecode = compiler.compile(ast)
+
+	-- 4. VM: execute bytecode
+	local result = vm.execute(bytecode.bytecode, self._globals, {}, bytecode.constants)
+
+	return result
 end
 
 -- Compile Python source to bytecode (advanced API)

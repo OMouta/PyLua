@@ -35,6 +35,15 @@ function statements.parseSimple(state: any): Stmt
 			value = expressions.parse(state)
 		end
 		return { type = "Return", value = value, lineno = current.line, col_offset = current.column }
+	elseif current.type == "BREAK" then
+		state:advance()
+		return { type = "Break", lineno = current.line, col_offset = current.column }
+	elseif current.type == "CONTINUE" then
+		state:advance()
+		return { type = "Continue", lineno = current.line, col_offset = current.column }
+	elseif current.type == "PASS" then
+		state:advance()
+		return { type = "Pass", lineno = current.line, col_offset = current.column }
 	end
 	-- Attempt target-only parse for assignment/augassign
 	local savePos = state.pos
@@ -119,7 +128,23 @@ function statements.parseCompound(state: any): Stmt
 		local test = expressions.parse(state)
 		state:consume("COLON", "Expected ':' after if condition")
 		local body = parseSuiteAfterColon(state)
-		return { type = "If", test = test, body = body, orelse = {}, lineno = current.line, col_offset = current.column }
+		local orelse: { Stmt } = {}
+
+		-- Handle else clause
+		if state.current and state.current.type == "ELSE" then
+			state:advance()
+			state:consume("COLON", "Expected ':' after else")
+			orelse = parseSuiteAfterColon(state)
+		end
+
+		return {
+			type = "If",
+			test = test,
+			body = body,
+			orelse = orelse,
+			lineno = current.line,
+			col_offset = current.column,
+		}
 	end
 	if current.type == "WHILE" then
 		state:advance()

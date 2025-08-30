@@ -47,6 +47,10 @@ export type Opcode =
 	| "JUMP_IF_FALSE_OR_POP"
 	| "POP_JUMP_IF_TRUE"
 	| "POP_JUMP_IF_FALSE"
+	| "SETUP_LOOP"
+	| "POP_BLOCK"
+	| "BREAK_LOOP"
+	| "CONTINUE_LOOP"
 	-- Function calls
 	| "CALL_FUNCTION"
 	| "RETURN_VALUE"
@@ -118,6 +122,10 @@ local OPCODE_INFO: { [Opcode]: OpcodeInfo } = {
 	JUMP_IF_FALSE_OR_POP = { name = "JUMP_IF_FALSE_OR_POP", arg = true, doc = "Jump if TOS false else pop" },
 	POP_JUMP_IF_TRUE = { name = "POP_JUMP_IF_TRUE", arg = true, doc = "Pop and jump if true" },
 	POP_JUMP_IF_FALSE = { name = "POP_JUMP_IF_FALSE", arg = true, doc = "Pop and jump if false" },
+	SETUP_LOOP = { name = "SETUP_LOOP", arg = true, doc = "Setup loop with end offset" },
+	POP_BLOCK = { name = "POP_BLOCK", arg = false, doc = "Pop a block from block stack" },
+	BREAK_LOOP = { name = "BREAK_LOOP", arg = false, doc = "Break out of current loop" },
+	CONTINUE_LOOP = { name = "CONTINUE_LOOP", arg = true, doc = "Continue to loop start" },
 
 	-- Function calls
 	CALL_FUNCTION = { name = "CALL_FUNCTION", arg = true, doc = "Call with positional arg count" },

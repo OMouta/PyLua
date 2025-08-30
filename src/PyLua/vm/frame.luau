@@ -22,6 +22,8 @@ export type Frame = {
 	lineno: number, -- Current line number
 	function_name: string?, -- Function name for debugging
 	previous: Frame?, -- Previous frame (call stack)
+	block_stack: { { type: string, start: number, endPos: number } }, -- Block stack for loops
+	skip_advance: boolean?, -- Flag to skip PC advance (for jumps)
 }
 
 -- Create a new execution frame
@@ -43,6 +45,8 @@ function Frame.new(
 		lineno = 1,
 		function_name = function_name,
 		previous = nil,
+		block_stack = {},
+		skip_advance = false,
 	}
 end
 
@@ -87,9 +91,11 @@ function Frame.getVariable(frame: Frame, name: string): any
 	error("NameError: name '" .. name .. "' is not defined", 2)
 end
 
--- Set variable by name (in locals)
+-- Set variable by name (in locals for functions, globals for module)
 function Frame.setVariable(frame: Frame, name: string, value: any)
-	frame.locals[name] = value
+	-- For now, always store in globals at module level
+	-- TODO: This should check if we're in a function context
+	frame.globals[name] = value
 end
 
 -- Get fast local by index
@@ -147,6 +153,19 @@ end
 
 function Frame.stackSize(frame: Frame): number
 	return Stack.size(frame.stack)
+end
+
+-- Block stack operations for loops
+function Frame.pushBlock(frame: Frame, blockType: string, start: number, endPos: number)
+	table.insert(frame.block_stack, { type = blockType, start = start, endPos = endPos })
+end
+
+function Frame.popBlock(frame: Frame): { type: string, start: number, endPos: number }?
+	return table.remove(frame.block_stack)
+end
+
+function Frame.getCurrentBlock(frame: Frame): { type: string, start: number, endPos: number }?
+	return frame.block_stack[#frame.block_stack]
 end
 
 return Frame

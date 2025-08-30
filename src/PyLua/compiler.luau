@@ -26,6 +26,8 @@ type CompilerState = {
 	code: CodeObject,
 	constIndex: { [string]: number }, -- Keyed by serialized constant value
 	nameIndex: { [string]: number },
+	loopStack: { { startLabel: number, endLabel: number } }, -- For break/continue
+	labelCounter: number, -- For generating unique labels
 }
 
 local function newState(): CompilerState
@@ -33,6 +35,8 @@ local function newState(): CompilerState
 		code = { constants = {}, names = {}, varnames = {}, bytecode = {}, firstlineno = nil, lnotab = nil },
 		constIndex = {},
 		nameIndex = {},
+		loopStack = {},
+		labelCounter = 0,
 	}
 end
 
@@ -58,7 +62,14 @@ local function addConst(st: CompilerState, value: any): number
 	if idx then
 		return idx
 	end
-	table.insert(st.code.constants, value)
+
+	-- Handle nil specially since table.insert(t, nil) doesn't work
+	local storedValue = value
+	if value == nil then
+		storedValue = { __nil = true } -- Sentinel for nil
+	end
+
+	table.insert(st.code.constants, storedValue)
 	local newIdx = #st.code.constants - 1 -- Use zero-based indices like CPython
 	st.constIndex[key] = newIdx
 	return newIdx
@@ -78,6 +89,36 @@ end
 local function emit(st: CompilerState, op: Opcode, arg: number?, lineno: number?)
 	local inst = instructions.make(op, arg, lineno)
 	st.code.bytecode[#st.code.bytecode + 1] = inst
+end
+
+-- Label and jump management
+local function _getNextLabel(st: CompilerState): number
+	st.labelCounter = st.labelCounter + 1
+	return st.labelCounter
+end
+
+local function getCurrentAddress(st: CompilerState): number
+	return #st.code.bytecode
+end
+
+local function patchJump(st: CompilerState, jumpAddr: number, targetAddr: number?)
+	local target = targetAddr or getCurrentAddress(st)
+	local instruction = st.code.bytecode[jumpAddr + 1] -- +1 for 1-based indexing
+	if instruction then
+		instruction.arg = target + 1 -- Convert to 1-based index for VM
+	end
+end
+
+local function enterLoop(st: CompilerState, startLabel: number, endLabel: number)
+	table.insert(st.loopStack, { startLabel = startLabel, endLabel = endLabel })
+end
+
+local function exitLoop(st: CompilerState)
+	table.remove(st.loopStack)
+end
+
+local function getCurrentLoop(st: CompilerState): { startLabel: number, endLabel: number }?
+	return st.loopStack[#st.loopStack]
 end
 
 -- Expression compilation
@@ -138,6 +179,33 @@ compileExpr = function(st: CompilerState, node: any)
 		else
 			error("Unsupported unary op: " .. tostring(node.op))
 		end
+	elseif t == "Compare" then
+		-- Compile comparison: left op right
+		compileExpr(st, node.left)
+		-- For now, only handle single comparison (not chained)
+		if #node.ops == 1 and #node.comparators == 1 then
+			compileExpr(st, node.comparators[1])
+			local op = node.ops[1]
+			local opcode: number
+			if op == "Lt" then
+				opcode = 0 -- <
+			elseif op == "LtE" then
+				opcode = 1 -- <=
+			elseif op == "Eq" then
+				opcode = 2 -- ==
+			elseif op == "NotEq" then
+				opcode = 3 -- !=
+			elseif op == "Gt" then
+				opcode = 4 -- >
+			elseif op == "GtE" then
+				opcode = 5 -- >=
+			else
+				error("Unsupported comparison op: " .. tostring(op))
+			end
+			emit(st, "COMPARE_OP", opcode, node.lineno)
+		else
+			error("Chained comparisons not yet supported")
+		end
 	else
 		error("Unsupported expression node type: " .. tostring(t))
 	end
@@ -170,6 +238,108 @@ local function compileStmt(st: CompilerState, node: any)
 			emit(st, "LOAD_CONST", idx, node.lineno)
 		end
 		emit(st, "RETURN_VALUE", nil, node.lineno)
+	elseif node.type == "If" then
+		compileExpr(st, node.test)
+		local jumpIfFalse = getCurrentAddress(st)
+		emit(st, "POP_JUMP_IF_FALSE", 0, node.lineno) -- Will be patched
+
+		-- Compile if body
+		for _, stmt in ipairs(node.body) do
+			compileStmt(st, stmt)
+		end
+
+		if #node.orelse > 0 then
+			local jumpToEnd = getCurrentAddress(st)
+			emit(st, "JUMP_FORWARD", 0, node.lineno) -- Will be patched
+			patchJump(st, jumpIfFalse, getCurrentAddress(st))
+
+			-- Compile else body
+			for _, stmt in ipairs(node.orelse) do
+				compileStmt(st, stmt)
+			end
+
+			patchJump(st, jumpToEnd, getCurrentAddress(st))
+		else
+			patchJump(st, jumpIfFalse, getCurrentAddress(st))
+		end
+	elseif node.type == "While" then
+		local loopStart = getCurrentAddress(st)
+		compileExpr(st, node.test)
+		local jumpIfFalse = getCurrentAddress(st)
+		emit(st, "POP_JUMP_IF_FALSE", 0, node.lineno) -- Will be patched to end
+
+		-- Setup loop for break/continue
+		enterLoop(st, loopStart, jumpIfFalse) -- endLabel will be patched later
+
+		-- Compile loop body
+		for _, stmt in ipairs(node.body) do
+			compileStmt(st, stmt)
+		end
+
+		-- Jump back to start (calculate relative offset)
+		local currentAddr = getCurrentAddress(st)
+		local relativeOffset = loopStart - currentAddr - 1 -- -1 because advance will add 1
+		emit(st, "JUMP_FORWARD", relativeOffset, node.lineno)
+
+		-- Patch the end jump
+		patchJump(st, jumpIfFalse, getCurrentAddress(st))
+
+		-- Compile else clause if present
+		if #node.orelse > 0 then
+			for _, stmt in ipairs(node.orelse) do
+				compileStmt(st, stmt)
+			end
+		end
+
+		exitLoop(st)
+	elseif node.type == "For" then
+		-- For loops are more complex - simplified for now
+		-- iter(node.iter) -> iterator
+		compileExpr(st, node.iter)
+
+		local loopStart = getCurrentAddress(st)
+		-- This is a simplified version - real Python for loops need GET_ITER, FOR_ITER opcodes
+		local jumpIfFalse = getCurrentAddress(st)
+		emit(st, "POP_JUMP_IF_FALSE", 0, node.lineno) -- Will be patched
+
+		enterLoop(st, loopStart, jumpIfFalse)
+
+		-- Store iteration variable (simplified)
+		if node.target.type == "Name" then
+			node.target.ctx = "Store"
+			compileName(st, node.target)
+		end
+
+		-- Compile loop body
+		for _, stmt in ipairs(node.body) do
+			compileStmt(st, stmt)
+		end
+
+		emit(st, "JUMP_FORWARD", loopStart, node.lineno)
+		patchJump(st, jumpIfFalse, getCurrentAddress(st))
+
+		if #node.orelse > 0 then
+			for _, stmt in ipairs(node.orelse) do
+				compileStmt(st, stmt)
+			end
+		end
+
+		exitLoop(st)
+	elseif node.type == "Break" then
+		local loop = getCurrentLoop(st)
+		if not loop then
+			error("'break' outside loop", 2)
+		end
+		emit(st, "BREAK_LOOP", nil, node.lineno)
+	elseif node.type == "Continue" then
+		local loop = getCurrentLoop(st)
+		if not loop then
+			error("'continue' not properly in loop", 2)
+		end
+		emit(st, "CONTINUE_LOOP", loop.startLabel, node.lineno)
+	elseif node.type == "Pass" then
+		-- Pass statement does nothing
+		-- No bytecode emitted
 	else
 		error("Unsupported statement type: " .. tostring(node.type))
 	end

@@ -76,7 +76,13 @@ function Interpreter.newState(globals: { [string]: any }?, builtins: { [string]:
 end
 
 -- Execute a single instruction
-local function executeInstruction(vm: VMState, frame: Frame, instruction: Instruction, constants: { any }?): boolean
+local function executeInstruction(
+	vm: VMState,
+	frame: Frame,
+	instruction: Instruction,
+	constants: { any }?,
+	names: { string }?
+): boolean
 	local opcode = instruction.opcode
 	local arg = instruction.arg
 
@@ -96,18 +102,37 @@ local function executeInstruction(vm: VMState, frame: Frame, instruction: Instru
 		-- Load constant by index from constants table
 		assert(arg ~= nil, "LOAD_CONST requires argument")
 		if constants and constants[arg + 1] then -- +1 for 1-based indexing
-			Frame.push(frame, constants[arg + 1])
+			local value = constants[arg + 1]
+			-- Handle nil sentinel
+			if typeof(value) == "table" and value.__nil then
+				value = nil
+			end
+			Frame.push(frame, value)
 		else
 			-- Fallback: treat arg as the constant value itself (for simple tests)
 			Frame.push(frame, arg)
 		end
 	elseif opcode == "LOAD_NAME" then
-		-- For simplicity, assume arg is the variable name (will be index later)
-		local name = tostring(arg)
+		-- Load name by index from names table
+		assert(arg ~= nil, "LOAD_NAME requires argument")
+		local name: string
+		if names and names[arg + 1] then -- +1 for 1-based indexing
+			name = names[arg + 1]
+		else
+			-- Fallback: treat arg as the variable name directly
+			name = tostring(arg)
+		end
 		local value = Frame.getVariable(frame, name)
 		Frame.push(frame, value)
 	elseif opcode == "STORE_NAME" then
-		local name = tostring(arg)
+		assert(arg ~= nil, "STORE_NAME requires argument")
+		local name: string
+		if names and names[arg + 1] then -- +1 for 1-based indexing
+			name = names[arg + 1]
+		else
+			-- Fallback: treat arg as the variable name directly
+			name = tostring(arg)
+		end
 		local value = Frame.pop(frame)
 		Frame.setVariable(frame, name, value)
 	elseif opcode == "LOAD_FAST" then
@@ -190,28 +215,30 @@ local function executeInstruction(vm: VMState, frame: Frame, instruction: Instru
 	-- Control flow
 	elseif opcode == "JUMP_FORWARD" then
 		assert(arg ~= nil, "JUMP_FORWARD requires argument")
-		Frame.advance(frame, arg)
-		return true -- Skip normal PC advance
+		-- JUMP_FORWARD uses relative addressing
+		-- Calculate target relative to current instruction
+		Frame.jump(frame, frame.pc + arg + 1)
+		frame.skip_advance = true -- Skip normal PC advance
 	elseif opcode == "POP_JUMP_IF_TRUE" then
 		assert(arg ~= nil, "POP_JUMP_IF_TRUE requires argument")
 		local value = Frame.pop(frame)
 		if value then
 			Frame.jump(frame, arg)
-			return true
+			frame.skip_advance = true
 		end
 	elseif opcode == "POP_JUMP_IF_FALSE" then
 		assert(arg ~= nil, "POP_JUMP_IF_FALSE requires argument")
 		local value = Frame.pop(frame)
 		if not value then
 			Frame.jump(frame, arg)
-			return true
+			frame.skip_advance = true
 		end
 	elseif opcode == "JUMP_IF_TRUE_OR_POP" then
 		assert(arg ~= nil, "JUMP_IF_TRUE_OR_POP requires argument")
 		local value = Frame.peek(frame)
 		if value then
 			Frame.jump(frame, arg)
-			return true
+			frame.skip_advance = true
 		else
 			Frame.pop(frame)
 		end
@@ -220,10 +247,33 @@ local function executeInstruction(vm: VMState, frame: Frame, instruction: Instru
 		local value = Frame.peek(frame)
 		if not value then
 			Frame.jump(frame, arg)
-			return true
+			frame.skip_advance = true
 		else
 			Frame.pop(frame)
 		end
+	elseif opcode == "SETUP_LOOP" then
+		assert(arg ~= nil, "SETUP_LOOP requires argument")
+		-- Push loop block onto block stack
+		Frame.pushBlock(frame, "loop", frame.pc, arg)
+	elseif opcode == "POP_BLOCK" then
+		-- Pop block from block stack
+		Frame.popBlock(frame)
+	elseif opcode == "BREAK_LOOP" then
+		-- Break out of current loop
+		local block = Frame.getCurrentBlock(frame)
+		if not block or block.type ~= "loop" then
+			error("'break' outside loop", 2)
+		end
+		-- Jump to end of loop
+		Frame.jump(frame, block.endPos)
+		-- Pop the loop block
+		Frame.popBlock(frame)
+		frame.skip_advance = true
+	elseif opcode == "CONTINUE_LOOP" then
+		assert(arg ~= nil, "CONTINUE_LOOP requires argument")
+		-- Continue to start of loop
+		Frame.jump(frame, arg)
+		frame.skip_advance = true
 	elseif opcode == "RETURN_VALUE" then
 		vm.return_value = Frame.pop(frame)
 		return false -- Signal end of execution
@@ -280,7 +330,8 @@ function Interpreter.execute(
 	code: { Instruction },
 	globals: { [string]: any }?,
 	builtins: { [string]: any }?,
-	constants: { any }?
+	constants: { any }?,
+	names: { string }?
 ): any
 	local vm = Interpreter.newState(globals, builtins)
 	local frame = Frame.new(code, vm.globals, vm.builtins)
@@ -295,12 +346,18 @@ function Interpreter.execute(
 			break
 		end
 
-		local shouldContinue = executeInstruction(vm, frame, instruction, constants)
+		local shouldContinue = executeInstruction(vm, frame, instruction, constants, names)
 		if not shouldContinue then
 			break
 		end
 
-		Frame.advance(frame)
+		-- Only advance if the instruction didn't handle jumping itself
+		-- Jump instructions set a flag instead of returning true
+		if not frame.skip_advance then
+			Frame.advance(frame)
+		else
+			frame.skip_advance = false -- Reset flag
+		end
 	end
 
 	return vm.return_value
@@ -312,11 +369,12 @@ function Interpreter.executeWithTimeout(
 	globals: { [string]: any }?,
 	builtins: { [string]: any }?,
 	constants: { any }?,
+	names: { string }?,
 	timeout: number?
 ): any
 	-- Simple implementation without actual timeout for now
 	-- In a real implementation, this would use coroutines or step-by-step execution
-	return Interpreter.execute(code, globals, builtins, constants)
+	return Interpreter.execute(code, globals, builtins, constants, names)
 end
 
 return Interpreter

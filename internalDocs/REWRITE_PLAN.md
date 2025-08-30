@@ -214,8 +214,8 @@ Completion Criteria: Original `parser.luau` shrinks to thin façade (<150 lines)
 
 #### 4.3 Control Flow
 
-- [ ] **Conditionals**: if/elif/else execution
-- [ ] **Loops**: for and while loop execution
+- [x] **Conditionals**: if/elif/else execution
+- [-] **Loops**: for and while loop execution (only while loops work)
 - [ ] **Break/continue**: Loop control statements
 - [x] **Function returns**: Return value handling
 
