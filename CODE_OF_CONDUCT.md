@@ -8,7 +8,7 @@ We pledge to act and interact in ways that contribute to an open, welcoming, div
 
 ## Our Standards
 
-### 💚 Examples of behavior that contributes to a positive environment include:
+### 💚 Examples of behavior that contributes to a positive environment include
 
 - **Being respectful and inclusive** in language and actions
 - **Demonstrating empathy and kindness** toward other community members
@@ -19,7 +19,7 @@ We pledge to act and interact in ways that contribute to an open, welcoming, div
 - **Helping others** learn and grow in their development journey
 - **Celebrating diverse perspectives** and approaches to problem-solving
 
-### ❌ Examples of unacceptable behavior include:
+### ❌ Examples of unacceptable behavior include
 
 - **Harassment or discriminatory language** of any kind
 - **Personal attacks, insults, or derogatory comments**
@@ -147,7 +147,7 @@ If you believe you have been unfairly sanctioned:
 
 ## Acknowledgment
 
-This Code of Conduct is adapted from the [Contributor Covenant][homepage], version 2.1, available at https://www.contributor-covenant.org/version/2/1/code_of_conduct.html
+This Code of Conduct is adapted from the Contributor Covenant, version 2.1, available at [https://www.contributor-covenant.org/version/2/1/code_of_conduct.html](https://www.contributor-covenant.org/version/2/1/code_of_conduct.html).
 
 Community Impact Guidelines were inspired by [Mozilla's code of conduct enforcement ladder](https://github.com/mozilla/diversity).
 
