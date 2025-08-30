@@ -75,15 +75,15 @@ function Frame.getVariable(frame: Frame, name: string): any
 	if frame.locals[name] ~= nil then
 		return frame.locals[name]
 	end
-	
+
 	if frame.globals[name] ~= nil then
 		return frame.globals[name]
 	end
-	
+
 	if frame.builtins[name] ~= nil then
 		return frame.builtins[name]
 	end
-	
+
 	error("NameError: name '" .. name .. "' is not defined", 2)
 end
 

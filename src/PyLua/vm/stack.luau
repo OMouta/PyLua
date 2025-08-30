@@ -60,10 +60,10 @@ function Stack.rotTwo(stack: Stack)
 	if stack.top < 2 then
 		error("Not enough items on stack for ROT_TWO", 2)
 	end
-	
+
 	local a = stack.values[stack.top]
 	local b = stack.values[stack.top - 1]
-	
+
 	stack.values[stack.top] = b
 	stack.values[stack.top - 1] = a
 end
@@ -73,11 +73,11 @@ function Stack.rotThree(stack: Stack)
 	if stack.top < 3 then
 		error("Not enough items on stack for ROT_THREE", 2)
 	end
-	
+
 	local a = stack.values[stack.top]
 	local b = stack.values[stack.top - 1]
 	local c = stack.values[stack.top - 2]
-	
+
 	stack.values[stack.top] = c
 	stack.values[stack.top - 1] = a
 	stack.values[stack.top - 2] = b
@@ -94,16 +94,16 @@ function Stack.popN(stack: Stack, n: number): { any }
 	if n <= 0 then
 		return {}
 	end
-	
+
 	if stack.top < n then
 		error("Not enough items on stack to pop " .. n, 2)
 	end
-	
+
 	local values: { any } = {}
 	for i = 1, n do
 		values[i] = Stack.pop(stack) -- Keep popped order (top first)
 	end
-	
+
 	return values
 end
 
