@@ -108,8 +108,7 @@ end
 
 -- Set variable by name (in locals for functions, globals for module)
 function Frame.setVariable(frame: Frame, name: string, value: any)
-	-- For now, always store in globals at module level
-	-- TODO: This should check if we're in a function context
+	local targetIsLocal = frame.function_name ~= nil
 	
 	-- Handle nil values with sentinel to avoid disappearing from table
 	local storedValue = value
@@ -117,7 +116,11 @@ function Frame.setVariable(frame: Frame, name: string, value: any)
 		storedValue = { __nil = true }
 	end
 	
-	frame.globals[name] = storedValue
+	if targetIsLocal then
+        frame.locals[name] = storedValue
+    else
+        frame.globals[name] = storedValue
+    end
 end
 
 -- Get fast local by index
