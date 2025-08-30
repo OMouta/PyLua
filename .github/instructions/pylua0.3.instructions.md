@@ -1,3 +1,7 @@
+---
+applyTo: '**'
+---
+
 # GitHub Copilot Instructions for PyLua v0.3 Rewrite
 
 ## Project Overview
