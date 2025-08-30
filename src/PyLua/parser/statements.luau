@@ -93,14 +93,14 @@ end
 
 local function parseSuiteAfterColon(state: any): { Stmt }
 	local body: { Stmt } = {}
-	
+
 	if state.current and state.current.type == "NEWLINE" then
 		-- Multi-line suite
 		state:advance()
 		if state.current and state.current.type == "INDENT" then
 			state:advance()
 		end
-		
+
 		while
 			state.current
 			and state.current.type ~= "ENDMARKER"
@@ -114,7 +114,7 @@ local function parseSuiteAfterColon(state: any): { Stmt }
 				state:advance()
 			end
 		end
-		
+
 		if state.current and state.current.type == "DEDENT" then
 			state:advance()
 		end
@@ -123,7 +123,7 @@ local function parseSuiteAfterColon(state: any): { Stmt }
 		local stmt = statements.parse(state)
 		table.insert(body, stmt)
 	end
-	
+
 	return body
 end
 
@@ -196,10 +196,11 @@ function statements.parseCompound(state: any): Stmt
 		local nameToken = state:consume("NAME", "Expected function name after 'def'")
 		local name = nameToken.value
 		state:consume("LPAR", "Expected '(' after function name")
-		
+
 		-- Parse function arguments
-		local args = { posonlyargs = {}, args = {}, vararg = nil, kwonlyargs = {}, kw_defaults = {}, kwarg = nil, defaults = {} }
-		
+		local args =
+			{ posonlyargs = {}, args = {}, vararg = nil, kwonlyargs = {}, kw_defaults = {}, kwarg = nil, defaults = {} }
+
 		-- Parse parameter list
 		while state.current and state.current.type ~= "RPAR" do
 			local paramToken = state:consume("NAME", "Expected parameter name")
@@ -210,7 +211,7 @@ function statements.parseCompound(state: any): Stmt
 				col_offset = paramToken.column,
 			}
 			table.insert(args.args, param)
-			
+
 			-- Check for comma or end
 			if state.current and state.current.type == "COMMA" then
 				state:advance() -- consume comma
@@ -224,7 +225,7 @@ function statements.parseCompound(state: any): Stmt
 				state:raise("Expected ',' or ')' after parameter")
 			end
 		end
-		
+
 		state:consume("RPAR", "Expected ')' after function arguments")
 		state:consume("COLON", "Expected ':' after function signature")
 		local body = parseSuiteAfterColon(state)

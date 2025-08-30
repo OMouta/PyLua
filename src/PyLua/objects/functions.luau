@@ -50,7 +50,7 @@ function Functions.newFunction(
 		defaults = defaults,
 		closure = closure,
 	}) :: PyFunction
-	
+
 	return func
 end
 

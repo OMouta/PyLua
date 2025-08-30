@@ -220,13 +220,13 @@ compileExpr = function(st: CompilerState, node: any)
 		end
 	elseif t == "Call" then
 		-- Compile function call: func(args)
-		compileExpr(st, node.func)  -- Function object on stack
-		
+		compileExpr(st, node.func) -- Function object on stack
+
 		-- Compile arguments
 		for _, arg in ipairs(node.args) do
 			compileExpr(st, arg)
 		end
-		
+
 		-- Emit CALL_FUNCTION with argument count
 		local arg_count = #node.args
 		emit(st, "CALL_FUNCTION", arg_count, node.lineno)
@@ -378,16 +378,16 @@ compileFunctionDef = function(st: CompilerState, node: any)
 	local funcName = node.name
 	local args = node.args
 	local body = node.body
-	
+
 	-- Create a new compiler state for the function
 	local funcState = newState()
 	funcState.code.name = funcName
 	funcState.code.firstlineno = node.lineno
-	
+
 	-- Count arguments
 	local argcount = 0
 	local varnames: { string } = {}
-	
+
 	-- Process function arguments
 	if args and args.args then
 		for _, arg in ipairs(args.args) do
@@ -395,31 +395,31 @@ compileFunctionDef = function(st: CompilerState, node: any)
 			table.insert(varnames, arg.arg or arg.name or ("arg" .. argcount))
 		end
 	end
-	
+
 	funcState.code.argcount = argcount
 	funcState.code.varnames = varnames
-	
+
 	-- Compile function body
 	for _, stmt in ipairs(body) do
 		compileStmt(funcState, stmt)
 	end
-	
+
 	-- Add implicit return None if no explicit return
 	local idxNone = addConst(funcState, nil)
 	emit(funcState, "LOAD_CONST", idxNone, node.lineno)
 	emit(funcState, "RETURN_VALUE", nil, node.lineno)
-	
+
 	-- Create the function object in the parent scope
 	-- First, add the function code as a constant
 	local funcCodeIdx = addConst(st, funcState.code)
 	emit(st, "LOAD_CONST", funcCodeIdx, node.lineno)
-	
+
 	-- Add function defaults (simplified - no defaults for now)
 	emit(st, "LOAD_CONST", addConst(st, 0), node.lineno) -- default count
-	
+
 	-- Create the function object
 	emit(st, "MAKE_FUNCTION", 0, node.lineno) -- flags = 0 (no defaults, closure, etc.)
-	
+
 	-- Store the function in the current scope
 	local nameIdx = addName(st, funcName)
 	emit(st, "STORE_NAME", nameIdx, node.lineno)

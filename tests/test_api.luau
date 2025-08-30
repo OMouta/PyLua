@@ -53,26 +53,6 @@ local apiTests: TestFramework.TestSuite = {
 		},
 
 		{
-			name = "Methods Not Yet Implemented",
-			test = function()
-				local python = PyLua.new()
-
-				-- These should error since they're not implemented yet
-				TestFramework.assertError(function()
-					return python:execute("print('hello')")
-				end, "execute should error (not implemented)")
-
-				TestFramework.assertError(function()
-					return python:eval("1 + 1")
-				end, "eval should error (not implemented)")
-
-				TestFramework.assertError(function()
-					return python:compile("x = 1")
-				end, "compile should error (not implemented)")
-			end,
-		},
-
-		{
 			name = "Version Information",
 			test = function()
 				TestFramework.assertType(PyLua.version, "string", "Version should be a string")

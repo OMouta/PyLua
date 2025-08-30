@@ -14,5 +14,7 @@ require("./test_objects_builtins")
 require("./test_objects_collections")
 require("./test_bytecode")
 require("./test_vm")
+require("./test_functions")
+require("./test_control_flow")
 
 TestFramework.printSummary()
