@@ -6,7 +6,7 @@ Thank you for your interest in contributing to PyLua! This document provides gui
 
 PyLua v0.3 is a complete rewrite of the Python interpreter for Luau/Roblox. We're building a production-quality Python 3.12-compliant interpreter following CPython's design principles with a Lupa-inspired API.
 
-**Important**: We are currently in a major rewrite phase. Please read the [InternalDocs/REWRITE_PLAN.md](./InternalDocs/REWRITE_PLAN.md) to understand the current development phase and architecture goals.
+**Important**: We are currently in a major rewrite phase. Please read the [internalDocs/REWRITE_PLAN.md](./internalDocs/REWRITE_PLAN.md) to understand the current development phase and architecture goals.
 
 ## 🚀 Getting Started
 
@@ -40,9 +40,9 @@ PyLua v0.3 is a complete rewrite of the Python interpreter for Luau/Roblox. We'r
    Alternatively, you can install Jelly directly from its [GitHub page](https://github.com/OMouta/Jelly).
 
 3. **Understand the Architecture**
-   - Read [InternalDocs/README.md](./InternalDocs/README.md) for documentation overview
-   - Review [InternalDocs/REWRITE_PLAN.md](./InternalDocs/REWRITE_PLAN.md) for current phase
-   - Study [InternalDocs/LANGUAGE_IMPLEMENTATION.md](./InternalDocs/LANGUAGE_IMPLEMENTATION.md) for technical background
+   - Read [internalDocs/README.md](./internalDocs/README.md) for documentation overview
+   - Review [internalDocs/REWRITE_PLAN.md](./internalDocs/REWRITE_PLAN.md) for current phase
+   - Study [internalDocs/LANGUAGE_IMPLEMENTATION.md](./internalDocs/LANGUAGE_IMPLEMENTATION.md) for technical background
 
 4. **Set Up Development Environment**
    - Install Roblox Studio or your preferred Luau development environment
@@ -59,7 +59,7 @@ PyLua v0.3 is a complete rewrite of the Python interpreter for Luau/Roblox. We'r
 - 🔄 Core parser implementation
 - ⏳ Object system foundation
 
-See [InternalDocs/REWRITE_PLAN.md](./InternalDocs/REWRITE_PLAN.md) for detailed phase information.
+See [internalDocs/REWRITE_PLAN.md](./internalDocs/REWRITE_PLAN.md) for detailed phase information.
 
 ## 🤝 How to Contribute
 
