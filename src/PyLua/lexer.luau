@@ -252,10 +252,29 @@ function Lexer.tokenize(source: string): { Token }
 
 	while state.pos <= state.length do
 		-- Handle indentation at line start
-		if state.atLineStart and peek(state) and tokens.isWhitespace(peek(state) :: string) then
-			local indentTokens = handleIndentation(state)
-			for _, token in ipairs(indentTokens) do
-				table.insert(tokenList, token)
+		if state.atLineStart and peek(state) then
+			local char = peek(state) :: string
+			if tokens.isWhitespace(char) then
+				-- Line has indentation - count it
+				local indentTokens = handleIndentation(state)
+				for _, token in ipairs(indentTokens) do
+					table.insert(tokenList, token)
+				end
+			else
+				-- Line starts at column 0 - check if we need DEDENTs
+				local currentIndent = state.indentStack[#state.indentStack]
+				if currentIndent > 0 then
+					-- We're at indentation level 0, emit DEDENTs as needed
+					local indentTokens: { Token } = {}
+					while #state.indentStack > 1 and state.indentStack[#state.indentStack] > 0 do
+						table.remove(state.indentStack)
+						table.insert(indentTokens, tokens.newToken("DEDENT", "", state.line, 1))
+					end
+					for _, token in ipairs(indentTokens) do
+						table.insert(tokenList, token)
+					end
+				end
+				skipWhitespace(state)
 			end
 		else
 			skipWhitespace(state)

@@ -77,15 +77,30 @@ end
 function Frame.getVariable(frame: Frame, name: string): any
 	-- Search order: locals, globals, builtins
 	if frame.locals[name] ~= nil then
-		return frame.locals[name]
+		local value = frame.locals[name]
+		-- Handle nil sentinel
+		if typeof(value) == "table" and value.__nil then
+			return nil
+		end
+		return value
 	end
 
 	if frame.globals[name] ~= nil then
-		return frame.globals[name]
+		local value = frame.globals[name]
+		-- Handle nil sentinel
+		if typeof(value) == "table" and value.__nil then
+			return nil
+		end
+		return value
 	end
 
 	if frame.builtins[name] ~= nil then
-		return frame.builtins[name]
+		local value = frame.builtins[name]
+		-- Handle nil sentinel
+		if typeof(value) == "table" and value.__nil then
+			return nil
+		end
+		return value
 	end
 
 	error("NameError: name '" .. name .. "' is not defined", 2)
@@ -95,7 +110,14 @@ end
 function Frame.setVariable(frame: Frame, name: string, value: any)
 	-- For now, always store in globals at module level
 	-- TODO: This should check if we're in a function context
-	frame.globals[name] = value
+	
+	-- Handle nil values with sentinel to avoid disappearing from table
+	local storedValue = value
+	if value == nil then
+		storedValue = { __nil = true }
+	end
+	
+	frame.globals[name] = storedValue
 end
 
 -- Get fast local by index

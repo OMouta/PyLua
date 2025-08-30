@@ -75,6 +75,8 @@ function Interpreter.newState(globals: { [string]: any }?, builtins: { [string]:
 	}
 end
 
+local callPyFunction = nil
+
 -- Execute a single instruction
 local function executeInstruction(
 	vm: VMState,
@@ -318,11 +320,181 @@ local function executeInstruction(
 			map[key] = value
 		end
 		Frame.push(frame, map)
+		
+	-- Function operations
+	elseif opcode == "MAKE_FUNCTION" then
+		assert(arg ~= nil, "MAKE_FUNCTION requires argument")
+		local flags = arg
+		local defaultCount = Frame.pop(frame) -- Number of defaults
+		local codeObj = Frame.pop(frame) -- Code object
+		
+		-- For now, ignore defaults (simplified)
+		local Functions = require("../objects/functions")
+		
+		-- Convert CodeObject to PyCode
+		local pyCode = Functions.newCode(
+			codeObj.name or "<anonymous>",
+			codeObj.argcount or 0,
+			codeObj.kwonlyargcount or 0,
+			codeObj.varnames,
+			codeObj.bytecode,
+			codeObj.constants,
+			codeObj.names,
+			nil, -- defaults
+			"<string>", -- filename
+			codeObj.firstlineno
+		)
+		
+		-- Create function object
+		local func = Functions.newFunction(pyCode, vm.globals, nil, nil)
+		Frame.push(frame, func)
+		
+	elseif opcode == "CALL_FUNCTION" then
+		assert(arg ~= nil, "CALL_FUNCTION requires argument")
+		local argc = arg
+		local args = Stack.popN(frame.stack, argc)
+		local func = Frame.pop(frame)
+		
+		-- Reverse args to correct order (popN reverses)
+		local orderedArgs = {}
+		for i = #args, 1, -1 do
+			table.insert(orderedArgs, args[i])
+		end
+		
+		-- Call the function
+		local result = callPyFunction(vm, func, orderedArgs, {})
+		Frame.push(frame, result)
+		
 	else
 		error("Unimplemented opcode: " .. opcode, 2)
 	end
 
 	return true -- Continue execution
+end
+
+-- Call a Python function (moved from functions module to avoid circular dependency)
+callPyFunction = function(vm: VMState, func: any, args: { any }?, kwargs: { [string]: any }?): any
+	local Functions = require("../objects/functions")
+	local Base = require("../objects/base")
+	
+	if not Functions.isFunction(func) then
+		error("TypeError: '" .. tostring(func.__type or type(func)) .. "' object is not callable", 2)
+	end
+	
+	local safeArgs = args or {}
+	local safeKwargs = kwargs or {}
+	
+	local code = Functions.getFunctionCode(func)
+	local funcGlobals = func.__value.globals
+	
+	-- Check argument count
+	local providedArgs = #safeArgs
+	local requiredArgs = code.argcount
+	local hasDefaults = func.__value.defaults and #(func.__value.defaults :: { any }) > 0
+	local minArgs = hasDefaults and (requiredArgs - #(func.__value.defaults :: { any })) or requiredArgs
+	
+	if providedArgs < minArgs then
+		error("TypeError: " .. (code.name or "<anonymous>") .. "() missing " .. (minArgs - providedArgs) .. " required positional argument(s)", 2)
+	end
+	
+	if providedArgs > requiredArgs then
+		error("TypeError: " .. (code.name or "<anonymous>") .. "() takes " .. requiredArgs .. " positional argument(s) but " .. providedArgs .. " were given", 2)
+	end
+	
+	-- Create locals with argument binding
+	local locals: { [string]: any } = {}
+	
+	-- Bind positional arguments
+	for i = 1, providedArgs do
+		if i <= #code.varnames then
+			local varnameList: { [number]: string } = code.varnames
+			local varname = varnameList[i]
+			if varname then
+				locals[varname] = safeArgs[i]
+			end
+		end
+	end
+
+	-- Apply default values for missing arguments
+	if hasDefaults then
+		local defaults = func.__value.defaults :: { any }
+		local defaultStart = requiredArgs - #defaults + 1
+		for i = providedArgs + 1, requiredArgs do
+			local defaultIndex = i - defaultStart + 1
+			if defaultIndex > 0 and defaultIndex <= #defaults and i <= #code.varnames then
+				local varnameList: { [number]: string } = code.varnames
+				local varname = varnameList[i]
+				if varname then
+					locals[varname] = defaults[defaultIndex]
+				end
+			end
+		end
+	end
+	
+	-- Handle keyword arguments
+	for name: string, value in pairs(safeKwargs) do
+		-- Find the parameter index
+		local paramIndex = nil
+		for i, varname in ipairs(code.varnames) do
+			if varname == name and i <= requiredArgs then
+				paramIndex = i
+				break
+			end
+		end
+		
+		if paramIndex then
+			if safeArgs[paramIndex] then
+				error("TypeError: " .. (code.name or "<anonymous>") .. "() got multiple values for argument '" .. name .. "'", 2)
+			end
+			locals[name] = value
+		else
+			error("TypeError: " .. (code.name or "<anonymous>") .. "() got an unexpected keyword argument '" .. name .. "'", 2)
+		end
+	end
+	
+	-- Execute function bytecode using a new frame
+	local funcFrame = Frame.new(code.bytecode, funcGlobals, {}, locals, code.name)
+	
+	-- Save current frame and push new frame
+	local prevFrame = vm.current_frame
+	vm.current_frame = funcFrame
+	table.insert(vm.call_stack, funcFrame)
+	
+	-- Execute function bytecode
+	while Frame.hasNext(funcFrame) do
+		local instruction = Frame.getCurrentInstruction(funcFrame)
+		if not instruction then
+			break
+		end
+		
+		local shouldContinue = executeInstruction(vm, funcFrame, instruction, code.constants, code.names)
+		if not shouldContinue then
+			break
+		end
+		
+		-- Only advance if the instruction didn't handle jumping itself
+		-- Jump instructions set a flag instead of returning true
+		if not funcFrame.skip_advance then
+			Frame.advance(funcFrame)
+		else
+			funcFrame.skip_advance = false -- Reset flag
+		end
+	end
+	
+	-- Restore previous frame
+	table.remove(vm.call_stack)
+	vm.current_frame = prevFrame
+	
+	-- Return the result or None if no explicit return
+	local result = vm.return_value
+	if result == nil then
+		result = Base.newPyObject("NoneType", nil)
+	end
+	
+	-- Clear return value for next function call
+	vm.return_value = nil
+	
+	return result
 end
 
 -- Execute bytecode

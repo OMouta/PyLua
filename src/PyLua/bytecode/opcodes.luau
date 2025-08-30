@@ -52,6 +52,7 @@ export type Opcode =
 	| "BREAK_LOOP"
 	| "CONTINUE_LOOP"
 	-- Function calls
+	| "MAKE_FUNCTION"
 	| "CALL_FUNCTION"
 	| "RETURN_VALUE"
 	-- Object operations
@@ -128,6 +129,7 @@ local OPCODE_INFO: { [Opcode]: OpcodeInfo } = {
 	CONTINUE_LOOP = { name = "CONTINUE_LOOP", arg = true, doc = "Continue to loop start" },
 
 	-- Function calls
+	MAKE_FUNCTION = { name = "MAKE_FUNCTION", arg = true, doc = "Create function object" },
 	CALL_FUNCTION = { name = "CALL_FUNCTION", arg = true, doc = "Call with positional arg count" },
 	RETURN_VALUE = { name = "RETURN_VALUE", arg = false, doc = "Return TOS" },
 

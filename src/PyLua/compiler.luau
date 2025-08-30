@@ -19,6 +19,10 @@ export type CodeObject = {
 	bytecode: { Instruction }, -- Ordered instruction list
 	firstlineno: number?,
 	lnotab: { number }?, -- Placeholder for line number table (not yet used)
+	-- Function-specific fields
+	name: string?, -- Function name (for function code objects)
+	argcount: number?, -- Number of positional arguments
+	kwonlyargcount: number?, -- Number of keyword-only arguments
 }
 
 -- Internal compiler emitter state
@@ -29,6 +33,14 @@ type CompilerState = {
 	loopStack: { { startLabel: number, endLabel: number } }, -- For break/continue
 	labelCounter: number, -- For generating unique labels
 }
+
+-- Forward declarations
+local compileStmt: (st: CompilerState, node: any) -> ()
+local compileFunctionDef: (st: CompilerState, node: any) -> ()
+
+-- Initialize forward declarations
+compileStmt = nil :: any
+compileFunctionDef = nil :: any
 
 local function newState(): CompilerState
 	return {
@@ -206,13 +218,25 @@ compileExpr = function(st: CompilerState, node: any)
 		else
 			error("Chained comparisons not yet supported")
 		end
+	elseif t == "Call" then
+		-- Compile function call: func(args)
+		compileExpr(st, node.func)  -- Function object on stack
+		
+		-- Compile arguments
+		for _, arg in ipairs(node.args) do
+			compileExpr(st, arg)
+		end
+		
+		-- Emit CALL_FUNCTION with argument count
+		local arg_count = #node.args
+		emit(st, "CALL_FUNCTION", arg_count, node.lineno)
 	else
 		error("Unsupported expression node type: " .. tostring(t))
 	end
 end
 
 -- Statement compilation
-local function compileStmt(st: CompilerState, node: any)
+compileStmt = function(st: CompilerState, node: any)
 	if node.type == "Expr" then
 		compileExpr(st, node.value)
 		-- POP_TOP to discard value of expression statements
@@ -340,9 +364,65 @@ local function compileStmt(st: CompilerState, node: any)
 	elseif node.type == "Pass" then
 		-- Pass statement does nothing
 		-- No bytecode emitted
+	elseif node.type == "FunctionDef" then
+		-- Compile function definition
+		compileFunctionDef(st, node)
 	else
 		error("Unsupported statement type: " .. tostring(node.type))
 	end
+end
+
+-- Compile function definition
+compileFunctionDef = function(st: CompilerState, node: any)
+	-- Extract function details
+	local funcName = node.name
+	local args = node.args
+	local body = node.body
+	
+	-- Create a new compiler state for the function
+	local funcState = newState()
+	funcState.code.name = funcName
+	funcState.code.firstlineno = node.lineno
+	
+	-- Count arguments
+	local argcount = 0
+	local varnames: { string } = {}
+	
+	-- Process function arguments
+	if args and args.args then
+		for _, arg in ipairs(args.args) do
+			argcount = argcount + 1
+			table.insert(varnames, arg.arg or arg.name or ("arg" .. argcount))
+		end
+	end
+	
+	funcState.code.argcount = argcount
+	funcState.code.varnames = varnames
+	
+	-- Compile function body
+	for _, stmt in ipairs(body) do
+		compileStmt(funcState, stmt)
+	end
+	
+	-- Add implicit return None if no explicit return
+	local idxNone = addConst(funcState, nil)
+	emit(funcState, "LOAD_CONST", idxNone, node.lineno)
+	emit(funcState, "RETURN_VALUE", nil, node.lineno)
+	
+	-- Create the function object in the parent scope
+	-- First, add the function code as a constant
+	local funcCodeIdx = addConst(st, funcState.code)
+	emit(st, "LOAD_CONST", funcCodeIdx, node.lineno)
+	
+	-- Add function defaults (simplified - no defaults for now)
+	emit(st, "LOAD_CONST", addConst(st, 0), node.lineno) -- default count
+	
+	-- Create the function object
+	emit(st, "MAKE_FUNCTION", 0, node.lineno) -- flags = 0 (no defaults, closure, etc.)
+	
+	-- Store the function in the current scope
+	local nameIdx = addName(st, funcName)
+	emit(st, "STORE_NAME", nameIdx, node.lineno)
 end
 
 local function compileModule(ast: any): CodeObject
