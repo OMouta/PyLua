@@ -64,6 +64,84 @@ compareOperations = {
 	end,
 }
 
+-- Iterator helper functions
+local function createIterator(iterable: any): any
+	-- Create an iterator from an iterable object
+	if type(iterable) == "table" then
+		local obj = iterable :: any
+		if obj.__type == "list" then
+			-- Python list iterator
+			return {
+				__type = "list_iterator",
+				__value = obj.__value,
+				__index = 1,
+				__length = #obj.__value,
+			}
+		elseif obj.__type == "tuple" then
+			-- Python tuple iterator
+			return {
+				__type = "tuple_iterator",
+				__value = obj.__value,
+				__index = 1,
+				__length = #obj.__value,
+			}
+		elseif obj.__type == "set" then
+			-- Python set iterator - convert to array first
+			local arr = {}
+			for value, _ in pairs(obj.__value) do
+				arr[#arr + 1] = value
+			end
+			return {
+				__type = "set_iterator",
+				__value = arr,
+				__index = 1,
+				__length = #arr,
+			}
+		elseif obj.__type == "dict" then
+			-- Python dict iterator (iterates over keys)
+			local keys = {}
+			for key, _ in pairs(obj.__value) do
+				keys[#keys + 1] = key
+			end
+			return {
+				__type = "dict_iterator",
+				__value = keys,
+				__index = 1,
+				__length = #keys,
+			}
+		elseif obj.__type == "str" then
+			-- Python string iterator (character by character)
+			local chars = {}
+			local str = obj.__value :: string
+			for i = 1, #str do
+				chars[i] = Base.newPyObject("str", str:sub(i, i))
+			end
+			return {
+				__type = "str_iterator",
+				__value = chars,
+				__index = 1,
+				__length = #chars,
+			}
+		end
+	end
+
+	error("TypeError: '" .. tostring(type(iterable)) .. "' object is not iterable", 2)
+end
+
+local function getNextValue(iterator: any): any?
+	-- Get the next value from an iterator, or nil if exhausted
+	if type(iterator) == "table" then
+		local iter = iterator :: any
+		if iter.__index <= iter.__length then
+			local value = iter.__value[iter.__index]
+			iter.__index = iter.__index + 1
+			return value
+		end
+	end
+
+	return nil -- Iterator exhausted
+end
+
 -- Create a new VM state
 function Interpreter.newState(globals: { [string]: any }?, builtins: { [string]: any }?): VMState
 	return {
@@ -158,49 +236,66 @@ local function executeInstruction(
 	elseif opcode == "BINARY_ADD" then
 		local b = Frame.pop(frame)
 		local a = Frame.pop(frame)
-		Frame.push(frame, a + b)
+		-- Extract values from PyObjects if needed
+		local aVal = (type(a) == "table" and a.__value ~= nil) and a.__value or a
+		local bVal = (type(b) == "table" and b.__value ~= nil) and b.__value or b
+		Frame.push(frame, aVal + bVal)
 	elseif opcode == "BINARY_SUBTRACT" then
 		local b = Frame.pop(frame)
 		local a = Frame.pop(frame)
-		Frame.push(frame, a - b)
+		local aVal = (type(a) == "table" and a.__value ~= nil) and a.__value or a
+		local bVal = (type(b) == "table" and b.__value ~= nil) and b.__value or b
+		Frame.push(frame, aVal - bVal)
 	elseif opcode == "BINARY_MULTIPLY" then
 		local b = Frame.pop(frame)
 		local a = Frame.pop(frame)
-		Frame.push(frame, a * b)
+		local aVal = (type(a) == "table" and a.__value ~= nil) and a.__value or a
+		local bVal = (type(b) == "table" and b.__value ~= nil) and b.__value or b
+		Frame.push(frame, aVal * bVal)
 	elseif opcode == "BINARY_DIVIDE" then
 		local b = Frame.pop(frame)
 		local a = Frame.pop(frame)
-		if b == 0 then
+		local aVal = (type(a) == "table" and a.__value ~= nil) and a.__value or a
+		local bVal = (type(b) == "table" and b.__value ~= nil) and b.__value or b
+		if bVal == 0 then
 			error("ZeroDivisionError: division by zero", 2)
 		end
-		Frame.push(frame, a / b)
+		Frame.push(frame, aVal / bVal)
 	elseif opcode == "BINARY_MODULO" then
 		local b = Frame.pop(frame)
 		local a = Frame.pop(frame)
-		if b == 0 then
+		local aVal = (type(a) == "table" and a.__value ~= nil) and a.__value or a
+		local bVal = (type(b) == "table" and b.__value ~= nil) and b.__value or b
+		if bVal == 0 then
 			error("ZeroDivisionError: integer division or modulo by zero", 2)
 		end
-		Frame.push(frame, a % b)
+		Frame.push(frame, aVal % bVal)
 	elseif opcode == "BINARY_POWER" then
 		local b = Frame.pop(frame)
 		local a = Frame.pop(frame)
-		Frame.push(frame, a ^ b)
+		local aVal = (type(a) == "table" and a.__value ~= nil) and a.__value or a
+		local bVal = (type(b) == "table" and b.__value ~= nil) and b.__value or b
+		Frame.push(frame, aVal ^ bVal)
 
 	-- Unary operations
 	elseif opcode == "UNARY_POSITIVE" then
 		local a = Frame.pop(frame)
-		Frame.push(frame, a) -- Unary + is identity for numbers
+		local aVal = (type(a) == "table" and a.__value ~= nil) and a.__value or a
+		Frame.push(frame, aVal) -- Unary + is identity for numbers
 	elseif opcode == "UNARY_NEGATIVE" then
 		local a = Frame.pop(frame)
-		Frame.push(frame, -a)
+		local aVal = (type(a) == "table" and a.__value ~= nil) and a.__value or a
+		Frame.push(frame, -aVal)
 	elseif opcode == "UNARY_NOT" then
 		local a = Frame.pop(frame)
-		Frame.push(frame, not a)
+		local aVal = (type(a) == "table" and a.__value ~= nil) and a.__value or a
+		Frame.push(frame, not aVal)
 	elseif opcode == "UNARY_INVERT" then
 		local a = Frame.pop(frame)
+		local aVal = (type(a) == "table" and a.__value ~= nil) and a.__value or a
 		-- Bitwise NOT for integers
-		if type(a) == "number" and a == math.floor(a) then
-			Frame.push(frame, bit32.bnot(a))
+		if type(aVal) == "number" and aVal == math.floor(aVal) then
+			Frame.push(frame, bit32.bnot(aVal))
 		else
 			error("TypeError: bad operand type for unary ~", 2)
 		end
@@ -208,11 +303,14 @@ local function executeInstruction(
 		assert(arg ~= nil, "COMPARE_OP requires argument")
 		local b = Frame.pop(frame)
 		local a = Frame.pop(frame)
+		-- Extract values from PyObjects if needed
+		local aVal = (type(a) == "table" and a.__value ~= nil) and a.__value or a
+		local bVal = (type(b) == "table" and b.__value ~= nil) and b.__value or b
 		local op = compareOperations[arg]
 		if not op then
 			error("Unknown comparison operation: " .. tostring(arg), 2)
 		end
-		Frame.push(frame, op(a, b))
+		Frame.push(frame, op(aVal, bVal))
 
 	-- Control flow
 	elseif opcode == "JUMP_FORWARD" then
@@ -280,46 +378,71 @@ local function executeInstruction(
 		vm.return_value = Frame.pop(frame)
 		return false -- Signal end of execution
 
+	-- Iteration
+	elseif opcode == "GET_ITER" then
+		local iterable = Frame.pop(frame)
+		local iterator = createIterator(iterable)
+		Frame.push(frame, iterator)
+	elseif opcode == "FOR_ITER" then
+		assert(arg ~= nil, "FOR_ITER requires argument")
+		local iterator = Frame.peek(frame) -- Keep iterator on stack
+		local nextValue = getNextValue(iterator)
+		if nextValue ~= nil then
+			-- Got a value, push it and continue
+			Frame.push(frame, nextValue)
+		else
+			-- Iterator exhausted, pop it and jump to end
+			Frame.pop(frame) -- Remove iterator
+			Frame.jump(frame, arg)
+			frame.skip_advance = true
+		end
+
 	-- Collections
 	elseif opcode == "BUILD_LIST" then
 		assert(arg ~= nil, "BUILD_LIST requires argument")
 		local elements = Stack.popN(frame.stack, arg)
 		-- Reverse to match Python stack order (top of stack becomes last element)
-		local list = {}
+		local arr = {}
 		for i = #elements, 1, -1 do
-			list[#list + 1] = elements[i]
+			arr[#arr + 1] = Base.ensurePyObject(elements[i])
 		end
+		local list = Base.newPyObject("list", arr)
 		Frame.push(frame, list)
 	elseif opcode == "BUILD_TUPLE" then
 		assert(arg ~= nil, "BUILD_TUPLE requires argument")
 		local elements = Stack.popN(frame.stack, arg)
-		-- Mark as tuple (simplified using type casting)
-		local tuple = elements :: any
-		tuple.__tuple = true
+		-- Reverse to match Python stack order (top of stack becomes last element)
+		local arr = {}
+		for i = #elements, 1, -1 do
+			arr[#arr + 1] = Base.ensurePyObject(elements[i])
+		end
+		local tuple = Base.newPyObject("tuple", arr)
 		Frame.push(frame, tuple)
 	elseif opcode == "BUILD_SET" then
 		assert(arg ~= nil, "BUILD_SET requires argument")
 		local elements = Stack.popN(frame.stack, arg)
-		-- Create set (simplified)
-		local set = {}
-		for _, v in ipairs(elements) do
-			set[v] = true
+		-- Create set with proper PyObject
+		local setValues = {}
+		for i = #elements, 1, -1 do
+			local elem = Base.ensurePyObject(elements[i])
+			setValues[elem] = true
 		end
-		set.__set = true
+		local set = Base.newPyObject("set", setValues)
 		Frame.push(frame, set)
 	elseif opcode == "BUILD_MAP" then
 		assert(arg ~= nil, "BUILD_MAP requires argument")
 		local pairs = Stack.popN(frame.stack, arg * 2)
-		local map = {}
+		local dictValues = {}
 		-- Stack order when pushed: [key1, value1, key2, value2] (value2 on top)
 		-- popN returns: [value2, key2, value1, key1] (in pop order)
 		-- Process pairs: (value2, key2) and (value1, key1) -> swap each pair
 		for i = 1, #pairs, 2 do
-			local value = pairs[i] -- value (popped first)
-			local key = pairs[i + 1] -- key (popped second)
-			map[key] = value
+			local value = Base.ensurePyObject(pairs[i]) -- value (popped first)
+			local key = Base.ensurePyObject(pairs[i + 1]) -- key (popped second)
+			dictValues[key] = value
 		end
-		Frame.push(frame, map)
+		local dict = Base.newPyObject("dict", dictValues)
+		Frame.push(frame, dict)
 
 	-- Function operations
 	elseif opcode == "MAKE_FUNCTION" then

@@ -138,6 +138,102 @@ else:
 			end,
 		},
 
+		{
+			name = "Compiler - For Loop Bytecode",
+			test = function()
+				local tokens = Lexer.tokenize("for i in [1, 2, 3]:\n    x = i")
+				local ast = Parser.parse(tokens)
+				local bytecode = Compiler.compile(ast)
+				
+				-- Check that bytecode contains iteration instructions
+				local hasGetIter = false
+				local hasForIter = false
+				for _, instruction in ipairs(bytecode.bytecode) do
+					if instruction.opcode == "GET_ITER" then
+						hasGetIter = true
+					elseif instruction.opcode == "FOR_ITER" then
+						hasForIter = true
+					end
+				end
+				TestFramework.assertTrue(hasGetIter, "For loop should generate GET_ITER instruction")
+				TestFramework.assertTrue(hasForIter, "For loop should generate FOR_ITER instruction")
+			end,
+		},
+
+		{
+			name = "For Loop - Basic Execution",
+			test = function()
+				local globals = executeCode([[
+total = 0
+for i in [1, 2, 3]:
+    total = total + i
+]])
+				TestFramework.assertEqual(globals.total, 6, "For loop should iterate over list elements")
+			end,
+		},
+
+		{
+			name = "For Loop - Empty List",
+			test = function()
+				local globals = executeCode([[
+count = 0
+for i in []:
+    count = count + 1
+]])
+				TestFramework.assertEqual(globals.count, 0, "For loop over empty list should not execute body")
+			end,
+		},
+
+		{
+			name = "For Loop - Single Element",
+			test = function()
+				local globals = executeCode([[
+result = 0
+for i in [42]:
+    result = i
+]])
+				TestFramework.assertEqual(globals.result, 42, "For loop over single element should work")
+			end,
+		},
+
+		{
+			name = "For Loop - Variable Scope",
+			test = function()
+				local globals = executeCode([[
+for i in [1, 2, 3]:
+    pass
+result = i
+]])
+				TestFramework.assertEqual(globals.result, 3, "Loop variable should be accessible after loop ends")
+			end,
+		},
+
+		{
+			name = "For Loop - Nested Loops",
+			test = function()
+				local globals = executeCode([[
+total = 0
+for i in [1, 2]:
+    for j in [10, 20]:
+        total = total + i + j
+]])
+				-- Expected: (1+10) + (1+20) + (2+10) + (2+20) = 11 + 21 + 12 + 22 = 66
+				TestFramework.assertEqual(globals.total, 66, "Nested for loops should work correctly")
+			end,
+		},
+
+		{
+			name = "For Loop - Different Data Types",
+			test = function()
+				local globals = executeCode([[
+result = 0
+for i in [1, 2.5, 3]:
+    result = result + i
+]])
+				TestFramework.assertEqual(globals.result, 6.5, "For loop should work with mixed number types")
+			end,
+		},
+
 		-- Note: Break and continue tests would need more complex setup
 		-- since they require loop control flow that's not fully implemented yet
 	},

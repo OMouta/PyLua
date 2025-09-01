@@ -230,6 +230,14 @@ compileExpr = function(st: CompilerState, node: any)
 		-- Emit CALL_FUNCTION with argument count
 		local arg_count = #node.args
 		emit(st, "CALL_FUNCTION", arg_count, node.lineno)
+	elseif t == "List" then
+		-- Compile list literal: [1, 2, 3]
+		-- Push all elements onto stack
+		for _, elt in ipairs(node.elts) do
+			compileExpr(st, elt)
+		end
+		-- Build list from stack elements
+		emit(st, "BUILD_LIST", #node.elts, node.lineno)
 	else
 		error("Unsupported expression node type: " .. tostring(t))
 	end
@@ -317,31 +325,45 @@ compileStmt = function(st: CompilerState, node: any)
 
 		exitLoop(st)
 	elseif node.type == "For" then
-		-- For loops are more complex - simplified for now
-		-- iter(node.iter) -> iterator
+		-- Python for loop using proper iteration protocol
+		-- 1. Compile the iterable expression
 		compileExpr(st, node.iter)
 
+		-- 2. Get iterator from iterable
+		emit(st, "GET_ITER", nil, node.lineno)
+
+		-- 3. Mark loop start
 		local loopStart = getCurrentAddress(st)
-		-- This is a simplified version - real Python for loops need GET_ITER, FOR_ITER opcodes
-		local jumpIfFalse = getCurrentAddress(st)
-		emit(st, "POP_JUMP_IF_FALSE", 0, node.lineno) -- Will be patched
 
-		enterLoop(st, loopStart, jumpIfFalse)
+		-- 4. Try to get next value from iterator
+		local forIterJump = getCurrentAddress(st)
+		emit(st, "FOR_ITER", 0, node.lineno) -- Will be patched to end
 
-		-- Store iteration variable (simplified)
+		-- 5. Setup loop for break/continue
+		enterLoop(st, loopStart, forIterJump)
+
+		-- 6. Store the iteration value in the target variable
 		if node.target.type == "Name" then
 			node.target.ctx = "Store"
 			compileName(st, node.target)
+		else
+			error("Complex assignment targets not supported yet", 2)
 		end
 
-		-- Compile loop body
+		-- 7. Compile loop body
 		for _, stmt in ipairs(node.body) do
 			compileStmt(st, stmt)
 		end
 
-		emit(st, "JUMP_FORWARD", loopStart, node.lineno)
-		patchJump(st, jumpIfFalse, getCurrentAddress(st))
+		-- 8. Jump back to FOR_ITER
+		local currentAddr = getCurrentAddress(st)
+		local relativeOffset = loopStart - currentAddr - 1
+		emit(st, "JUMP_FORWARD", relativeOffset, node.lineno)
 
+		-- 9. Patch the FOR_ITER jump to exit the loop
+		patchJump(st, forIterJump, getCurrentAddress(st))
+
+		-- 10. Compile else clause if present
 		if #node.orelse > 0 then
 			for _, stmt in ipairs(node.orelse) do
 				compileStmt(st, stmt)

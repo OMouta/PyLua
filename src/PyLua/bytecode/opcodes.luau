@@ -51,6 +51,9 @@ export type Opcode =
 	| "POP_BLOCK"
 	| "BREAK_LOOP"
 	| "CONTINUE_LOOP"
+	-- Iteration
+	| "GET_ITER"
+	| "FOR_ITER"
 	-- Function calls
 	| "MAKE_FUNCTION"
 	| "CALL_FUNCTION"
@@ -127,6 +130,10 @@ local OPCODE_INFO: { [Opcode]: OpcodeInfo } = {
 	POP_BLOCK = { name = "POP_BLOCK", arg = false, doc = "Pop a block from block stack" },
 	BREAK_LOOP = { name = "BREAK_LOOP", arg = false, doc = "Break out of current loop" },
 	CONTINUE_LOOP = { name = "CONTINUE_LOOP", arg = true, doc = "Continue to loop start" },
+
+	-- Iteration
+	GET_ITER = { name = "GET_ITER", arg = false, doc = "Get iterator from iterable" },
+	FOR_ITER = { name = "FOR_ITER", arg = true, doc = "Iterate over iterator or jump" },
 
 	-- Function calls
 	MAKE_FUNCTION = { name = "MAKE_FUNCTION", arg = true, doc = "Create function object" },
