@@ -170,10 +170,12 @@ local vmTests: TestFramework.TestSuite = {
 				
 				local listResult = Interpreter.execute(listCode)
 				TestFramework.assertType(listResult, "table", "Should build a list")
-				TestFramework.assertEqual(#listResult, 3, "List should have 3 elements")
-				TestFramework.assertEqual(listResult[1], 1, "First element should be 1 (bottom of stack)")
-				TestFramework.assertEqual(listResult[2], 2, "Second element should be 2")
-				TestFramework.assertEqual(listResult[3], 3, "Third element should be 3 (top of stack)")
+				TestFramework.assertEqual(listResult.__type, "list", "Should be a PyObject list")
+				TestFramework.assertEqual(#listResult.__value, 3, "List should have 3 elements")
+				-- Check that elements are proper PyObjects
+				TestFramework.assertEqual(listResult.__value[1].__value, 1, "First element should be 1 (bottom of stack)")
+				TestFramework.assertEqual(listResult.__value[2].__value, 2, "Second element should be 2")
+				TestFramework.assertEqual(listResult.__value[3].__value, 3, "Third element should be 3 (top of stack)")
 				
 				-- Test BUILD_MAP with constants
 				local mapConstants: { any } = { "key1", "value1", "key2", "value2" }
@@ -188,8 +190,21 @@ local vmTests: TestFramework.TestSuite = {
 				
 				local mapResult = Interpreter.execute(mapCode, {}, {}, mapConstants)
 				TestFramework.assertType(mapResult, "table", "Should build a map")
-				TestFramework.assertEqual(mapResult["key1"], "value1", "Should have key1 -> value1")
-				TestFramework.assertEqual(mapResult["key2"], "value2", "Should have key2 -> value2")
+				TestFramework.assertEqual(mapResult.__type, "dict", "Should be a PyObject dict")
+				-- Note: Keys in dict are also converted to PyObjects, so we need to access differently
+				local foundKey1 = false
+				local foundKey2 = false
+				for key, value in pairs(mapResult.__value) do
+					if key.__value == "key1" then
+						TestFramework.assertEqual(value.__value, "value1", "Should have key1 -> value1")
+						foundKey1 = true
+					elseif key.__value == "key2" then
+						TestFramework.assertEqual(value.__value, "value2", "Should have key2 -> value2")
+						foundKey2 = true
+					end
+				end
+				TestFramework.assertTrue(foundKey1, "Should have key1")
+				TestFramework.assertTrue(foundKey2, "Should have key2")
 			end,
 		},
 
