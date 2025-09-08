@@ -295,6 +295,10 @@ compileStmt = function(st: CompilerState, node: any)
 			patchJump(st, jumpIfFalse, getCurrentAddress(st))
 		end
 	elseif node.type == "While" then
+		-- Emit SETUP_LOOP to set up the loop block
+		local setupLoop = getCurrentAddress(st)
+		emit(st, "SETUP_LOOP", 0, node.lineno) -- Will be patched with end offset
+		
 		local loopStart = getCurrentAddress(st)
 		compileExpr(st, node.test)
 		local jumpIfFalse = getCurrentAddress(st)
@@ -313,15 +317,23 @@ compileStmt = function(st: CompilerState, node: any)
 		local relativeOffset = loopStart - currentAddr - 1 -- -1 because advance will add 1
 		emit(st, "JUMP_FORWARD", relativeOffset, node.lineno)
 
+		-- Mark the end position for the loop
+		local loopEnd = getCurrentAddress(st)
+		
 		-- Patch the end jump
-		patchJump(st, jumpIfFalse, getCurrentAddress(st))
-
+		patchJump(st, jumpIfFalse, loopEnd)
+		
 		-- Compile else clause if present
 		if #node.orelse > 0 then
 			for _, stmt in ipairs(node.orelse) do
 				compileStmt(st, stmt)
 			end
 		end
+
+		-- Pop the loop block and patch SETUP_LOOP with the end address (should point to POP_BLOCK)
+		local blockEnd = getCurrentAddress(st)
+		emit(st, "POP_BLOCK", nil, node.lineno)
+		patchJump(st, setupLoop, blockEnd) -- Point to POP_BLOCK instruction
 
 		exitLoop(st)
 	elseif node.type == "For" then
@@ -332,17 +344,21 @@ compileStmt = function(st: CompilerState, node: any)
 		-- 2. Get iterator from iterable
 		emit(st, "GET_ITER", nil, node.lineno)
 
-		-- 3. Mark loop start
+		-- 3. Emit SETUP_LOOP to set up the loop block
+		local setupLoop = getCurrentAddress(st)
+		emit(st, "SETUP_LOOP", 0, node.lineno) -- Will be patched with end offset
+
+		-- 4. Mark loop start
 		local loopStart = getCurrentAddress(st)
 
-		-- 4. Try to get next value from iterator
+		-- 5. Try to get next value from iterator
 		local forIterJump = getCurrentAddress(st)
 		emit(st, "FOR_ITER", 0, node.lineno) -- Will be patched to end
 
-		-- 5. Setup loop for break/continue
+		-- 6. Setup loop for break/continue
 		enterLoop(st, loopStart, forIterJump)
 
-		-- 6. Store the iteration value in the target variable
+		-- 7. Store the iteration value in the target variable
 		if node.target.type == "Name" then
 			node.target.ctx = "Store"
 			compileName(st, node.target)
@@ -350,25 +366,33 @@ compileStmt = function(st: CompilerState, node: any)
 			error("Complex assignment targets not supported yet", 2)
 		end
 
-		-- 7. Compile loop body
+		-- 8. Compile loop body
 		for _, stmt in ipairs(node.body) do
 			compileStmt(st, stmt)
 		end
 
-		-- 8. Jump back to FOR_ITER
+		-- 9. Jump back to FOR_ITER
 		local currentAddr = getCurrentAddress(st)
 		local relativeOffset = loopStart - currentAddr - 1
 		emit(st, "JUMP_FORWARD", relativeOffset, node.lineno)
 
-		-- 9. Patch the FOR_ITER jump to exit the loop
-		patchJump(st, forIterJump, getCurrentAddress(st))
-
-		-- 10. Compile else clause if present
+		-- 10. Mark the end position for the loop (before patching)
+		local loopEnd = getCurrentAddress(st)
+		
+		-- 11. Patch the FOR_ITER jump to exit the loop
+		patchJump(st, forIterJump, loopEnd)
+		
+		-- 12. Compile else clause if present
 		if #node.orelse > 0 then
 			for _, stmt in ipairs(node.orelse) do
 				compileStmt(st, stmt)
 			end
 		end
+		
+		-- Pop the loop block and patch SETUP_LOOP with the end address (should point to POP_BLOCK)
+		local blockEnd = getCurrentAddress(st)
+		emit(st, "POP_BLOCK", nil, node.lineno)
+		patchJump(st, setupLoop, blockEnd) -- Point to POP_BLOCK instruction
 
 		exitLoop(st)
 	elseif node.type == "Break" then

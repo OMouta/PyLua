@@ -216,7 +216,7 @@ Completion Criteria: Original `parser.luau` shrinks to thin façade (<150 lines)
 
 - [x] **Conditionals**: if/elif/else execution
 - [x] **Loops**: for and while loop execution
-- [ ] **Break/continue**: Loop control statements
+- [x] **Break/continue**: Loop control statements
 - [x] **Function returns**: Return value handling
 
 **Key Files**: `compiler.luau`, `bytecode/opcodes.luau`, `vm/interpreter.luau`, `vm/frame.luau`, `vm/stack.luau`

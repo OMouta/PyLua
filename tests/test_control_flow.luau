@@ -234,8 +234,95 @@ for i in [1, 2.5, 3]:
 			end,
 		},
 
-		-- Note: Break and continue tests would need more complex setup
-		-- since they require loop control flow that's not fully implemented yet
+		{
+			name = "Break Statement - For Loop",
+			test = function()
+				local globals = executeCode([[
+result = 0
+for i in [1, 2, 3, 4, 5]:
+    if i == 3:
+        break
+    result = result + i
+]])
+				TestFramework.assertEqual(globals.result, 3, "Break should exit loop early") -- 1 + 2 = 3
+			end,
+		},
+
+		{
+			name = "Continue Statement - For Loop",
+			test = function()
+				local globals = executeCode([[
+result = 0
+for i in [1, 2, 3, 4, 5]:
+    if i == 3:
+        continue
+    result = result + i
+]])
+				TestFramework.assertEqual(globals.result, 12, "Continue should skip iteration") -- 1 + 2 + 4 + 5 = 12
+			end,
+		},
+
+		{
+			name = "Break Statement - While Loop",
+			test = function()
+				local globals = executeCode([[
+x = 0
+while True:
+    x = x + 1
+    if x >= 3:
+        break
+]])
+				TestFramework.assertEqual(globals.x, 3, "Break should exit while loop")
+			end,
+		},
+
+		{
+			name = "Continue Statement - While Loop",
+			test = function()
+				local globals = executeCode([[
+x = 0
+result = 0
+while x < 5:
+    x = x + 1
+    if x == 3:
+        continue
+    result = result + x
+]])
+				TestFramework.assertEqual(globals.result, 12, "Continue should skip while iteration") -- 1 + 2 + 4 + 5 = 12
+			end,
+		},
+
+		{
+			name = "Nested Loops with Break",
+			test = function()
+				local globals = executeCode([[
+result = 0
+for i in [1, 2, 3]:
+    for j in [10, 20, 30]:
+        if j == 20:
+            break
+        result = result + i + j
+]])
+				-- Expected: (1+10) + (2+10) + (3+10) = 11 + 12 + 13 = 36
+				TestFramework.assertEqual(globals.result, 36, "Break should only exit inner loop")
+			end,
+		},
+
+		{
+			name = "Nested Loops with Continue",
+			test = function()
+				local globals = executeCode([[
+result = 0
+for i in [1, 2]:
+    for j in [10, 20, 30]:
+        if j == 20:
+            continue
+        result = result + i + j
+]])
+				-- Expected: (1+10) + (1+30) + (2+10) + (2+30) = 11 + 31 + 12 + 32 = 86
+				TestFramework.assertEqual(globals.result, 86, "Continue should only skip inner iteration")
+			end,
+		},
 	},
 }
 

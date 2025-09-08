@@ -364,10 +364,20 @@ local function executeInstruction(
 		if not block or block.type ~= "loop" then
 			error("'break' outside loop", 2)
 		end
-		-- Jump to end of loop
+		-- If we're inside a for-loop, the iterator is typically on the TOS.
+		-- Clean it up so we don't leak it when breaking out early.
+		-- Only inspect TOS if stack isn't empty
+		if not Stack.isEmpty(frame.stack) then
+			local tos = Frame.peek(frame)
+			if type(tos) == "table" then
+				local tt = (tos :: any).__type
+				if type(tt) == "string" and string.find(tt, "iterator", 1, true) then
+					Frame.pop(frame)
+				end
+			end
+		end
+		-- Jump to end of loop; POP_BLOCK at target will remove the loop block
 		Frame.jump(frame, block.endPos)
-		-- Pop the loop block
-		Frame.popBlock(frame)
 		frame.skip_advance = true
 	elseif opcode == "CONTINUE_LOOP" then
 		assert(arg ~= nil, "CONTINUE_LOOP requires argument")
@@ -388,8 +398,12 @@ local function executeInstruction(
 		local iterator = Frame.peek(frame) -- Keep iterator on stack
 		local nextValue = getNextValue(iterator)
 		if nextValue ~= nil then
-			-- Got a value, push it and continue
-			Frame.push(frame, nextValue)
+			-- Got a value, unwrap PyObjects to maintain consistency with arithmetic operations
+			local unwrappedValue = nextValue
+			if type(nextValue) == "table" and nextValue.__value ~= nil then
+				unwrappedValue = nextValue.__value
+			end
+			Frame.push(frame, unwrappedValue)
 		else
 			-- Iterator exhausted, pop it and jump to end
 			Frame.pop(frame) -- Remove iterator

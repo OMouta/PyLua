@@ -72,7 +72,7 @@ function TestFramework.assert(condition: boolean, message: string?)
 		if config.showFailuresInline then
 			print(colorize(ANSI.red, "✗ " .. msg))
 		end
-		error(msg, 2)
+		error(msg, 3) -- Raise error at the caller level
 	end
 end
 
