@@ -191,15 +191,15 @@ local vmTests: TestFramework.TestSuite = {
 				local mapResult = Interpreter.execute(mapCode, {}, {}, mapConstants)
 				TestFramework.assertType(mapResult, "table", "Should build a map")
 				TestFramework.assertEqual(mapResult.__type, "dict", "Should be a PyObject dict")
-				-- Note: Keys in dict are also converted to PyObjects, so we need to access differently
+				-- Storage is hashed; iterate entries and inspect entry.key/value PyObjects
 				local foundKey1 = false
 				local foundKey2 = false
-				for key, value in pairs(mapResult.__value) do
-					if key.__value == "key1" then
-						TestFramework.assertEqual(value.__value, "value1", "Should have key1 -> value1")
+				for _, entry in pairs(mapResult.__value) do
+					if entry.key.__value == "key1" then
+						TestFramework.assertEqual(entry.value.__value, "value1", "Should have key1 -> value1")
 						foundKey1 = true
-					elseif key.__value == "key2" then
-						TestFramework.assertEqual(value.__value, "value2", "Should have key2 -> value2")
+					elseif entry.key.__value == "key2" then
+						TestFramework.assertEqual(entry.value.__value, "value2", "Should have key2 -> value2")
 						foundKey2 = true
 					end
 				end

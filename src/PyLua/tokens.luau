@@ -110,6 +110,10 @@ export type Token = {
 	column: number,
 	endLine: number,
 	endColumn: number,
+	-- Optional fields for certain token kinds
+	stringPrefix: string?, -- e.g. "r", "f", "fr", etc. for STRING tokens
+	isTriple: boolean?, -- true for triple-quoted strings
+	stringContent: string?, -- content-only body of STRING without delimiters
 }
 
 -- Python keywords
@@ -156,16 +160,23 @@ function Tokens.newToken(
 	line: number,
 	column: number,
 	endLine: number?,
-	endColumn: number?
+	endColumn: number?,
+	extras: { [string]: any }?
 ): Token
-	return {
+	local t: Token = {
 		type = tokenType,
 		value = value,
 		line = line,
 		column = column,
 		endLine = endLine or line,
-		endColumn = endColumn or (column + #value - 1),
+		endColumn = endColumn or ((#value > 0) and (column + #value - 1) or column),
 	}
+	if extras then
+		for k, v in pairs(extras) do
+			(t :: any)[k] = v
+		end
+	end
+	return t
 end
 
 -- Check if a string is a Python keyword

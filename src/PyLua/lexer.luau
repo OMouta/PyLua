@@ -63,6 +63,36 @@ local function advance(state: LexerState): string?
 	return nil
 end
 
+-- Detect if current position starts a Python string literal (quote or prefix+quote)
+local function isStringStart(state: LexerState): boolean
+	local c0 = peek(state)
+	if not c0 then
+		return false
+	end
+	if c0 == '"' or c0 == "'" then
+		return true
+	end
+	local lc0 = string.lower(c0)
+	if lc0 ~= "r" and lc0 ~= "f" then
+		return false
+	end
+	local c1 = peek(state, 1)
+	if not c1 then
+		return false
+	end
+	if c1 == '"' or c1 == "'" then
+		return true
+	end
+	local lc1 = string.lower(c1)
+	if (lc1 == "r" or lc1 == "f") then
+		local c2 = peek(state, 2)
+		if c2 == '"' or c2 == "'" then
+			return true
+		end
+	end
+	return false
+end
+
 -- Skip whitespace (but not newlines)
 local function skipWhitespace(state: LexerState)
 	while peek(state) and tokens.isWhitespace(peek(state) :: string) do
@@ -142,49 +172,71 @@ end
 -- Tokenize a string literal
 local function tokenizeString(state: LexerState): Token
 	local startCol = state.column
-	local quote = advance(state) :: string -- consume opening quote
-	local value = quote
-	local isTripleQuote = false
-
-	-- Check for triple quotes
-	if peek(state) == quote and peek(state, 1) == quote then
-		isTripleQuote = true
-		value = value .. advance(state) :: string .. advance(state) :: string
+	local startLine = state.line
+	-- Detect optional string prefix (r, f, fr, rf; case-insensitive like Python)
+	local prefix = ""
+	while true do
+		local c = peek(state)
+		if not c then break end
+		local lc = string.lower(c)
+		if lc == "r" or lc == "f" then
+			prefix ..= lc
+			advance(state)
+		else
+			break
+		end
 	end
 
-	-- Consume string content
-	while peek(state) do
-		local char = peek(state) :: string
+	-- Opening quote
+	local quote = advance(state) :: string
+	if quote ~= '"' and quote ~= "'" then
+		-- Not actually a string; error token
+		return tokens.newToken("ERRORTOKEN", quote, startLine, startCol)
+	end
 
-		if isTripleQuote then
-			-- Triple quote string
-			if char == quote and peek(state, 1) == quote and peek(state, 2) == quote then
-				value = value .. advance(state) :: string .. advance(state) :: string .. advance(state) :: string
+	-- Triple quote?
+	local isTriple = false
+	if peek(state) == quote and peek(state, 1) == quote then
+		isTriple = true
+		advance(state)
+		advance(state)
+	end
+
+	-- Accumulate raw content (without delimiters)
+	local content = ""
+	while peek(state) do
+		local ch = peek(state) :: string
+		if isTriple then
+			if ch == quote and peek(state, 1) == quote and peek(state, 2) == quote then
+				advance(state); advance(state); advance(state)
 				break
 			else
-				value = value .. advance(state) :: string
+				content ..= advance(state) :: string
 			end
 		else
-			-- Regular string
-			if char == quote then
-				value = value .. advance(state) :: string
+			if ch == quote then
+				advance(state)
 				break
-			elseif char == "\\" then
-				-- Escape sequence
-				value = value .. advance(state) :: string
-				if peek(state) then
-					value = value .. advance(state) :: string
-				end
-			elseif char == "\n" then
-				-- Unterminated string
-				return tokens.newToken("ERRORTOKEN", value, state.line, startCol)
+			elseif ch == "\\" then
+				-- Keep escapes verbatim here; decoding can occur later if needed (non-raw)
+				content ..= advance(state) :: string
+				if peek(state) then content ..= advance(state) :: string end
+			elseif ch == "\n" then
+				return tokens.newToken("ERRORTOKEN", "Unterminated string", startLine, startCol)
 			else
-				value = value .. advance(state) :: string
+				content ..= advance(state) :: string
 			end
 		end
 	end
 
-	return tokens.newToken("STRING", value, state.line, startCol, state.line, state.column - 1)
+	local lexeme
+	if isTriple then
+		lexeme = (prefix or "") .. quote .. quote .. quote .. content .. quote .. quote .. quote
+	else
+		lexeme = (prefix or "") .. quote .. content .. quote
+	end
+	local extras = { stringPrefix = prefix ~= "" and prefix or nil, isTriple = isTriple, stringContent = content }
+	return tokens.newToken("STRING", lexeme, startLine, startCol, state.line, state.column - 1, extras)
 end
 
 -- Tokenize an identifier or keyword
@@ -289,29 +341,28 @@ function Lexer.tokenize(source: string): { Token }
 		if tokens.isDigit(char) then
 			table.insert(tokenList, tokenizeNumber(state))
 
-		-- Strings
-		elseif char == "'" or char == '"' then
+		-- Strings (quote or valid prefix+quote)
+		elseif isStringStart(state) then
 			table.insert(tokenList, tokenizeString(state))
 
 		-- Identifiers and keywords
 		elseif tokens.isIdentifierStart(char) then
 			table.insert(tokenList, tokenizeIdentifier(state))
 
-		-- Comments
+		-- Comments: consume until newline; do not emit COMMENT tokens for parser
 		elseif char == "#" then
-			local startCol = state.column
-			local comment = ""
-			advance(state) -- consume #
-
+			advance(state) -- consume '#'
 			while peek(state) and peek(state) ~= "\n" do
-				comment = comment .. advance(state) :: string
+				advance(state)
 			end
-
-			table.insert(tokenList, tokens.newToken("COMMENT", "#" .. comment, state.line, startCol))
 
 		-- Newlines
 		elseif char == "\n" then
-			table.insert(tokenList, tokens.newToken("NEWLINE", advance(state) :: string, state.line - 1, state.column))
+			-- Capture current coordinates before advancing so NEWLINE points to the line/col where '\n' occurs
+			local ln = state.line
+			local col = state.column
+			advance(state)
+			table.insert(tokenList, tokens.newToken("NEWLINE", "\n", ln, col))
 
 		-- Two-character operators
 		elseif char == "=" and peek(state, 1) == "=" then
@@ -359,6 +410,8 @@ function Lexer.tokenize(source: string): { Token }
 				tokenType = "MINUS"
 			elseif ch == "*" then
 				tokenType = "STAR"
+			elseif ch == "@" then
+				tokenType = "AT"
 			elseif ch == "/" then
 				tokenType = "SLASH"
 			elseif ch == "%" then

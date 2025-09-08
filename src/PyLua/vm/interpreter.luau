@@ -9,6 +9,7 @@ local Stack = require("./stack")
 local Opcodes = require("../bytecode/opcodes")
 local Instructions = require("../bytecode/instructions")
 local Base = require("../objects/base")
+local Collections = require("../objects/collections")
 
 type Frame = Frame.Frame
 type Stack = Stack.Stack
@@ -86,10 +87,10 @@ local function createIterator(iterable: any): any
 				__length = #obj.__value,
 			}
 		elseif obj.__type == "set" then
-			-- Python set iterator - convert to array first
+			-- Python set iterator - iterate over stored entries (hashed keys -> { value = PyObject })
 			local arr = {}
-			for value, _ in pairs(obj.__value) do
-				arr[#arr + 1] = value
+			for _, entry in pairs(obj.__value) do
+				arr[#arr + 1] = entry.value
 			end
 			return {
 				__type = "set_iterator",
@@ -98,10 +99,10 @@ local function createIterator(iterable: any): any
 				__length = #arr,
 			}
 		elseif obj.__type == "dict" then
-			-- Python dict iterator (iterates over keys)
+			-- Python dict iterator (iterates over keys); underlying storage is hashed -> { key = PyObject, value = PyObject }
 			local keys = {}
-			for key, _ in pairs(obj.__value) do
-				keys[#keys + 1] = key
+			for _, entry in pairs(obj.__value) do
+				keys[#keys + 1] = entry.key
 			end
 			return {
 				__type = "dict_iterator",
@@ -140,6 +141,19 @@ local function getNextValue(iterator: any): any?
 	end
 
 	return nil -- Iterator exhausted
+end
+
+-- Helper: unwrap primitive PyObjects (int/float/bool/str/NoneType) to raw Luau values
+local function unwrapPrimitive(v: any): any
+	if type(v) == "table" and v.__type ~= nil and v.__value ~= nil then
+		local t = v.__type
+		if t == "int" or t == "float" or t == "bool" or t == "str" then
+			return v.__value
+		elseif t == "NoneType" then
+			return nil
+		end
+	end
+	return v
 end
 
 -- Create a new VM state
@@ -239,19 +253,19 @@ local function executeInstruction(
 		-- Extract values from PyObjects if needed
 		local aVal = (type(a) == "table" and a.__value ~= nil) and a.__value or a
 		local bVal = (type(b) == "table" and b.__value ~= nil) and b.__value or b
-		Frame.push(frame, aVal + bVal)
+		Frame.push(frame, Base.ensurePyObject(aVal + bVal))
 	elseif opcode == "BINARY_SUBTRACT" then
 		local b = Frame.pop(frame)
 		local a = Frame.pop(frame)
 		local aVal = (type(a) == "table" and a.__value ~= nil) and a.__value or a
 		local bVal = (type(b) == "table" and b.__value ~= nil) and b.__value or b
-		Frame.push(frame, aVal - bVal)
+		Frame.push(frame, Base.ensurePyObject(aVal - bVal))
 	elseif opcode == "BINARY_MULTIPLY" then
 		local b = Frame.pop(frame)
 		local a = Frame.pop(frame)
 		local aVal = (type(a) == "table" and a.__value ~= nil) and a.__value or a
 		local bVal = (type(b) == "table" and b.__value ~= nil) and b.__value or b
-		Frame.push(frame, aVal * bVal)
+		Frame.push(frame, Base.ensurePyObject(aVal * bVal))
 	elseif opcode == "BINARY_DIVIDE" then
 		local b = Frame.pop(frame)
 		local a = Frame.pop(frame)
@@ -260,7 +274,7 @@ local function executeInstruction(
 		if bVal == 0 then
 			error("ZeroDivisionError: division by zero", 2)
 		end
-		Frame.push(frame, aVal / bVal)
+		Frame.push(frame, Base.ensurePyObject(aVal / bVal))
 	elseif opcode == "BINARY_MODULO" then
 		local b = Frame.pop(frame)
 		local a = Frame.pop(frame)
@@ -269,33 +283,33 @@ local function executeInstruction(
 		if bVal == 0 then
 			error("ZeroDivisionError: integer division or modulo by zero", 2)
 		end
-		Frame.push(frame, aVal % bVal)
+		Frame.push(frame, Base.ensurePyObject(aVal % bVal))
 	elseif opcode == "BINARY_POWER" then
 		local b = Frame.pop(frame)
 		local a = Frame.pop(frame)
 		local aVal = (type(a) == "table" and a.__value ~= nil) and a.__value or a
 		local bVal = (type(b) == "table" and b.__value ~= nil) and b.__value or b
-		Frame.push(frame, aVal ^ bVal)
+		Frame.push(frame, Base.ensurePyObject(aVal ^ bVal))
 
 	-- Unary operations
 	elseif opcode == "UNARY_POSITIVE" then
 		local a = Frame.pop(frame)
 		local aVal = (type(a) == "table" and a.__value ~= nil) and a.__value or a
-		Frame.push(frame, aVal) -- Unary + is identity for numbers
+		Frame.push(frame, Base.ensurePyObject(aVal)) -- Unary + is identity for numbers
 	elseif opcode == "UNARY_NEGATIVE" then
 		local a = Frame.pop(frame)
 		local aVal = (type(a) == "table" and a.__value ~= nil) and a.__value or a
-		Frame.push(frame, -aVal)
+		Frame.push(frame, Base.ensurePyObject(-aVal))
 	elseif opcode == "UNARY_NOT" then
 		local a = Frame.pop(frame)
 		local aVal = (type(a) == "table" and a.__value ~= nil) and a.__value or a
-		Frame.push(frame, not aVal)
+		Frame.push(frame, Base.ensurePyObject(not aVal))
 	elseif opcode == "UNARY_INVERT" then
 		local a = Frame.pop(frame)
 		local aVal = (type(a) == "table" and a.__value ~= nil) and a.__value or a
 		-- Bitwise NOT for integers
 		if type(aVal) == "number" and aVal == math.floor(aVal) then
-			Frame.push(frame, bit32.bnot(aVal))
+			Frame.push(frame, Base.ensurePyObject(bit32.bnot(aVal)))
 		else
 			error("TypeError: bad operand type for unary ~", 2)
 		end
@@ -310,7 +324,7 @@ local function executeInstruction(
 		if not op then
 			error("Unknown comparison operation: " .. tostring(arg), 2)
 		end
-		Frame.push(frame, op(aVal, bVal))
+		Frame.push(frame, Base.ensurePyObject(op(aVal, bVal)))
 
 	-- Control flow
 	elseif opcode == "JUMP_FORWARD" then
@@ -322,21 +336,24 @@ local function executeInstruction(
 	elseif opcode == "POP_JUMP_IF_TRUE" then
 		assert(arg ~= nil, "POP_JUMP_IF_TRUE requires argument")
 		local value = Frame.pop(frame)
-		if value then
+		local isTrue = if type(value) == "table" and value.__type ~= nil then Base.truthy(value) else (value and true or false)
+		if isTrue then
 			Frame.jump(frame, arg)
 			frame.skip_advance = true
 		end
 	elseif opcode == "POP_JUMP_IF_FALSE" then
 		assert(arg ~= nil, "POP_JUMP_IF_FALSE requires argument")
 		local value = Frame.pop(frame)
-		if not value then
+		local isTrue = if type(value) == "table" and value.__type ~= nil then Base.truthy(value) else (value and true or false)
+		if not isTrue then
 			Frame.jump(frame, arg)
 			frame.skip_advance = true
 		end
 	elseif opcode == "JUMP_IF_TRUE_OR_POP" then
 		assert(arg ~= nil, "JUMP_IF_TRUE_OR_POP requires argument")
 		local value = Frame.peek(frame)
-		if value then
+		local isTrue = if type(value) == "table" and value.__type ~= nil then Base.truthy(value) else (value and true or false)
+		if isTrue then
 			Frame.jump(frame, arg)
 			frame.skip_advance = true
 		else
@@ -345,7 +362,8 @@ local function executeInstruction(
 	elseif opcode == "JUMP_IF_FALSE_OR_POP" then
 		assert(arg ~= nil, "JUMP_IF_FALSE_OR_POP requires argument")
 		local value = Frame.peek(frame)
-		if not value then
+		local isTrue = if type(value) == "table" and value.__type ~= nil then Base.truthy(value) else (value and true or false)
+		if not isTrue then
 			Frame.jump(frame, arg)
 			frame.skip_advance = true
 		else
@@ -398,12 +416,8 @@ local function executeInstruction(
 		local iterator = Frame.peek(frame) -- Keep iterator on stack
 		local nextValue = getNextValue(iterator)
 		if nextValue ~= nil then
-			-- Got a value, unwrap PyObjects to maintain consistency with arithmetic operations
-			local unwrappedValue = nextValue
-			if type(nextValue) == "table" and nextValue.__value ~= nil then
-				unwrappedValue = nextValue.__value
-			end
-			Frame.push(frame, unwrappedValue)
+			-- Got a value; push as-is (PyObject values remain PyObjects)
+			Frame.push(frame, nextValue)
 		else
 			-- Iterator exhausted, pop it and jump to end
 			Frame.pop(frame) -- Remove iterator
@@ -435,27 +449,26 @@ local function executeInstruction(
 	elseif opcode == "BUILD_SET" then
 		assert(arg ~= nil, "BUILD_SET requires argument")
 		local elements = Stack.popN(frame.stack, arg)
-		-- Create set with proper PyObject
-		local setValues = {}
+		-- Build using Collections to ensure hashed representation
+		local values = {}
 		for i = #elements, 1, -1 do
-			local elem = Base.ensurePyObject(elements[i])
-			setValues[elem] = true
+			values[#values + 1] = Base.ensurePyObject(elements[i])
 		end
-		local set = Base.newPyObject("set", setValues)
+		local set = Collections.newSet(values)
 		Frame.push(frame, set)
 	elseif opcode == "BUILD_MAP" then
 		assert(arg ~= nil, "BUILD_MAP requires argument")
-		local pairs = Stack.popN(frame.stack, arg * 2)
-		local dictValues = {}
-		-- Stack order when pushed: [key1, value1, key2, value2] (value2 on top)
-		-- popN returns: [value2, key2, value1, key1] (in pop order)
-		-- Process pairs: (value2, key2) and (value1, key1) -> swap each pair
-		for i = 1, #pairs, 2 do
-			local value = Base.ensurePyObject(pairs[i]) -- value (popped first)
-			local key = Base.ensurePyObject(pairs[i + 1]) -- key (popped second)
-			dictValues[key] = value
+		local popped = Stack.popN(frame.stack, arg * 2)
+		-- Build entries as { {key, value}, ... } using proper order
+		-- Stack push order: key1, value1, key2, value2 (value2 on top)
+		-- popN returns in reverse pop order: value2, key2, value1, key1
+		local entries = {}
+		for i = 1, #popped, 2 do
+			local value = Base.ensurePyObject(popped[i])
+			local key = Base.ensurePyObject(popped[i + 1])
+			entries[#entries + 1] = { key, value }
 		end
-		local dict = Base.newPyObject("dict", dictValues)
+		local dict = Collections.newDict(entries)
 		Frame.push(frame, dict)
 
 	-- Function operations
@@ -697,7 +710,15 @@ function Interpreter.execute(
 		end
 	end
 
-	return vm.return_value
+	-- Unwrap return value for external boundary
+	local ret = unwrapPrimitive(vm.return_value)
+
+	-- Normalize globals for external observation: unwrap primitive PyObjects
+	for k, v in pairs(vm.globals) do
+		vm.globals[k] = unwrapPrimitive(v)
+	end
+
+	return ret
 end
 
 -- Execute with timeout (for future safety)

@@ -73,7 +73,12 @@ end
 local function skipLayout(state: ParserState)
 	while
 		state.current
-		and (state.current.type == "NEWLINE" or state.current.type == "INDENT" or state.current.type == "DEDENT")
+		and (
+			state.current.type == "NEWLINE"
+			or state.current.type == "INDENT"
+			or state.current.type == "DEDENT"
+			or state.current.type == "COMMENT"
+		)
 	do
 		state:advance()
 	end

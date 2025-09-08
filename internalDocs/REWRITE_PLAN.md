@@ -9,6 +9,12 @@ This document outlines the complete rewrite of PyLua to create a proper Python i
 
 **Python Version Support**: PyLua v0.3 targets Python 3.12 syntax and below. Supporting Python 3.13+ would add unnecessary complexity for an embedded language interpreter.
 
+## Status Key
+
+- [x] Complete
+- [ ] Planned / Not started
+- [-] Deferred (explicitly postponed)
+
 ## Current Issues with PyLua v0.2
 
 - ❌ Primitive tokenizer with poor Python syntax support
@@ -156,6 +162,8 @@ Goal: Reduce `parser.luau` size / complexity, improve readability, and prepare f
 - [x] **Test Restructure**: Split `test_parser.luau` into `test_parser_expr.luau`, `test_parser_stmt.luau`, `test_parser_adv.luau` for targeted coverage.
 - [x] **Grammar Doc Sync**: Add `internalDocs/GRAMMAR_NOTES.md` summarizing supported subset & deviations from CPython.
 - [x] **Line/Column End Tracking**: Enhance to set `end_lineno` / `end_col_offset` for all new nodes consistently.
+- [ ] **String prefix acceptance**: Treat `u''` as `str` (no semantic difference in 3.x); ensure parser tolerates and normalizes.
+- [ ] **Bytes literal plumbing**: Recognize `b''` forms and route to `bytes` object creation once type exists (see Phase 3.2).
 
 **Key Files (new)**: `src/PyLua/parser/*.luau`
 
@@ -179,6 +187,7 @@ Completion Criteria: Original `parser.luau` shrinks to thin façade (<150 lines)
 - [x] **Booleans**: bool with truthiness rules
 - [x] **None**: Python's null value
 - [x] **Type objects**: Representing types themselves (placeholder minimal)
+- [ ] **Bytes**: `bytes` type and `b''` literals (basic operations and interop).
 
 #### 3.3 Collections
 
@@ -214,7 +223,8 @@ Completion Criteria: Original `parser.luau` shrinks to thin façade (<150 lines)
 
 #### 4.3 Control Flow
 
-- [x] **Conditionals**: if/elif/else execution
+- [x] **Conditionals**: if/else execution
+- [ ] **elif chains**: Full support in parser and VM
 - [x] **Loops**: for and while loop execution
 - [x] **Break/continue**: Loop control statements
 - [x] **Function returns**: Return value handling
@@ -240,6 +250,8 @@ Completion Criteria: Original `parser.luau` shrinks to thin façade (<150 lines)
 - [ ] **Lambda functions**: Anonymous functions
 - [ ] **Generators**: yield expressions and iteration
 - [ ] **Exception handling**: Basic try/except (future)
+- [ ] **f-strings**: Runtime expression interpolation and formatting (lexer already tokenizes prefixes; implement evaluation and formatting).
+- [ ] **FloorDiv and MatMult**: Implement `//` and `@` operators end-to-end (lexer, parser, compiler, VM).
 
 #### 5.3 Python-Luau Interop
 

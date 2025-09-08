@@ -66,6 +66,10 @@ local function parsePrimary(state: any): Expr
 		state:raise("Unexpected end of input in expression")
 	end
 	local current: Token = currentOpt :: Token
+	-- Explicitly disallow matrix multiply '@' until opcode is implemented
+	if current.type == "AT" then
+		state:raise("Matrix multiply '@' is not supported yet")
+	end
 	-- Numbers
 	if current.type == "NUMBER" then
 		state:advance()
@@ -84,12 +88,28 @@ local function parsePrimary(state: any): Expr
 		end
 		return { type = "Constant", value = numValue, kind = nil, lineno = current.line, col_offset = current.column }
 	end
-	-- Strings (simplified)
+	-- Strings (with prefix/triple support)
 	if current.type == "STRING" then
 		state:advance()
-		local raw = current.value
-		local stringValue = string.sub(raw, 2, -2)
-		return { type = "Constant", value = stringValue, kind = nil, lineno = current.line, col_offset = current.column }
+		local kind = (current :: any).stringPrefix
+		local content = (current :: any).stringContent
+		local val: string
+		if content ~= nil then
+			val = content
+		else
+			-- Fallback: derive content from value by stripping quotes (handles single or triple)
+			local v = current.value
+			if #v >= 6 and ((string.sub(v, 1, 3) == "\"\"\"" and string.sub(v, -3) == "\"\"\"")
+				or (string.sub(v, 1, 3) == "'''" and string.sub(v, -3) == "'''") ) then
+				val = string.sub(v, 4, -4)
+			elseif #v >= 2 and ((string.sub(v, 1, 1) == '"' and string.sub(v, -1) == '"')
+				or (string.sub(v, 1, 1) == "'" and string.sub(v, -1) == "'")) then
+				val = string.sub(v, 2, -2)
+			else
+				val = v
+			end
+		end
+		return { type = "Constant", value = val, kind = kind, lineno = current.line, col_offset = current.column }
 	end
 	if current.type == "TRUE" then
 		state:advance()
@@ -263,14 +283,10 @@ local function parsePrimary(state: any): Expr
 		end
 	end
 
-	-- If we get here, we have an unexpected token
-	local errorExpr: Expr = {
-		type = "ErrorExpr",
-		lineno = current.line,
-		col_offset = current.column,
-	}
+	-- If we get here, we have an unexpected token; raise immediately
 	state:raise("Unexpected token in expression: " .. current.type)
-	return errorExpr -- This ensures a return value in all code paths
+	-- Unreachable; return added for typechecker friendliness
+	return { type = "Constant", value = nil, kind = nil, lineno = current.line, col_offset = current.column }
 end
 
 local function parseUnary(state: any): Expr

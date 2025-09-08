@@ -211,6 +211,14 @@ compileExpr = function(st: CompilerState, node: any)
 				opcode = 4 -- >
 			elseif op == "GtE" then
 				opcode = 5 -- >=
+			elseif op == "Is" then
+				opcode = 6 -- is
+			elseif op == "IsNot" then
+				opcode = 7 -- is not
+			elseif op == "In" then
+				opcode = 8 -- in
+			elseif op == "NotIn" then
+				opcode = 9 -- not in
 			else
 				error("Unsupported comparison op: " .. tostring(op))
 			end

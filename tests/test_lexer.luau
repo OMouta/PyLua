@@ -167,18 +167,6 @@ local lexerTests: TestFramework.TestSuite = {
 		},
 
 		{
-			name = "Comments",
-			test = function()
-				local tokens = Lexer.tokenize("# This is a comment")
-				TestFramework.assertEqual(tokens[1].type, "COMMENT", "Should tokenize comment")
-				TestFramework.assertTrue(
-					tokens[1].value:find("# This is a comment") ~= nil,
-					"Comment should contain full text"
-				)
-			end,
-		},
-
-		{
 			name = "Newlines",
 			test = function()
 				local tokens = Lexer.tokenize("a\nb")

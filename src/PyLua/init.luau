@@ -76,7 +76,7 @@ function Runtime:execute(code: string)
 	local bytecode = compiler.compile(ast)
 
 	-- 4. VM: execute bytecode
-	vm.execute(bytecode.bytecode, self._globals, {}, bytecode.constants)
+	vm.execute(bytecode.bytecode, self._globals, {}, bytecode.constants, bytecode.names)
 end
 
 -- Evaluate Python expression and return the result
