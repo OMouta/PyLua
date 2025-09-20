@@ -73,7 +73,7 @@ local function isStringStart(state: LexerState): boolean
 		return true
 	end
 	local lc0 = string.lower(c0)
-	if lc0 ~= "r" and lc0 ~= "f" then
+	if lc0 ~= "r" and lc0 ~= "f" and lc0 ~= "u" and lc0 ~= "b" then
 		return false
 	end
 	local c1 = peek(state, 1)
@@ -84,7 +84,7 @@ local function isStringStart(state: LexerState): boolean
 		return true
 	end
 	local lc1 = string.lower(c1)
-	if (lc1 == "r" or lc1 == "f") then
+	if (lc1 == "r" or lc1 == "f" or lc1 == "u" or lc1 == "b") then
 		local c2 = peek(state, 2)
 		if c2 == '"' or c2 == "'" then
 			return true
@@ -173,13 +173,13 @@ end
 local function tokenizeString(state: LexerState): Token
 	local startCol = state.column
 	local startLine = state.line
-	-- Detect optional string prefix (r, f, fr, rf; case-insensitive like Python)
+	-- Detect optional string prefix (r, f, u, b and combos; case-insensitive like Python)
 	local prefix = ""
 	while true do
 		local c = peek(state)
 		if not c then break end
 		local lc = string.lower(c)
-		if lc == "r" or lc == "f" then
+		if lc == "r" or lc == "f" or lc == "u" or lc == "b" then
 			prefix ..= lc
 			advance(state)
 		else
@@ -235,6 +235,7 @@ local function tokenizeString(state: LexerState): Token
 	else
 		lexeme = (prefix or "") .. quote .. content .. quote
 	end
+	-- Normalize prefix order: Python treats combinations regardless of order; keep lowercase as scanned
 	local extras = { stringPrefix = prefix ~= "" and prefix or nil, isTriple = isTriple, stringContent = content }
 	return tokens.newToken("STRING", lexeme, startLine, startCol, state.line, state.column - 1, extras)
 end

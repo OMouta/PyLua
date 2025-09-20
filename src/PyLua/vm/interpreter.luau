@@ -200,6 +200,9 @@ local function executeInstruction(
 			-- Handle nil sentinel
 			if typeof(value) == "table" and value.__nil then
 				value = nil
+			elseif typeof(value) == "table" and (value :: any).__bytes_literal then
+				local ObjBuiltins = require("../objects/builtins")
+				value = ObjBuiltins.Bytes((value :: any).value)
 			end
 			Frame.push(frame, value)
 		else

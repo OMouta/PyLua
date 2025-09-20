@@ -67,6 +67,23 @@ local bytecodeTests: TestFramework.TestSuite = {
 				TestFramework.assertTrue(#rendered > 0, "Rendered lines produced")
 			end,
 		},
+		{
+			name = "Compile and execute bytes literal",
+			test = function()
+				-- Compile expression so result is returned
+				local Lexer = require("../src/PyLua/lexer")
+				local Parser = require("../src/PyLua/parser")
+				local tokens = Lexer.tokenize("b'AB'")
+				local exprAst = Parser.parseExpression(tokens)
+				local code = Compiler.compile(exprAst)
+				-- Execute via interpreter to realize bytes object
+				local Interpreter = require("../src/PyLua/vm/interpreter")
+				local result = Interpreter.execute(code.bytecode, {}, {}, code.constants, code.names)
+				TestFramework.assertType(result, "table", "Result should be PyObject")
+				TestFramework.assertEqual(result.__type, "bytes", "Type should be bytes")
+				TestFramework.assertEqual(result.__value, "AB", "Bytes content should match")
+			end,
+		},
 	},
 }
 

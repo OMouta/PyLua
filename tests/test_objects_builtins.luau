@@ -72,6 +72,61 @@ local suite: TestFramework.TestSuite = {
 				TestFramework.assertEqual(times.__value, "ababab", "Repeat 3x")
 			end,
 		},
+
+		{
+			name = "builtins.bytes basic construction",
+			test = function()
+				local b1 = builtins.Bytes("")
+				TestFramework.assertEqual(b1.__type, "bytes", "empty bytes failed")
+				TestFramework.assertEqual(b1.__value, "", "empty bytes value failed")
+				local b2 = builtins.Bytes({65, 66, 67})
+				TestFramework.assertEqual(b2.__value, "ABC", "bytes from table failed")
+				local b3 = builtins.Bytes("\255\001")
+				TestFramework.assertEqual(#(b3.__value), 2, "bytes from string failed")
+			end,
+		},
+
+		{
+			name = "builtins.bytes len and getitem",
+			test = function()
+				local b = builtins.Bytes({0, 1, 2, 255})
+				local len = base.call(base.getattr(b, "__len__"), {})
+				TestFramework.assertEqual(len.__type, "int", "bytes __len__ type failed")
+				TestFramework.assertEqual(len.__value, 4, "bytes __len__ failed")
+				local get0 = base.call(base.getattr(b, "__getitem__"), { builtins.Int(0) })
+				TestFramework.assertEqual(get0.__type, "int", "getitem 0 type failed")
+				TestFramework.assertEqual(get0.__value, 0, "getitem 0 failed")
+				local getLast = base.call(base.getattr(b, "__getitem__"), { builtins.Int(-1) })
+				TestFramework.assertEqual(getLast.__value, 255, "getitem -1 failed")
+			end,
+		},
+
+		{
+			name = "builtins.bytes eq and repr",
+			test = function()
+				local b1 = builtins.Bytes({65, 66})
+				local b2 = builtins.Bytes("AB")
+				local eq = base.call(base.getattr(b1, "__eq__"), { b2 })
+				TestFramework.assertEqual(eq.__type, "bool", "bytes __eq__ type failed")
+				TestFramework.assertEqual(eq.__value, true, "bytes __eq__ failed")
+				local r = base.call(base.getattr(b1, "__repr__"), {})
+				TestFramework.assertEqual(r.__type, "str", "bytes __repr__ type failed")
+				TestFramework.assertEqual(r.__value, "b'AB'", "bytes __repr__ basic failed")
+			end,
+		},
+
+		{
+			name = "builtins.bytes add and mul",
+			test = function()
+				local a = builtins.Bytes("A")
+				local b = builtins.Bytes("B")
+				local cat = base.operate("add", a, b)
+				TestFramework.assertEqual(cat.__type, "bytes", "bytes add type")
+				TestFramework.assertEqual(cat.__value, "AB", "bytes add value")
+				local rep = base.operate("mul", a, builtins.Int(3))
+				TestFramework.assertEqual(rep.__value, "AAA", "bytes mul value")
+			end,
+		},
 		{
 			name = "Truthiness basics",
 			test = function()

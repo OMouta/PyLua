@@ -51,6 +51,30 @@ local parserTests: TestFramework.TestSuite = {
 		},
 
 		{
+			name = "Parse u-prefixed string normalizes to str",
+			test = function()
+				local tokens = Lexer.tokenize("u'hello'")
+				local ast = Parser.parse(tokens)
+				local expr = ast.body[1].value
+				TestFramework.assertEqual(expr.type, "Constant", "Should be Constant node")
+				TestFramework.assertEqual(expr.value, "hello", "Value should be 'hello'")
+				TestFramework.assertEqual(expr.kind, nil, "u prefix should be normalized away")
+			end,
+		},
+
+		{
+			name = "Parse b-prefixed string marks bytes kind",
+			test = function()
+				local tokens = Lexer.tokenize("b'AB'")
+				local ast = Parser.parse(tokens)
+				local expr = ast.body[1].value
+				TestFramework.assertEqual(expr.type, "Constant", "Should be Constant node")
+				TestFramework.assertEqual(expr.value, "AB", "Value should be 'AB'")
+				TestFramework.assertEqual(expr.kind, "bytes", "Kind should be bytes")
+			end,
+		},
+
+		{
 			name = "Parse Boolean Literals",
 			test = function()
 				local tokens = Lexer.tokenize("True")

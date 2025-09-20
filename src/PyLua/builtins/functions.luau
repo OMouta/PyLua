@@ -38,4 +38,27 @@ end
 -- sum(), min(), max()
 -- abs(), round()
 
+-- bytes(x) -> bytes
+local obj_builtins = require("../objects/builtins")
+
+function Functions.bytes(val: PyObject?): PyObject
+	if val == nil then
+		return obj_builtins.Bytes("")
+	end
+	if val.__type == "str" then
+		return obj_builtins.Bytes(val.__value)
+	elseif val.__type == "list" then
+		local arr = {}
+		for i, v in ipairs(val.__value) do
+			if v.__type ~= "int" then
+				error("TypeError: bytes() list must contain ints", 2)
+			end
+			arr[i] = v.__value
+		end
+		return obj_builtins.Bytes(arr)
+	else
+		error("TypeError: bytes() argument must be str or list of ints", 2)
+	end
+end
+
 return Functions

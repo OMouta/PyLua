@@ -162,8 +162,8 @@ Goal: Reduce `parser.luau` size / complexity, improve readability, and prepare f
 - [x] **Test Restructure**: Split `test_parser.luau` into `test_parser_expr.luau`, `test_parser_stmt.luau`, `test_parser_adv.luau` for targeted coverage.
 - [x] **Grammar Doc Sync**: Add `internalDocs/GRAMMAR_NOTES.md` summarizing supported subset & deviations from CPython.
 - [x] **Line/Column End Tracking**: Enhance to set `end_lineno` / `end_col_offset` for all new nodes consistently.
-- [ ] **String prefix acceptance**: Treat `u''` as `str` (no semantic difference in 3.x); ensure parser tolerates and normalizes.
-- [ ] **Bytes literal plumbing**: Recognize `b''` forms and route to `bytes` object creation once type exists (see Phase 3.2).
+- [x] **String prefix acceptance**: Treat `u''` as `str` (no semantic difference in 3.x); ensure parser tolerates and normalizes.
+- [x] **Bytes literal plumbing**: Recognize `b''` forms and route to `bytes` object creation once type exists (see Phase 3.2).
 
 **Key Files (new)**: `src/PyLua/parser/*.luau`
 
@@ -187,7 +187,7 @@ Completion Criteria: Original `parser.luau` shrinks to thin façade (<150 lines)
 - [x] **Booleans**: bool with truthiness rules
 - [x] **None**: Python's null value
 - [x] **Type objects**: Representing types themselves (placeholder minimal)
-- [ ] **Bytes**: `bytes` type and `b''` literals (basic operations and interop).
+- [x] **Bytes**: `bytes` type and `b''` literals (basic operations and interop).
 
 #### 3.3 Collections
 

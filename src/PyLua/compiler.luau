@@ -166,8 +166,16 @@ local BINOP_TO_OPCODE: { [nodes.BinOpType]: Opcode } = {
 compileExpr = function(st: CompilerState, node: any)
 	local t = node.type
 	if t == "Constant" then
-		local idx = addConst(st, node.value)
-		emit(st, "LOAD_CONST", idx, node.lineno)
+		-- Special-case bytes literals (marked by parser kind)
+		if node.kind == "bytes" then
+			-- We cannot precreate PyObjects in constant pool reliably; store a tagged table to be materialized in VM
+			local tagged = { __bytes_literal = true, value = node.value }
+			local idx = addConst(st, tagged)
+			emit(st, "LOAD_CONST", idx, node.lineno)
+		else
+			local idx = addConst(st, node.value)
+			emit(st, "LOAD_CONST", idx, node.lineno)
+		end
 	elseif t == "Name" then
 		compileName(st, node)
 	elseif t == "BinOp" then

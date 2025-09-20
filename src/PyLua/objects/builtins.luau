@@ -43,11 +43,99 @@ function Builtins.Float(n: number): PyFloat
 	return base.newFloat(n) :: PyFloat
 end
 
--- Strings ---------------------------------------------------------------
 export type PyStr = PyObject & { __type: "str", __value: string }
 
 function Builtins.Str(s: string): PyStr
 	return base.newPyObject("str", s) :: PyStr
+end
+
+-- Bytes ---------------------------------------------------------------
+export type PyBytes = PyObject & { __type: "bytes", __value: string }
+
+function Builtins.Bytes(val: any): PyBytes
+	return base.newBytes(val) :: PyBytes
+end
+
+-- Minimal bytes operations (repr, eq, len, getitem)
+local getTypeObject = (base :: any).getTypeObject
+local bytesType = getTypeObject("bytes")
+bytesType.methods = bytesType.methods or {}
+
+-- __repr__
+bytesType.methods["__repr__"] = function(selfObj: PyObject)
+	local s = selfObj.__value :: string
+	local out = {"b'"}
+	for i = 1, #s do
+		local b = string.byte(s, i)
+		if b >= 32 and b <= 126 and b ~= 39 and b ~= 92 then -- printable, not ' or \
+			table.insert(out, string.char(b))
+		elseif b == 39 then
+			table.insert(out, "\\'")
+		elseif b == 92 then
+			table.insert(out, "\\\\")
+		else
+			table.insert(out, string.format("\\x%02x", b))
+		end
+	end
+	table.insert(out, "'")
+	return base.newPyObject("str", table.concat(out, ""))
+end
+
+-- __eq__
+bytesType.methods["__eq__"] = function(selfObj: PyObject, args: { PyObject }?)
+	local other = args and args[1]
+	if not other or other.__type ~= "bytes" then
+		return base.newPyObject("bool", false)
+	end
+	return base.newPyObject("bool", selfObj.__value == other.__value)
+end
+
+-- __len__
+bytesType.methods["__len__"] = function(selfObj: PyObject)
+	return base.newPyObject("int", #(selfObj.__value :: string))
+end
+
+-- __getitem__ (indexing)
+bytesType.methods["__getitem__"] = function(selfObj: PyObject, args: { PyObject }?)
+	local idx = args and args[1]
+	if not idx or (idx.__type ~= "int" and idx.__type ~= "float") then
+		error("TypeError: bytes indices must be integers", 2)
+	end
+	local i = idx.__value
+	if i < 0 then
+		i = #(selfObj.__value) + i + 1
+	else
+		i = i + 1 -- Python is 0-based, Luau is 1-based
+	end
+	if i < 1 or i > #(selfObj.__value) then
+		error("IndexError: bytes index out of range", 2)
+	end
+	local b = string.byte(selfObj.__value, i)
+	return base.newPyObject("int", b)
+end
+
+-- __add__ (concatenate)
+bytesType.methods["__add__"] = function(selfObj: PyObject, args: { PyObject }?)
+	local other = args and args[1]
+	if not other or other.__type ~= "bytes" then
+		error("TypeError: can't concat bytes to non-bytes", 2)
+	end
+	return base.newPyObject("bytes", (selfObj.__value :: string) .. (other.__value :: string))
+end
+
+-- __mul__ (repeat)
+bytesType.methods["__mul__"] = function(selfObj: PyObject, args: { PyObject }?)
+	local nObj = args and args[1]
+	if not nObj or nObj.__type ~= "int" then
+		error("TypeError: can't multiply sequence by non-int", 2)
+	end
+	local n: number = nObj.__value
+	if n <= 0 then
+		return base.newPyObject("bytes", "")
+	end
+	local pieces = table.create(n)
+	for i = 1, n do pieces[i] = selfObj.__value end
+	return base.newPyObject("bytes", table.concat(pieces, ""))
 end
 
 -- Type objects (very small placeholder) --------------------------------

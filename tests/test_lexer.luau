@@ -66,6 +66,20 @@ local lexerTests: TestFramework.TestSuite = {
 		},
 
 		{
+			name = "Prefixed Strings (u/b)",
+			test = function()
+				local t1 = Lexer.tokenize("u'hello'")
+				TestFramework.assertEqual(t1[1].type, "STRING", "u'' is STRING")
+				TestFramework.assertEqual((t1[1] :: any).stringPrefix, "u", "prefix is u")
+				local t2 = Lexer.tokenize("b'hi'")
+				TestFramework.assertEqual(t2[1].type, "STRING", "b'' is STRING")
+				TestFramework.assertEqual((t2[1] :: any).stringPrefix, "b", "prefix is b")
+				local t3 = Lexer.tokenize("br'raw'")
+				TestFramework.assertEqual((t3[1] :: any).stringPrefix, "br", "prefix is br")
+			end,
+		},
+
+		{
 			name = "Single Quote String",
 			test = function()
 				local tokens = Lexer.tokenize("'world'")

@@ -109,7 +109,20 @@ local function parsePrimary(state: any): Expr
 				val = v
 			end
 		end
-		return { type = "Constant", value = val, kind = kind, lineno = current.line, col_offset = current.column }
+		-- Normalize string prefixes:
+		-- - Treat 'u' like no-op (Python 3.x)
+		-- - If contains 'b' (and not 'f'), mark as bytes literal via kind = "bytes"
+		-- - Keep 'f' for future f-string handling (value stays raw here)
+		local outKind: string? = kind
+		if outKind and string.find(outKind, "u", 1, true) then
+			outKind = string.gsub(outKind, "u", "")
+			if outKind == "" then outKind = nil end
+		end
+		local isBytes = outKind and string.find(outKind, "b", 1, true) ~= nil
+		if isBytes then
+			outKind = "bytes"
+		end
+		return { type = "Constant", value = val, kind = outKind, lineno = current.line, col_offset = current.column }
 	end
 	if current.type == "TRUE" then
 		state:advance()

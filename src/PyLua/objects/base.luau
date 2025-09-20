@@ -123,6 +123,33 @@ function Base.newFloat(n: number): PyObject
 	return Base.newPyObject("float", n)
 end
 
+-- Bytes constructor: accepts string or table of numbers (0-255)
+function Base.newBytes(val: any): PyObject
+	if type(val) == "string" then
+		-- Store as string, but validate all bytes are in 0-255
+		for i = 1, #val do
+			local b = string.byte(val, i)
+			if not b or b < 0 or b > 255 then
+				error("ValueError: bytes() string contains non-byte value", 2)
+			end
+		end
+		return Base.newPyObject("bytes", val)
+	elseif type(val) == "table" then
+		local out = table.create(#val)
+		for i, v in ipairs(val) do
+			if type(v) ~= "number" or v < 0 or v > 255 or v % 1 ~= 0 then
+				error("ValueError: bytes() table must contain integers in 0..255", 2)
+			end
+			out[i] = string.char(v)
+		end
+		return Base.newPyObject("bytes", table.concat(out, ""))
+	elseif val == nil then
+		return Base.newPyObject("bytes", "")
+	else
+		error("TypeError: bytes() argument must be string, table, or nil", 2)
+	end
+end
+
 ---------------------------------------------------------------------
 -- Attribute access / method resolution
 ---------------------------------------------------------------------
@@ -268,6 +295,8 @@ function Base.truthy(obj: PyObject): boolean
 		return num ~= 0
 	elseif t == "str" then
 		return (obj.__value :: any) ~= ""
+	elseif t == "bytes" then
+		return #(obj.__value :: string) > 0
 	elseif t == "list" or t == "tuple" then
 		return #(obj.__value :: { PyObject }) > 0
 	elseif t == "dict" or t == "set" then
@@ -292,6 +321,7 @@ local function bootstrap()
 	Base.registerType("str", {})
 	Base.registerType("bool", {})
 	Base.registerType("NoneType", {})
+	Base.registerType("bytes", {})
 	-- meta for builtins
 	Base.registerType("builtin_function_or_method", {})
 	return objectType
