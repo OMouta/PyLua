@@ -5,42 +5,461 @@
 local Functions = {}
 
 local base = require("../objects/base")
+local obj_builtins = require("../objects/builtins")
+
 type PyObject = base.PyObject
 
--- TODO: Implement Python built-in functions in Phase 5:
+-- Configurable writer for print (allows tests to capture output)
+local defaultWriter = function(text: string)
+	print(text)
+end
 
--- print(*args, sep=' ', end='\n')
+Functions._writer = defaultWriter
+
+function Functions.setWriter(writer: ((string) -> ())?)
+	Functions._writer = writer or defaultWriter
+end
+
+local function ensurePy(obj: any): PyObject
+	return base.ensurePyObject(obj)
+end
+
+local function pyToNumber(obj: PyObject, name: string, allowFloat: boolean?): number
+	local t = obj.__type
+	if t == "int" then
+		return obj.__value
+	elseif t == "float" then
+		if allowFloat then
+			return obj.__value
+		end
+		error("TypeError: '" .. name .. "' must be an integer", 3)
+	elseif t == "bool" then
+		return obj.__value and 1 or 0
+	elseif t == "NoneType" then
+		error("TypeError: '" .. name .. "' cannot be None", 3)
+	else
+		error("TypeError: '" .. name .. "' must be a number", 3)
+	end
+end
+
+local function truncateTowardsZero(n: number): number
+	if n >= 0 then
+		return math.floor(n)
+	else
+		return math.ceil(n)
+	end
+end
+
+local function pyBoolString(value: boolean): string
+	return value and "True" or "False"
+end
+
+local function pyNoneString(): string
+	return "None"
+end
+
+local function tryRepr(obj: PyObject): string?
+	local ok, reprMethod = pcall(function()
+		return base.getattr(obj, "__repr__")
+	end)
+	if ok and reprMethod then
+		local result = base.call(reprMethod, {})
+		if result.__type == "str" then
+			return result.__value
+		end
+	end
+	return nil
+end
+
+local function pyToString(obj: PyObject): string
+	local t = obj.__type
+	if t == "str" then
+		return obj.__value
+	elseif t == "int" or t == "float" then
+		return tostring(obj.__value)
+	elseif t == "bool" then
+		return pyBoolString(obj.__value)
+	elseif t == "NoneType" then
+		return pyNoneString()
+	elseif t == "bytes" then
+		local repr = tryRepr(obj)
+		return repr or "b'" .. obj.__value .. "'"
+	else
+		local repr = tryRepr(obj)
+		return repr or ("<" .. t .. " object>")
+	end
+end
+
+local function computeRangeLength(start: number, stop: number, step: number): number
+	if step > 0 then
+		if start >= stop then
+			return 0
+		end
+		return math.max(0, math.floor((stop - start + step - 1) / step))
+	elseif step < 0 then
+		if start <= stop then
+			return 0
+		end
+		local span = start - stop
+		local positiveStep = -step
+		return math.max(0, math.floor((span + positiveStep - 1) / positiveStep))
+	else
+		error("ValueError: range() arg 3 must not be zero", 3)
+	end
+end
+
+local rangeTypeCached = nil
+
+local function ensureRangeType()
+	if rangeTypeCached then
+		return rangeTypeCached
+	end
+	local ok, existing = pcall(function()
+		return (base :: any).getTypeObject("range")
+	end)
+	local rangeType
+	if ok then
+		rangeType = existing
+	else
+		rangeType = base.registerType("range", {})
+	end
+	rangeType.methods = rangeType.methods or {}
+	if not rangeType.methods["__len__"] then
+		rangeType.methods["__len__"] = function(selfObj: PyObject)
+			local data = selfObj.__value
+			local length = computeRangeLength(data.start, data.stop, data.step)
+			return base.newInt(length)
+		end
+	end
+	if not rangeType.methods["__repr__"] then
+		rangeType.methods["__repr__"] = function(selfObj: PyObject)
+			local data = selfObj.__value
+			local pieces = { "range(" .. tostring(data.start), tostring(data.stop) }
+			if data.step ~= 1 then
+				pieces[#pieces + 1] = tostring(data.step)
+			end
+			return base.newPyObject("str", table.concat(pieces, ", ") .. ")")
+		end
+	end
+	rangeTypeCached = rangeType
+	return rangeType
+end
+
+local function collectIterable(obj: PyObject, caller: string): { PyObject }
+	local t = obj.__type
+	if t == "list" or t == "tuple" then
+		return obj.__value
+	elseif t == "set" then
+		local values = {}
+		for _, entry in pairs(obj.__value) do
+			values[#values + 1] = entry.value
+		end
+		return values
+	elseif t == "dict" then
+		local keys = {}
+		for _, entry in pairs(obj.__value) do
+			keys[#keys + 1] = entry.key
+		end
+		return keys
+	elseif t == "str" then
+		local chars = {}
+		local s: string = obj.__value
+		for i = 1, #s do
+			chars[#chars + 1] = base.newPyObject("str", s:sub(i, i))
+		end
+		return chars
+	elseif t == "bytes" then
+		local arr = {}
+		local s: string = obj.__value
+		for i = 1, #s do
+			arr[#arr + 1] = base.newPyObject("int", string.byte(s, i))
+		end
+		return arr
+	elseif t == "range" then
+		local values = {}
+		local data = obj.__value
+		local current = data.start
+		if data.step > 0 then
+			while current < data.stop do
+				values[#values + 1] = base.newInt(current)
+				current += data.step
+			end
+		else
+			while current > data.stop do
+				values[#values + 1] = base.newInt(current)
+				current += data.step
+			end
+		end
+		return values
+	else
+		error("TypeError: '" .. caller .. "' argument must be iterable", 3)
+	end
+end
+
+local function wrapBuiltin(name: string, handler: (args: { PyObject }) -> PyObject)
+	local builtinType = (base :: any).getTypeObject("builtin_function_or_method")
+	local builtin: PyObject = {
+		__type = "builtin_function_or_method",
+		__value = {
+			self = nil,
+			name = name,
+			func = function(_self: PyObject?, args: { PyObject }?)
+				local coerced: { PyObject } = {}
+				if args then
+					for i, arg in ipairs(args) do
+						coerced[i] = ensurePy(arg)
+					end
+				end
+				return handler(coerced)
+			end,
+		},
+		__dict = {},
+		__typeobj = builtinType,
+	}
+	return builtin
+end
+
+-- print(*args, sep=' ', end='\n') -- sep/end not yet supported (defaults only)
 function Functions.print_(args: { PyObject }): PyObject
-	-- TODO: Implement print function
-	error("print() not implemented yet - Phase 5", 2)
+	local pieces = {}
+	for i, arg in ipairs(args) do
+		pieces[i] = pyToString(arg)
+	end
+	Functions._writer(table.concat(pieces, " "))
+	return obj_builtins.None()
 end
 
 -- len(obj)
 function Functions.len(obj: PyObject): PyObject
-	-- TODO: Implement len function
-	error("len() not implemented yet - Phase 5", 2)
+	if obj == nil then
+		error("TypeError: len() takes exactly one argument (0 given)", 2)
+	end
+	local ok, lenMethod = pcall(function()
+		return base.getattr(obj, "__len__")
+	end)
+	if ok and lenMethod then
+		return base.call(lenMethod, {})
+	end
+	local t = obj.__type
+	if t == "str" then
+		return base.newInt(#(obj.__value :: string))
+	elseif t == "bytes" then
+		return base.newInt(#(obj.__value :: string))
+	end
+	error("TypeError: object of type '" .. t .. "' has no len()", 2)
 end
 
 -- type(obj)
 function Functions.type_(obj: PyObject): PyObject
-	-- TODO: Implement type function
-	error("type() not implemented yet - Phase 5", 2)
+	if obj == nil then
+		error("TypeError: type() takes 1 argument", 2)
+	end
+	return base.newPyObject("type", { name = obj.__type })
 end
 
--- range(start, stop, step)
-function Functions.range(start: PyObject, stop: PyObject?, step: PyObject?): PyObject
-	-- TODO: Implement range function
-	error("range() not implemented yet - Phase 5", 2)
+-- range(start, stop?, step?)
+function Functions.rangeVararg(args: { PyObject }): PyObject
+	local count = #args
+	if count == 0 or count > 3 then
+		error("TypeError: range expected 1 to 3 arguments", 2)
+	end
+	local startObj: PyObject
+	local stopObj: PyObject
+	local stepObj: PyObject
+	if count == 1 then
+		startObj = base.newInt(0)
+		stopObj = args[1]
+		stepObj = base.newInt(1)
+	elseif count == 2 then
+		startObj = args[1]
+		stopObj = args[2]
+		stepObj = base.newInt(1)
+	else
+		startObj = args[1]
+		stopObj = args[2]
+		stepObj = args[3]
+	end
+	local startNum = truncateTowardsZero(pyToNumber(startObj, "start", false))
+	local stopNum = truncateTowardsZero(pyToNumber(stopObj, "stop", false))
+	local stepNum = truncateTowardsZero(pyToNumber(stepObj, "step", false))
+	if stepNum == 0 then
+		error("ValueError: range() arg 3 must not be zero", 2)
+	end
+	ensureRangeType()
+	return base.newPyObject("range", {
+		start = startNum,
+		stop = stopNum,
+		step = stepNum,
+	})
 end
 
--- TODO: Implement other built-ins:
--- int(), float(), str(), bool()
--- sum(), min(), max()
--- abs(), round()
+-- int(x)
+function Functions.int_(value: PyObject?): PyObject
+	if value == nil then
+		return base.newInt(0)
+	end
+	local t = value.__type
+	if t == "int" then
+		return value
+	elseif t == "float" then
+		return base.newInt(truncateTowardsZero(value.__value))
+	elseif t == "bool" then
+		return base.newInt(value.__value and 1 or 0)
+	elseif t == "str" then
+		local parsed = tonumber(value.__value)
+		if not parsed then
+			error("ValueError: invalid literal for int() with base 10", 2)
+		end
+		return base.newInt(truncateTowardsZero(parsed))
+	elseif t == "NoneType" then
+		return base.newInt(0)
+	end
+	error("TypeError: int() argument must be a string, a bytes-like object or a real number", 2)
+end
+
+-- float(x)
+function Functions.float_(value: PyObject?): PyObject
+	if value == nil then
+		return base.newFloat(0)
+	end
+	local t = value.__type
+	if t == "float" then
+		return value
+	elseif t == "int" then
+		return base.newFloat(value.__value)
+	elseif t == "bool" then
+		return base.newFloat(value.__value and 1 or 0)
+	elseif t == "str" then
+		local parsed = tonumber(value.__value)
+		if not parsed then
+			error("ValueError: could not convert string to float", 2)
+		end
+		return base.newFloat(parsed)
+	elseif t == "NoneType" then
+		return base.newFloat(0)
+	end
+	error("TypeError: float() argument must be a string or a real number", 2)
+end
+
+-- str(x)
+function Functions.str_(value: PyObject?): PyObject
+	if value == nil then
+		return base.newPyObject("str", "")
+	end
+	return base.newPyObject("str", pyToString(value))
+end
+
+-- bool(x)
+function Functions.bool_(value: PyObject?): PyObject
+	if value == nil then
+		return obj_builtins.False()
+	end
+	return if base.truthy(value) then obj_builtins.True() else obj_builtins.False()
+end
+
+local function addPyObjects(a: PyObject, b: PyObject): PyObject
+	return base.operate("add", a, b)
+end
+
+local function toComparableValue(obj: PyObject): (number | string, string)
+	local t = obj.__type
+	if t == "int" or t == "float" then
+		return obj.__value, "number"
+	elseif t == "bool" then
+		return obj.__value and 1 or 0, "number"
+	elseif t == "str" then
+		return obj.__value, "string"
+	else
+		error("TypeError: unsupported operand type for comparison: '" .. t .. "'", 3)
+	end
+end
+
+local function compareLess(a: PyObject, b: PyObject): boolean
+	local va, kindA = toComparableValue(a)
+	local vb, kindB = toComparableValue(b)
+	if kindA ~= kindB then
+		error("TypeError: '<' not supported between instances of '" .. a.__type .. "' and '" .. b.__type .. "'", 3)
+	end
+	return va < vb
+end
+
+local function compareGreater(a: PyObject, b: PyObject): boolean
+	local va, kindA = toComparableValue(a)
+	local vb, kindB = toComparableValue(b)
+	if kindA ~= kindB then
+		error("TypeError: '>' not supported between instances of '" .. a.__type .. "' and '" .. b.__type .. "'", 3)
+	end
+	return va > vb
+end
+
+-- sum(iterable, start=0)
+function Functions.sum_(args: { PyObject }): PyObject
+	local count = #args
+	if count == 0 then
+		error("TypeError: sum() takes at least 1 argument", 2)
+	end
+	local iterable = args[1]
+	local startValue = if count >= 2 then args[2] else base.newInt(0)
+	if count > 2 then
+		error("TypeError: sum() takes at most 2 arguments", 2)
+	end
+	local total = ensurePy(startValue)
+	local values = collectIterable(iterable, "sum")
+	for _, item in ipairs(values) do
+		total = addPyObjects(total, ensurePy(item))
+	end
+	return total
+end
+
+local function findExtreme(args: { PyObject }, mode: string): PyObject
+	local compare: (PyObject, PyObject) -> boolean
+	if mode == "min" then
+		compare = compareLess
+	else
+		compare = compareGreater
+	end
+	local best = args[1]
+	for i = 2, #args do
+		if compare(ensurePy(args[i]), ensurePy(best)) then
+			best = args[i]
+		end
+	end
+	return ensurePy(best)
+end
+
+-- min(*args) or min(iterable)
+function Functions.min_(args: { PyObject }): PyObject
+	local count = #args
+	if count == 0 then
+		error("TypeError: min() expected at least one argument", 2)
+	elseif count == 1 then
+		local values = collectIterable(args[1], "min")
+		if #values == 0 then
+			error("ValueError: min() arg is an empty sequence", 2)
+		end
+		return findExtreme(values, "min")
+	else
+		return findExtreme(args, "min")
+	end
+end
+
+-- max(*args) or max(iterable)
+function Functions.max_(args: { PyObject }): PyObject
+	local count = #args
+	if count == 0 then
+		error("TypeError: max() expected at least one argument", 2)
+	elseif count == 1 then
+		local values = collectIterable(args[1], "max")
+		if #values == 0 then
+			error("ValueError: max() arg is an empty sequence", 2)
+		end
+		return findExtreme(values, "max")
+	else
+		return findExtreme(args, "max")
+	end
+end
 
 -- bytes(x) -> bytes
-local obj_builtins = require("../objects/builtins")
-
 function Functions.bytes(val: PyObject?): PyObject
 	if val == nil then
 		return obj_builtins.Bytes("")
@@ -59,6 +478,53 @@ function Functions.bytes(val: PyObject?): PyObject
 	else
 		error("TypeError: bytes() argument must be str or list of ints", 2)
 	end
+end
+
+function Functions.createBuiltins(): { [string]: PyObject }
+	return {
+		["print"] = wrapBuiltin("print", function(args)
+			return Functions.print_(args)
+		end),
+		["len"] = wrapBuiltin("len", function(args)
+			if #args ~= 1 then
+				error("TypeError: len() takes exactly one argument", 2)
+			end
+			return Functions.len(args[1])
+		end),
+		["type"] = wrapBuiltin("type", function(args)
+			if #args ~= 1 then
+				error("TypeError: type() takes exactly one argument", 2)
+			end
+			return Functions.type_(args[1])
+		end),
+		["range"] = wrapBuiltin("range", function(args)
+			return Functions.rangeVararg(args)
+		end),
+		["int"] = wrapBuiltin("int", function(args)
+			return Functions.int_(args[1])
+		end),
+		["float"] = wrapBuiltin("float", function(args)
+			return Functions.float_(args[1])
+		end),
+		["str"] = wrapBuiltin("str", function(args)
+			return Functions.str_(args[1])
+		end),
+		["bool"] = wrapBuiltin("bool", function(args)
+			return Functions.bool_(args[1])
+		end),
+		["sum"] = wrapBuiltin("sum", function(args)
+			return Functions.sum_(args)
+		end),
+		["min"] = wrapBuiltin("min", function(args)
+			return Functions.min_(args)
+		end),
+		["max"] = wrapBuiltin("max", function(args)
+			return Functions.max_(args)
+		end),
+		["bytes"] = wrapBuiltin("bytes", function(args)
+			return Functions.bytes(args[1])
+		end),
+	}
 end
 
 return Functions

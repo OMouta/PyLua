@@ -63,6 +63,40 @@ if x > 3:
 		},
 
 		{
+			name = "If Statement - Elif Chain",
+			test = function()
+				local globals = executeCode([[
+x = 5
+if x < 0:
+	result = "negative"
+elif x < 5:
+	result = "small"
+elif x == 5:
+	result = "equal"
+else:
+	result = "large"
+]])
+				TestFramework.assertEqual(globals.result, "equal", "Elif chain should select matching branch")
+			end,
+		},
+
+		{
+			name = "If Statement - Elif Else Fallback",
+			test = function()
+				local globals = executeCode([[
+x = -1
+if x > 0:
+	result = "positive"
+elif x == 0:
+	result = "zero"
+else:
+	result = "negative"
+]])
+				TestFramework.assertEqual(globals.result, "negative", "Elif chain should fall back to else clause")
+			end,
+		},
+
+		{
 			name = "While Loop - Basic Execution",
 			test = function()
 				local globals = executeCode([[

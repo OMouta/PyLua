@@ -123,6 +123,16 @@ local function createIterator(iterable: any): any
 				__index = 1,
 				__length = #chars,
 			}
+		elseif obj.__type == "range" then
+			local data = obj.__value
+			return {
+				__type = "range_iterator",
+				__value = {
+					current = data.start,
+					stop = data.stop,
+					step = data.step,
+				},
+			}
 		end
 	end
 
@@ -133,7 +143,23 @@ local function getNextValue(iterator: any): any?
 	-- Get the next value from an iterator, or nil if exhausted
 	if type(iterator) == "table" then
 		local iter = iterator :: any
-		if iter.__index <= iter.__length then
+		if iter.__type == "range_iterator" then
+			local state = iter.__value
+			local current = state.current
+			local step = state.step
+			local stop = state.stop
+			if step > 0 then
+				if current >= stop then
+					return nil
+				end
+			else
+				if current <= stop then
+					return nil
+				end
+			end
+			state.current = current + step
+			return Base.newInt(current)
+		elseif iter.__index and iter.__length and iter.__index <= iter.__length then
 			local value = iter.__value[iter.__index]
 			iter.__index = iter.__index + 1
 			return value
@@ -145,12 +171,16 @@ end
 
 -- Helper: unwrap primitive PyObjects (int/float/bool/str/NoneType) to raw Luau values
 local function unwrapPrimitive(v: any): any
-	if type(v) == "table" and v.__type ~= nil and v.__value ~= nil then
+	if type(v) == "table" and v.__type ~= nil then
 		local t = v.__type
-		if t == "int" or t == "float" or t == "bool" or t == "str" then
-			return v.__value
-		elseif t == "NoneType" then
+		if t == "NoneType" then
 			return nil
+		end
+		local value = v.__value
+		if value ~= nil then
+			if t == "int" or t == "float" or t == "bool" or t == "str" then
+				return value
+			end
 		end
 	end
 	return v
@@ -510,12 +540,17 @@ local function executeInstruction(
 		-- Reverse args to correct order (popN reverses)
 		local orderedArgs = {}
 		for i = #args, 1, -1 do
-			table.insert(orderedArgs, args[i])
+			orderedArgs[#orderedArgs + 1] = Base.ensurePyObject(args[i])
 		end
 
 		-- Call the function
-		local result = callPyFunction(vm, func, orderedArgs, {})
-		Frame.push(frame, result)
+		if type(func) == "table" and func.__type == "builtin_function_or_method" then
+			local result = Base.call(func, orderedArgs)
+			Frame.push(frame, Base.ensurePyObject(result))
+		else
+			local result = callPyFunction(vm, func, orderedArgs, {})
+			Frame.push(frame, result)
+		end
 	else
 		error("Unimplemented opcode: " .. opcode, 2)
 	end

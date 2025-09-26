@@ -13,12 +13,14 @@ local lexer = require("@self/lexer")
 local parser = require("@self/parser")
 local compiler = require("@self/compiler")
 local vm = require("@self/vm/interpreter")
+local builtinFunctions = require("@self/builtins/functions")
 
 -- Type definitions for the API
 export type RuntimeOptions = {
 	debug: boolean?,
 	timeout: number?,
 	maxRecursion: number?,
+	builtins: { [string]: any }?,
 }
 
 export type Runtime = {
@@ -38,6 +40,7 @@ export type Runtime = {
 	-- Internal state (private)
 	_options: RuntimeOptions,
 	_globals: { [string]: any },
+	_builtins: { [string]: any },
 	_debug: boolean,
 }
 
@@ -52,6 +55,7 @@ function PyLua.new(options: RuntimeOptions?): Runtime
 	local runtime = {
 		_options = opts,
 		_globals = {},
+		_builtins = opts.builtins or builtinFunctions.createBuiltins(),
 		_debug = if opts.debug ~= nil then opts.debug else false,
 	}
 
@@ -76,7 +80,7 @@ function Runtime:execute(code: string)
 	local bytecode = compiler.compile(ast)
 
 	-- 4. VM: execute bytecode
-	vm.execute(bytecode.bytecode, self._globals, {}, bytecode.constants, bytecode.names)
+	vm.execute(bytecode.bytecode, self._globals, self._builtins, bytecode.constants, bytecode.names)
 end
 
 -- Evaluate Python expression and return the result
@@ -96,7 +100,7 @@ function Runtime:eval(code: string): any
 	local bytecode = compiler.compile(ast)
 
 	-- 4. VM: execute bytecode
-	local result = vm.execute(bytecode.bytecode, self._globals, {}, bytecode.constants)
+	local result = vm.execute(bytecode.bytecode, self._globals, self._builtins, bytecode.constants, bytecode.names)
 
 	return result
 end

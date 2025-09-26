@@ -224,7 +224,7 @@ Completion Criteria: Original `parser.luau` shrinks to thin façade (<150 lines)
 #### 4.3 Control Flow
 
 - [x] **Conditionals**: if/else execution
-- [ ] **elif chains**: Full support in parser and VM
+- [x] **elif chains**: Full support in parser and VM
 - [x] **Loops**: for and while loop execution
 - [x] **Break/continue**: Loop control statements
 - [x] **Function returns**: Return value handling
@@ -237,12 +237,12 @@ Completion Criteria: Original `parser.luau` shrinks to thin façade (<150 lines)
 
 #### 5.1 Built-in Functions
 
-- [ ] **print()**: Output with proper formatting
-- [ ] **len()**: Length of collections
-- [ ] **type()**: Runtime type inspection  
-- [ ] **range()**: Number sequence generation
-- [ ] **int(), float(), str(), bool()**: Type conversions
-- [ ] **sum(), min(), max()**: Aggregate functions
+- [x] **print()**: Output with proper formatting
+- [x] **len()**: Length of collections
+- [x] **type()**: Runtime type inspection  
+- [x] **range()**: Number sequence generation
+- [x] **int(), float(), str(), bool()**: Type conversions
+- [x] **sum(), min(), max()**: Aggregate functions
 
 #### 5.2 Advanced Language Features
 

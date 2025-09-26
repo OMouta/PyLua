@@ -137,23 +137,45 @@ function statements.parseCompound(state: any): Stmt
 		local test = expressions.parse(state)
 		state:consume("COLON", "Expected ':' after if condition")
 		local body = parseSuiteAfterColon(state)
-		local orelse: { Stmt } = {}
 
-		-- Handle else clause
-		if state.current and state.current.type == "ELSE" then
-			state:advance()
-			state:consume("COLON", "Expected ':' after else")
-			orelse = parseSuiteAfterColon(state)
-		end
-
-		return {
+		local ifNode = {
 			type = "If",
 			test = test,
 			body = body,
-			orelse = orelse,
+			orelse = {},
 			lineno = current.line,
 			col_offset = current.column,
 		}
+
+		local lastIf = ifNode
+
+		-- Handle chained elif clauses by nesting If nodes in orelse lists
+		while state.current and state.current.type == "ELIF" do
+			local elifToken = state.current
+			state:advance()
+			local elifTest = expressions.parse(state)
+			state:consume("COLON", "Expected ':' after elif condition")
+			local elifBody = parseSuiteAfterColon(state)
+			local elifNode = {
+				type = "If",
+				test = elifTest,
+				body = elifBody,
+				orelse = {},
+				lineno = elifToken.line,
+				col_offset = elifToken.column,
+			}
+			lastIf.orelse = { elifNode }
+			lastIf = elifNode
+		end
+
+		-- Handle final else clause (binds to last if/elif in chain)
+		if state.current and state.current.type == "ELSE" then
+			state:advance()
+			state:consume("COLON", "Expected ':' after else")
+			lastIf.orelse = parseSuiteAfterColon(state)
+		end
+
+		return ifNode
 	end
 	if current.type == "WHILE" then
 		state:advance()
