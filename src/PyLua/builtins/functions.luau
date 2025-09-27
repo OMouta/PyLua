@@ -58,6 +58,41 @@ local function pyNoneString(): string
 	return "None"
 end
 
+local objectRepr: (PyObject?) -> string
+
+local function ensurePyTypeName(typeObj: PyObject): string
+	local objType = typeObj.__type
+	if objType == "type" then
+		local info = typeObj.__value
+		local name = if type(info) == "table" then (info :: any).name else nil
+		if type(name) == "string" then
+			return name
+		end
+	elseif objType == "builtin_function_or_method" then
+		local inner = typeObj.__value
+		local name = if type(inner) == "table" then (inner :: any).name else nil
+		if type(name) == "string" then
+			return name
+		end
+	end
+	error("TypeError: isinstance() arg 2 has invalid type object", 3)
+end
+
+local function collectTypeNames(spec: PyObject, out: { string })
+	local specType = spec.__type
+	if specType == "tuple" then
+		local elements = spec.__value :: { PyObject }
+		for _, item in ipairs(elements) do
+			collectTypeNames(item, out)
+		end
+	elseif specType == "type" or specType == "builtin_function_or_method" then
+		local name = ensurePyTypeName(spec)
+		out[#out + 1] = name
+	else
+		error("TypeError: isinstance() arg 2 must be a type or tuple of types", 3)
+	end
+end
+
 local function tryRepr(obj: PyObject): string?
 	local ok, reprMethod = pcall(function()
 		return base.getattr(obj, "__repr__")
@@ -82,8 +117,138 @@ local function pyToString(obj: PyObject): string
 	elseif t == "NoneType" then
 		return pyNoneString()
 	elseif t == "bytes" then
+		return objectRepr(obj)
+	else
+		return objectRepr(obj)
+	end
+end
+
+local function reprString(s: string): string
+	local pieces = { "'" }
+	for i = 1, #s do
+		local ch = s:sub(i, i)
+		if ch == "\\" then
+			pieces[#pieces + 1] = "\\\\"
+		elseif ch == "'" then
+			pieces[#pieces + 1] = "\\'"
+		elseif ch == "\n" then
+			pieces[#pieces + 1] = "\\n"
+		elseif ch == "\t" then
+			pieces[#pieces + 1] = "\\t"
+		elseif ch == "\r" then
+			pieces[#pieces + 1] = "\\r"
+		else
+			pieces[#pieces + 1] = ch
+		end
+	end
+	pieces[#pieces + 1] = "'"
+	return table.concat(pieces)
+end
+
+local function asciiString(s: string): string
+	local pieces = { "'" }
+	for i = 1, #s do
+		local ch = s:sub(i, i)
+		local byte = string.byte(ch)
+		if ch == "\\" then
+			pieces[#pieces + 1] = "\\\\"
+		elseif ch == "'" then
+			pieces[#pieces + 1] = "\\'"
+		elseif ch == "\n" then
+			pieces[#pieces + 1] = "\\n"
+		elseif ch == "\t" then
+			pieces[#pieces + 1] = "\\t"
+		elseif ch == "\r" then
+			pieces[#pieces + 1] = "\\r"
+		elseif byte < 32 or byte > 126 then
+			pieces[#pieces + 1] = string.format("\\x%02x", byte)
+		else
+			pieces[#pieces + 1] = ch
+		end
+	end
+	pieces[#pieces + 1] = "'"
+	return table.concat(pieces)
+end
+
+objectRepr = function(obj: PyObject?): string
+	if obj == nil then
+		return "None"
+	end
+
+	local t = obj.__type
+
+	if t == "str" then
+		return reprString(obj.__value :: string)
+	elseif t == "int" or t == "float" then
+		return tostring(obj.__value)
+	elseif t == "bool" then
+		return pyBoolString(obj.__value)
+	elseif t == "NoneType" then
+		return pyNoneString()
+	elseif t == "bytes" then
 		local repr = tryRepr(obj)
-		return repr or "b'" .. obj.__value .. "'"
+		return repr or "b''"
+	elseif t == "type" then
+		local info = obj.__value
+		local name = if type(info) == "table" and (info :: any).name then (info :: any).name else "object"
+		return "<class '" .. tostring(name) .. "'>"
+	elseif t == "list" then
+		local repr = tryRepr(obj)
+		if repr then
+			return repr
+		end
+		local arr = obj.__value :: { PyObject }
+		local pieces = table.create(#arr)
+		for i, item in ipairs(arr) do
+			pieces[i] = objectRepr(ensurePy(item))
+		end
+		return "[" .. table.concat(pieces, ", ") .. "]"
+	elseif t == "tuple" then
+		local repr = tryRepr(obj)
+		if repr then
+			return repr
+		end
+		local arr = obj.__value :: { PyObject }
+		local pieces = table.create(#arr)
+		for i, item in ipairs(arr) do
+			pieces[i] = objectRepr(ensurePy(item))
+		end
+		if #arr == 1 then
+			return "(" .. pieces[1] .. ",)"
+		end
+		return "(" .. table.concat(pieces, ", ") .. ")"
+	elseif t == "dict" then
+		local repr = tryRepr(obj)
+		if repr then
+			return repr
+		end
+		local entries = obj.__value :: { [string]: { key: PyObject, value: PyObject } }
+		local parts: { string } = {}
+		for _, entry in pairs(entries) do
+			local keyStr = objectRepr(entry.key)
+			local valueStr = objectRepr(entry.value)
+			parts[#parts + 1] = keyStr .. ": " .. valueStr
+		end
+		if #parts == 0 then
+			return "{}"
+		end
+		table.sort(parts)
+		return "{" .. table.concat(parts, ", ") .. "}"
+	elseif t == "set" then
+		local repr = tryRepr(obj)
+		if repr then
+			return repr
+		end
+		local entries = obj.__value :: { [string]: { value: PyObject } }
+		local parts: { string } = {}
+		for _, entry in pairs(entries) do
+			parts[#parts + 1] = objectRepr(entry.value)
+		end
+		if #parts == 0 then
+			return "set()"
+		end
+		table.sort(parts)
+		return "{" .. table.concat(parts, ", ") .. "}"
 	else
 		local repr = tryRepr(obj)
 		return repr or ("<" .. t .. " object>")
@@ -357,6 +522,87 @@ function Functions.bool_(value: PyObject?): PyObject
 	return if base.truthy(value) then obj_builtins.True() else obj_builtins.False()
 end
 
+function Functions.repr_(value: PyObject?): PyObject
+	return base.newPyObject("str", objectRepr(value))
+end
+
+function Functions.ascii_(value: PyObject?): PyObject
+	if value == nil then
+		return base.newPyObject("str", "None")
+	end
+	local t = value.__type
+	if t == "str" then
+		return base.newPyObject("str", asciiString(value.__value))
+	end
+	return Functions.repr_(value)
+end
+
+local subclassMap: { [string]: { [string]: boolean } } = {
+	bool = { int = true },
+}
+
+function Functions.isinstance_(args: { PyObject }): PyObject
+	if #args ~= 2 then
+		error("TypeError: isinstance() takes exactly 2 arguments", 2)
+	end
+	local instance = ensurePy(args[1])
+	local typeSpec = ensurePy(args[2])
+	local targets: { string } = {}
+	collectTypeNames(typeSpec, targets)
+	if #targets == 0 then
+		return base.newPyObject("bool", false)
+	end
+	local instanceType = instance.__type
+	local subtype = subclassMap[instanceType]
+	for _, expected in ipairs(targets) do
+		if instanceType == expected then
+			return base.newPyObject("bool", true)
+		end
+		if subtype and subtype[expected] then
+			return base.newPyObject("bool", true)
+		end
+	end
+	return base.newPyObject("bool", false)
+end
+
+local function coerceFormatArg(obj: PyObject): (any, string)
+	local t = obj.__type
+	if t == "int" or t == "float" then
+		return obj.__value, t
+	elseif t == "bool" then
+		return (obj.__value and 1 or 0), "int"
+	elseif t == "str" then
+		return obj.__value, "str"
+	end
+	return obj, t
+end
+
+function Functions.format_(value: PyObject?, spec: PyObject?): PyObject
+	if value == nil then
+		error("TypeError: format() missing 1 required positional argument", 2)
+	end
+	local specStr = ""
+	if spec ~= nil then
+		if spec.__type ~= "str" then
+			error("TypeError: format() specifier must be a string", 2)
+		end
+		specStr = spec.__value
+	end
+	if specStr == "" then
+		return Functions.str_(value)
+	end
+	local rawValue, valueType = coerceFormatArg(value)
+	local fmt = "%" .. specStr
+	local ok, result = pcall(string.format, fmt, rawValue)
+	if not ok then
+		if valueType == "str" and specStr == "s" then
+			return base.newPyObject("str", tostring(rawValue))
+		end
+		error("ValueError: invalid format specifier '" .. specStr .. "' for type '" .. valueType .. "'", 2)
+	end
+	return base.newPyObject("str", result)
+end
+
 local function addPyObjects(a: PyObject, b: PyObject): PyObject
 	return base.operate("add", a, b)
 end
@@ -512,6 +758,24 @@ function Functions.createBuiltins(): { [string]: PyObject }
 		["bool"] = wrapBuiltin("bool", function(args)
 			return Functions.bool_(args[1])
 		end),
+		["repr"] = wrapBuiltin("repr", function(args)
+			if #args ~= 1 then
+				error("TypeError: repr() takes exactly one argument", 2)
+			end
+			return Functions.repr_(args[1])
+		end),
+		["ascii"] = wrapBuiltin("ascii", function(args)
+			if #args ~= 1 then
+				error("TypeError: ascii() takes exactly one argument", 2)
+			end
+			return Functions.ascii_(args[1])
+		end),
+		["format"] = wrapBuiltin("format", function(args)
+			if #args == 0 or #args > 2 then
+				error("TypeError: format() takes at least 1 argument (value[, format_spec])", 2)
+			end
+			return Functions.format_(args[1], args[2])
+		end),
 		["sum"] = wrapBuiltin("sum", function(args)
 			return Functions.sum_(args)
 		end),
@@ -523,6 +787,9 @@ function Functions.createBuiltins(): { [string]: PyObject }
 		end),
 		["bytes"] = wrapBuiltin("bytes", function(args)
 			return Functions.bytes(args[1])
+		end),
+		["isinstance"] = wrapBuiltin("isinstance", function(args)
+			return Functions.isinstance_(args)
 		end),
 	}
 end

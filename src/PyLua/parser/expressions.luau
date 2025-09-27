@@ -5,12 +5,393 @@ local tokens = require("../tokens")
 local nodes = require("../ast/nodes")
 local precedence = require("./precedence")
 local postfix = require("./postfix")
+local lexer = require("../lexer")
 
 export type Token = tokens.Token
 export type TokenType = tokens.TokenType
 export type Expr = nodes.Expr
 
 local expressions = {}
+
+local function prefixContains(prefix: string?, flag: string): boolean
+	if not prefix then
+		return false
+	end
+	return string.find(prefix, flag, 1, true) ~= nil
+end
+
+local function makeStringConstant(token: Token): Expr
+	local prefix = (token :: any).stringPrefix
+	local content = (token :: any).stringContent
+	local value: string
+	if content ~= nil then
+		value = content
+	else
+		local v = token.value
+		if
+			#v >= 6
+			and (
+				(string.sub(v, 1, 3) == '"""' and string.sub(v, -3) == '"""')
+				or (string.sub(v, 1, 3) == "'''" and string.sub(v, -3) == "'''")
+			)
+		then
+			value = string.sub(v, 4, -4)
+		elseif
+			#v >= 2
+			and (
+				(string.sub(v, 1, 1) == '"' and string.sub(v, -1) == '"')
+				or (string.sub(v, 1, 1) == "'" and string.sub(v, -1) == "'")
+			)
+		then
+			value = string.sub(v, 2, -2)
+		else
+			value = v
+		end
+	end
+
+	local outKind = prefix
+	if outKind and string.find(outKind, "u", 1, true) then
+		outKind = string.gsub(outKind, "u", "")
+		if outKind == "" then
+			outKind = nil
+		end
+	end
+	local isBytes = outKind and string.find(outKind, "b", 1, true) ~= nil
+	if isBytes then
+		outKind = "bytes"
+	end
+
+	return {
+		type = "Constant",
+		value = value,
+		kind = outKind,
+		lineno = token.line,
+		col_offset = token.column,
+	}
+end
+
+local function makeNameNode(id: string, baseNode: Expr?, token: Token): Expr
+	local lineno = if baseNode then baseNode.lineno else token.line
+	local col = if baseNode then baseNode.col_offset else token.column
+	return { type = "Name", id = id, ctx = "Load", lineno = lineno, col_offset = col }
+end
+
+local function wrapCall(funcName: string, argList: { Expr }, baseNode: Expr, token: Token): Expr
+	local funcNode = makeNameNode(funcName, baseNode, token)
+	return {
+		type = "Call",
+		func = funcNode,
+		args = argList,
+		keywords = {},
+		lineno = baseNode.lineno,
+		col_offset = baseNode.col_offset,
+	}
+end
+
+local function foldConcat(parts: { Expr }, token: Token): Expr
+	if #parts == 0 then
+		return {
+			type = "Constant",
+			value = "",
+			kind = nil,
+			lineno = token.line,
+			col_offset = token.column,
+		}
+	end
+	local result: Expr = parts[1]
+	for i = 2, #parts do
+		result = {
+			type = "BinOp",
+			left = result,
+			op = "Add",
+			right = parts[i],
+			lineno = token.line,
+			col_offset = token.column,
+		}
+	end
+	return result
+end
+
+local function makeSubState(tokenList: { Token }, parentState: any)
+	local sub: any = {
+		tokens = tokenList,
+		pos = 1,
+		current = tokenList[1],
+	}
+
+	function sub:advance()
+		if self.pos < #self.tokens then
+			self.pos += 1
+			self.current = self.tokens[self.pos]
+		else
+			self.current = nil
+		end
+	end
+
+	function sub:lookahead(offset: number): Token?
+		local idx = self.pos + offset
+		if idx >= 1 and idx <= #self.tokens then
+			return self.tokens[idx]
+		end
+		return nil
+	end
+
+	function sub:consume(tokenType: string, message: string?): Token
+		local cur = self.current
+		if not cur then
+			parentState:raise(message or ("Expected " .. tokenType .. " in f-string expression"))
+		end
+		if cur.type ~= tokenType then
+			parentState:raise(message or ("Expected " .. tokenType .. " in f-string expression, got " .. cur.type))
+		end
+		self:advance()
+		return cur :: any
+	end
+
+	function sub:raise(msg: string)
+		parentState:raise(msg)
+	end
+
+	return sub
+end
+
+local function parseEmbeddedExpression(exprText: string, state: any, token: Token): Expr
+	local exprTokens = lexer.tokenize(exprText)
+	local subState = makeSubState(exprTokens, state)
+	local exprNode = expressions.parse(subState)
+	while subState.current and (subState.current.type == "NEWLINE" or subState.current.type == "ENDMARKER") do
+		subState:advance()
+	end
+	if subState.current then
+		state:raise("Unexpected token after expression in f-string")
+	end
+	return exprNode
+end
+
+local function buildFormattedValue(
+	exprNode: Expr,
+	conversion: string?,
+	formatSpec: string?,
+	token: Token,
+	state: any
+): Expr
+	local converted = exprNode
+	if conversion == "s" then
+		converted = wrapCall("str", { converted }, exprNode, token)
+	elseif conversion == "r" then
+		converted = wrapCall("repr", { converted }, exprNode, token)
+	elseif conversion == "a" then
+		converted = wrapCall("ascii", { converted }, exprNode, token)
+	elseif conversion ~= nil then
+		state:raise("Unsupported conversion specifier in f-string: !" .. tostring(conversion))
+	end
+
+	if formatSpec and formatSpec ~= "" then
+		local specConst: Expr = {
+			type = "Constant",
+			value = formatSpec,
+			kind = nil,
+			lineno = token.line,
+			col_offset = token.column,
+		}
+		converted = wrapCall("format", { converted, specConst }, converted, token)
+	elseif conversion == nil then
+		converted = wrapCall("str", { converted }, exprNode, token)
+	end
+
+	return converted
+end
+
+local function parseFormattedSection(content: string, startIndex: number, state: any, token: Token): (Expr, number)
+	local len = #content
+	local i = startIndex + 1
+	local exprStart = i
+	local braceDepth = 0
+	local parenDepth = 0
+	local bracketDepth = 0
+	local inStringQuote: string? = nil
+	local stringTriple = false
+	local conversion: string? = nil
+	local formatStart: number? = nil
+	local exprEndIndex: number? = nil
+
+	while i <= len do
+		if inStringQuote then
+			if stringTriple then
+				if i + 2 <= len and content:sub(i, i + 2) == string.rep(inStringQuote, 3) then
+					inStringQuote = nil
+					stringTriple = false
+					i += 3
+				else
+					i += 1
+				end
+			else
+				local ch = content:sub(i, i)
+				if ch == "\\" then
+					i += 2
+				elseif ch == inStringQuote then
+					inStringQuote = nil
+					i += 1
+				else
+					i += 1
+				end
+			end
+		else
+			local ch = content:sub(i, i)
+			if ch == "'" or ch == '"' then
+				local triple = i + 2 <= len and content:sub(i, i + 2) == ch .. ch .. ch
+				inStringQuote = ch
+				stringTriple = triple
+				i += if triple then 3 else 1
+			elseif ch == "(" then
+				parenDepth += 1
+				i += 1
+			elseif ch == ")" then
+				if parenDepth > 0 then
+					parenDepth -= 1
+				end
+				i += 1
+			elseif ch == "[" then
+				bracketDepth += 1
+				i += 1
+			elseif ch == "]" then
+				if bracketDepth > 0 then
+					bracketDepth -= 1
+				end
+				i += 1
+			elseif ch == "{" then
+				braceDepth += 1
+				i += 1
+			elseif ch == "}" then
+				if braceDepth == 0 then
+					if not exprEndIndex then
+						exprEndIndex = i - 1
+					end
+					break
+				else
+					braceDepth -= 1
+					i += 1
+				end
+			elseif
+				ch == "!"
+				and braceDepth == 0
+				and parenDepth == 0
+				and bracketDepth == 0
+				and conversion == nil
+				and formatStart == nil
+			then
+				local convChar = content:sub(i + 1, i + 1)
+				if convChar == "" then
+					state:raise("Conversion specifier in f-string is missing")
+				end
+				if convChar ~= "s" and convChar ~= "r" and convChar ~= "a" then
+					state:raise("Unsupported conversion specifier in f-string: !" .. convChar)
+				end
+				conversion = convChar
+				exprEndIndex = exprEndIndex or (i - 1)
+				i += 2
+			elseif ch == ":" and braceDepth == 0 and parenDepth == 0 and bracketDepth == 0 and formatStart == nil then
+				exprEndIndex = exprEndIndex or (i - 1)
+				formatStart = i + 1
+				i += 1
+			elseif
+				ch == "="
+				and braceDepth == 0
+				and parenDepth == 0
+				and bracketDepth == 0
+				and conversion == nil
+				and formatStart == nil
+			then
+				state:raise("Debug f-string expressions (expr=) are not supported yet")
+			else
+				i += 1
+			end
+		end
+	end
+
+	if i > len then
+		state:raise("F-string expression is missing closing '}'")
+	end
+
+	local exprStop = exprEndIndex or (i - 1)
+	if exprStop < exprStart then
+		state:raise("Empty expression in f-string")
+	end
+
+	local exprSlice = string.sub(content, exprStart, exprStop)
+	local exprText = (string.match(exprSlice, "^%s*(.-)%s*$") or "")
+	if exprText == "" then
+		state:raise("Empty expression in f-string")
+	end
+
+	local exprNode = parseEmbeddedExpression(exprText, state, token)
+
+	local formatSpecText: string? = nil
+	if formatStart then
+		local rawSpec = string.sub(content, formatStart, i - 1)
+		local trimmed = string.match(rawSpec, "^%s*(.-)%s*$") or ""
+		if trimmed ~= "" then
+			local check = trimmed:gsub("{{", ""):gsub("}}", "")
+			if string.find(check, "{", 1, true) or string.find(check, "}", 1, true) then
+				state:raise("Nested expressions in format specifiers are not supported yet")
+			end
+			formatSpecText = trimmed:gsub("{{", "{"):gsub("}}", "}")
+		end
+	end
+
+	local formatted = buildFormattedValue(exprNode, conversion, formatSpecText, token, state)
+	return formatted, i + 1
+end
+
+local function parseFStringLiteral(token: Token, state: any): Expr
+	local content = (token :: any).stringContent or ""
+	local values: { Expr } = {}
+	local literalBuffer: { string } = {}
+
+	local function flushLiteral()
+		if #literalBuffer > 0 then
+			table.insert(values, {
+				type = "Constant",
+				value = table.concat(literalBuffer),
+				kind = nil,
+				lineno = token.line,
+				col_offset = token.column,
+			})
+			literalBuffer = {}
+		end
+	end
+
+	local i = 1
+	local len = #content
+	while i <= len do
+		local ch = string.sub(content, i, i)
+		if ch == "{" then
+			if i < len and string.sub(content, i + 1, i + 1) == "{" then
+				table.insert(literalBuffer, "{")
+				i += 2
+			else
+				flushLiteral()
+				local expr, nextIndex = parseFormattedSection(content, i, state, token)
+				table.insert(values, expr)
+				i = nextIndex
+			end
+		elseif ch == "}" then
+			if i < len and string.sub(content, i + 1, i + 1) == "}" then
+				table.insert(literalBuffer, "}")
+				i += 2
+			else
+				state:raise("Single '}' is not allowed in f-string")
+			end
+		else
+			table.insert(literalBuffer, ch)
+			i += 1
+		end
+	end
+
+	flushLiteral()
+
+	return foldConcat(values, token)
+end
 
 -- Binary op helpers
 local BINOP_MAP = precedence.BINOP_MAP
@@ -88,53 +469,23 @@ local function parsePrimary(state: any): Expr
 		end
 		return { type = "Constant", value = numValue, kind = nil, lineno = current.line, col_offset = current.column }
 	end
-	-- Strings (with prefix/triple support)
+	-- Strings (literal concatenation + f-strings)
 	if current.type == "STRING" then
-		state:advance()
-		local kind = (current :: any).stringPrefix
-		local content = (current :: any).stringContent
-		local val: string
-		if content ~= nil then
-			val = content
-		else
-			-- Fallback: derive content from value by stripping quotes (handles single or triple)
-			local v = current.value
-			if
-				#v >= 6
-				and (
-					(string.sub(v, 1, 3) == '"""' and string.sub(v, -3) == '"""')
-					or (string.sub(v, 1, 3) == "'''" and string.sub(v, -3) == "'''")
-				)
-			then
-				val = string.sub(v, 4, -4)
-			elseif
-				#v >= 2
-				and (
-					(string.sub(v, 1, 1) == '"' and string.sub(v, -1) == '"')
-					or (string.sub(v, 1, 1) == "'" and string.sub(v, -1) == "'")
-				)
-			then
-				val = string.sub(v, 2, -2)
+		local parts: { Expr } = {}
+		while state.current and state.current.type == "STRING" do
+			local tok: Token = state.current :: Token
+			state:advance()
+			local prefix = (tok :: any).stringPrefix
+			if prefixContains(prefix, "f") then
+				if prefixContains(prefix, "b") then
+					state:raise("Cannot combine 'f' and 'b' prefixes in string literal")
+				end
+				table.insert(parts, parseFStringLiteral(tok, state))
 			else
-				val = v
+				table.insert(parts, makeStringConstant(tok))
 			end
 		end
-		-- Normalize string prefixes:
-		-- - Treat 'u' like no-op (Python 3.x)
-		-- - If contains 'b' (and not 'f'), mark as bytes literal via kind = "bytes"
-		-- - Keep 'f' for future f-string handling (value stays raw here)
-		local outKind: string? = kind
-		if outKind and string.find(outKind, "u", 1, true) then
-			outKind = string.gsub(outKind, "u", "")
-			if outKind == "" then
-				outKind = nil
-			end
-		end
-		local isBytes = outKind and string.find(outKind, "b", 1, true) ~= nil
-		if isBytes then
-			outKind = "bytes"
-		end
-		return { type = "Constant", value = val, kind = outKind, lineno = current.line, col_offset = current.column }
+		return foldConcat(parts, current)
 	end
 	if current.type == "TRUE" then
 		state:advance()

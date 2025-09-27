@@ -75,6 +75,44 @@ local parserTests: TestFramework.TestSuite = {
 		},
 
 		{
+			name = "Parse Simple F-string",
+			test = function()
+				local tokens = Lexer.tokenize('f"Hello {name}!"')
+				local ast = Parser.parse(tokens)
+				local expr = ast.body[1].value
+				TestFramework.assertEqual(expr.type, "BinOp", "F-string should become concatenation chain")
+				TestFramework.assertEqual(expr.op, "Add", "Top-level op should be Add")
+				TestFramework.assertEqual(expr.left.type, "BinOp", "Left branch should combine literal and expression")
+				TestFramework.assertEqual(expr.left.op, "Add", "Left branch should also be Add")
+				TestFramework.assertEqual(expr.left.left.type, "Constant", "First literal segment should be Constant")
+				TestFramework.assertEqual(expr.left.left.value, "Hello ", "Literal should include trailing space")
+				TestFramework.assertEqual(expr.left.right.type, "Call", "Expression segment should be wrapped in str()")
+				TestFramework.assertEqual(expr.left.right.func.id, "str", "Conversion should use str()")
+				TestFramework.assertEqual(expr.left.right.args[1].type, "Name", "Argument should be Name")
+				TestFramework.assertEqual(expr.left.right.args[1].id, "name", "Name should be 'name'")
+				TestFramework.assertEqual(expr.right.type, "Constant", "Trailing literal should be Constant")
+				TestFramework.assertEqual(expr.right.value, "!", "Trailing literal should preserve punctuation")
+			end,
+		},
+
+		{
+			name = "Parse F-string With Format Spec",
+			test = function()
+				local tokens = Lexer.tokenize('f"{value:.2f}"')
+				local ast = Parser.parse(tokens)
+				local expr = ast.body[1].value
+				TestFramework.assertEqual(expr.type, "Call", "Format spec should produce Call")
+				TestFramework.assertEqual(expr.func.type, "Name", "Function should be Name")
+				TestFramework.assertEqual(expr.func.id, "format", "Should call built-in format()")
+				TestFramework.assertEqual(#expr.args, 2, "format() should receive value and spec")
+				TestFramework.assertEqual(expr.args[1].type, "Name", "First argument should be value Name")
+				TestFramework.assertEqual(expr.args[1].id, "value", "Value argument should be 'value'")
+				TestFramework.assertEqual(expr.args[2].type, "Constant", "Second argument should be Constant spec")
+				TestFramework.assertEqual(expr.args[2].value, ".2f", "Format spec literal should match")
+			end,
+		},
+
+		{
 			name = "Parse Boolean Literals",
 			test = function()
 				local tokens = Lexer.tokenize("True")

@@ -55,10 +55,16 @@ compareOperations = {
 		return a ~= b
 	end, -- is not (simplified)
 	[8] = function(a: any, b: any): boolean -- in
-		if type(b) == "table" and (b :: any).__contains then
-			return (b :: any):__contains(a)
+		local container = if type(b) == "table" and (b :: any).__type ~= nil then b else Base.ensurePyObject(b)
+		local needle = if type(a) == "table" and (a :: any).__type ~= nil then a else Base.ensurePyObject(a)
+		local ok, containsMethod = pcall(function()
+			return Base.getattr(container, "__contains__")
+		end)
+		if ok and containsMethod then
+			local result = Base.call(containsMethod, { needle })
+			return Base.truthy(result)
 		end
-		error("TypeError: argument of type '" .. type(b) .. "' is not iterable", 2)
+		error("TypeError: argument of type '" .. tostring(container.__type or type(b)) .. "' is not iterable", 2)
 	end,
 	[9] = function(a: any, b: any): boolean -- not in
 		return not compareOperations[8](a, b)
@@ -278,15 +284,68 @@ local function executeInstruction(
 		local name = tostring(arg)
 		local value = Frame.pop(frame)
 		Frame.setGlobal(frame, name, value)
+	elseif opcode == "LOAD_ATTR" then
+		assert(arg ~= nil, "LOAD_ATTR requires argument")
+		local obj = Frame.pop(frame)
+		local name: string
+		if names and names[arg + 1] then
+			name = names[arg + 1]
+		else
+			name = tostring(arg)
+		end
+		local pyObj = if type(obj) == "table" and (obj :: any).__type ~= nil then obj else Base.ensurePyObject(obj)
+		local value = Base.getattr(pyObj, name)
+		Frame.push(frame, value)
+	elseif opcode == "STORE_ATTR" then
+		assert(arg ~= nil, "STORE_ATTR requires argument")
+		local value = Frame.pop(frame)
+		local obj = Frame.pop(frame)
+		local name: string
+		if names and names[arg + 1] then
+			name = names[arg + 1]
+		else
+			name = tostring(arg)
+		end
+		local pyObj = if type(obj) == "table" and (obj :: any).__type ~= nil then obj else Base.ensurePyObject(obj)
+		local pyValue = if type(value) == "table" and (value :: any).__type ~= nil
+			then value
+			else Base.ensurePyObject(value)
+		Base.setattr(pyObj, name, pyValue)
+	elseif opcode == "LOAD_SUBSCR" then
+		local index = Frame.pop(frame)
+		local container = Frame.pop(frame)
+		local pyContainer = if type(container) == "table" and (container :: any).__type ~= nil
+			then container
+			else Base.ensurePyObject(container)
+		local pyIndex = if type(index) == "table" and (index :: any).__type ~= nil
+			then index
+			else Base.ensurePyObject(index)
+		local getter = Base.getattr(pyContainer, "__getitem__")
+		local result = Base.call(getter, { pyIndex })
+		Frame.push(frame, result)
+	elseif opcode == "STORE_SUBSCR" then
+		local value = Frame.pop(frame)
+		local index = Frame.pop(frame)
+		local container = Frame.pop(frame)
+		local pyContainer = if type(container) == "table" and (container :: any).__type ~= nil
+			then container
+			else Base.ensurePyObject(container)
+		local pyIndex = if type(index) == "table" and (index :: any).__type ~= nil
+			then index
+			else Base.ensurePyObject(index)
+		local pyValue = if type(value) == "table" and (value :: any).__type ~= nil
+			then value
+			else Base.ensurePyObject(value)
+		local setter = Base.getattr(pyContainer, "__setitem__")
+		Base.call(setter, { pyIndex, pyValue })
 
 	-- Binary operations
 	elseif opcode == "BINARY_ADD" then
 		local b = Frame.pop(frame)
 		local a = Frame.pop(frame)
-		-- Extract values from PyObjects if needed
-		local aVal = (type(a) == "table" and a.__value ~= nil) and a.__value or a
-		local bVal = (type(b) == "table" and b.__value ~= nil) and b.__value or b
-		Frame.push(frame, Base.ensurePyObject(aVal + bVal))
+		local left = if type(a) == "table" and (a :: any).__type ~= nil then a else Base.ensurePyObject(a)
+		local right = if type(b) == "table" and (b :: any).__type ~= nil then b else Base.ensurePyObject(b)
+		Frame.push(frame, Base.operate("add", left :: any, right :: any))
 	elseif opcode == "BINARY_SUBTRACT" then
 		local b = Frame.pop(frame)
 		local a = Frame.pop(frame)
@@ -348,16 +407,39 @@ local function executeInstruction(
 		end
 	elseif opcode == "COMPARE_OP" then
 		assert(arg ~= nil, "COMPARE_OP requires argument")
-		local b = Frame.pop(frame)
-		local a = Frame.pop(frame)
-		-- Extract values from PyObjects if needed
-		local aVal = (type(a) == "table" and a.__value ~= nil) and a.__value or a
-		local bVal = (type(b) == "table" and b.__value ~= nil) and b.__value or b
+		local rawRight = Frame.pop(frame)
+		local rawLeft = Frame.pop(frame)
 		local op = compareOperations[arg]
 		if not op then
 			error("Unknown comparison operation: " .. tostring(arg), 2)
 		end
-		Frame.push(frame, Base.ensurePyObject(op(aVal, bVal)))
+
+		local result
+		if arg == 8 or arg == 9 then
+			local leftObj = if type(rawLeft) == "table" and (rawLeft :: any).__type ~= nil
+				then rawLeft
+				else Base.ensurePyObject(rawLeft)
+			local rightObj = if type(rawRight) == "table" and (rawRight :: any).__type ~= nil
+				then rawRight
+				else Base.ensurePyObject(rawRight)
+			result = op(leftObj, rightObj)
+		elseif arg == 6 or arg == 7 then
+			-- Identity comparisons should operate on original operands
+			result = op(rawLeft, rawRight)
+		else
+			local leftVal = (type(rawLeft) == "table" and (rawLeft :: any).__value ~= nil) and (rawLeft :: any).__value
+				or rawLeft
+			local rightVal = (type(rawRight) == "table" and (rawRight :: any).__value ~= nil)
+					and (rawRight :: any).__value
+				or rawRight
+			result = op(leftVal, rightVal)
+		end
+
+		if type(result) == "table" and (result :: any).__type ~= nil then
+			Frame.push(frame, result)
+		else
+			Frame.push(frame, Base.ensurePyObject(result))
+		end
 
 	-- Control flow
 	elseif opcode == "JUMP_FORWARD" then

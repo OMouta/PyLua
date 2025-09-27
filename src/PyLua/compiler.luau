@@ -136,6 +136,13 @@ end
 -- Expression compilation
 local compileExpr
 
+local function withContext(node: any, ctx: nodes.ExprContext, fn: () -> ())
+	local prev = node.ctx
+	node.ctx = ctx
+	fn()
+	node.ctx = prev
+end
+
 local function compileName(st: CompilerState, node: any)
 	if node.ctx == "Load" then
 		local idx = addName(st, node.id)
@@ -163,6 +170,45 @@ local BINOP_TO_OPCODE: { [nodes.BinOpType]: Opcode } = {
 	-- MatMult, FloorDiv not yet mapped
 }
 
+local function compileLoadTarget(st: CompilerState, target: any)
+	if target.type == "Name" then
+		withContext(target, "Load", function()
+			compileName(st, target)
+		end)
+	elseif target.type == "Attribute" then
+		compileExpr(st, target.value)
+		local idx = addName(st, target.attr)
+		emit(st, "LOAD_ATTR", idx, target.lineno)
+	elseif target.type == "Subscript" then
+		compileExpr(st, target.value)
+		compileExpr(st, target.slice)
+		emit(st, "LOAD_SUBSCR", nil, target.lineno)
+	else
+		error("Unsupported load target type: " .. tostring(target.type))
+	end
+end
+
+local function compileStoreTarget(st: CompilerState, target: any)
+	if target.type == "Name" then
+		withContext(target, "Store", function()
+			compileName(st, target)
+		end)
+	elseif target.type == "Attribute" then
+		compileExpr(st, target.value)
+		emit(st, "ROT_TWO", nil, target.lineno)
+		local idx = addName(st, target.attr)
+		emit(st, "STORE_ATTR", idx, target.lineno)
+	elseif target.type == "Subscript" then
+		compileExpr(st, target.value)
+		emit(st, "ROT_TWO", nil, target.lineno)
+		compileExpr(st, target.slice)
+		emit(st, "ROT_TWO", nil, target.lineno)
+		emit(st, "STORE_SUBSCR", nil, target.lineno)
+	else
+		error("Unsupported store target type: " .. tostring(target.type))
+	end
+end
+
 compileExpr = function(st: CompilerState, node: any)
 	local t = node.type
 	if t == "Constant" then
@@ -178,6 +224,14 @@ compileExpr = function(st: CompilerState, node: any)
 		end
 	elseif t == "Name" then
 		compileName(st, node)
+	elseif t == "Attribute" then
+		compileExpr(st, node.value)
+		local idx = addName(st, node.attr)
+		emit(st, "LOAD_ATTR", idx, node.lineno)
+	elseif t == "Subscript" then
+		compileExpr(st, node.value)
+		compileExpr(st, node.slice)
+		emit(st, "LOAD_SUBSCR", nil, node.lineno)
 	elseif t == "BinOp" then
 		compileExpr(st, node.left)
 		compileExpr(st, node.right)
@@ -254,6 +308,28 @@ compileExpr = function(st: CompilerState, node: any)
 		end
 		-- Build list from stack elements
 		emit(st, "BUILD_LIST", #node.elts, node.lineno)
+	elseif t == "Tuple" then
+		for _, elt in ipairs(node.elts) do
+			compileExpr(st, elt)
+		end
+		emit(st, "BUILD_TUPLE", #node.elts, node.lineno)
+	elseif t == "Set" then
+		for _, elt in ipairs(node.elts) do
+			compileExpr(st, elt)
+		end
+		emit(st, "BUILD_SET", #node.elts, node.lineno)
+	elseif t == "Dict" then
+		local count = #node.keys
+		for i = 1, count do
+			local key = node.keys[i]
+			local value = node.values[i]
+			if key == nil then
+				error("Dictionary unpacking not yet supported", 2)
+			end
+			compileExpr(st, key)
+			compileExpr(st, value)
+		end
+		emit(st, "BUILD_MAP", count, node.lineno)
 	else
 		error("Unsupported expression node type: " .. tostring(t))
 	end
@@ -266,18 +342,22 @@ compileStmt = function(st: CompilerState, node: any)
 		-- POP_TOP to discard value of expression statements
 		emit(st, "POP_TOP", nil, node.lineno)
 	elseif node.type == "Assign" then
-		-- For now only single target supported
 		compileExpr(st, node.value)
 		local target = node.targets[1]
 		if not target then
 			error("Assign without target")
 		end
-		if target.type == "Name" then
-			target.ctx = "Store"
-			compileName(st, target)
-		else
-			error("Unsupported assignment target type: " .. tostring(target.type))
+		compileStoreTarget(st, target)
+	elseif node.type == "AugAssign" then
+		local target = node.target
+		compileLoadTarget(st, target)
+		compileExpr(st, node.value)
+		local op = BINOP_TO_OPCODE[node.op]
+		if not op then
+			error("Unsupported augmented assignment operator: " .. tostring(node.op))
 		end
+		emit(st, (op :: any) :: Opcode, nil, node.lineno)
+		compileStoreTarget(st, target)
 	elseif node.type == "Return" then
 		if node.value then
 			compileExpr(st, node.value)

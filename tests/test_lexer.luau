@@ -80,6 +80,16 @@ local lexerTests: TestFramework.TestSuite = {
 		},
 
 		{
+			name = "F-string Tokenization",
+			test = function()
+				local tokens = Lexer.tokenize('f"hello {name}"')
+				TestFramework.assertEqual(tokens[1].type, "STRING", "Should tokenize f-string as STRING")
+				TestFramework.assertEqual((tokens[1] :: any).stringPrefix, "f", "Prefix should include f")
+				TestFramework.assertEqual((tokens[1] :: any).stringContent, "hello {name}", "Content should keep braces")
+			end,
+		},
+
+		{
 			name = "Single Quote String",
 			test = function()
 				local tokens = Lexer.tokenize("'world'")
