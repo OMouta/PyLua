@@ -99,10 +99,8 @@ end
 function Compiler.compile(sourceCode: string): Bytecode
     local state = State.createCompilerState()
     
-    -- Split source code into lines efficiently
     local lines: {string}
     if string.split then
-        -- Use built-in split if available (Roblox/Lune)
         lines = sourceCode:split("\n")
         -- Remove carriage returns if present
         for i, line in ipairs(lines) do

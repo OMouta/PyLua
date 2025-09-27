@@ -6,5 +6,5 @@
 [tools]
 rojo = "rojo-rbx/rojo@7.5.1"
 jelly = "omouta/jelly@0.3.3"
-lune = "lune-org/lune@0.10.1"
 StyLua = "JohnnyMorganz/StyLua@2.1.0"
+lute = "luau-lang/lute@0.1.0-nightly.20250924"

@@ -64,7 +64,7 @@ bytesType.methods = bytesType.methods or {}
 -- __repr__
 bytesType.methods["__repr__"] = function(selfObj: PyObject)
 	local s = selfObj.__value :: string
-	local out = {"b'"}
+	local out = { "b'" }
 	for i = 1, #s do
 		local b = string.byte(s, i)
 		if b >= 32 and b <= 126 and b ~= 39 and b ~= 92 then -- printable, not ' or \
@@ -103,11 +103,11 @@ bytesType.methods["__getitem__"] = function(selfObj: PyObject, args: { PyObject 
 	end
 	local i = idx.__value
 	if i < 0 then
-		i = #(selfObj.__value) + i + 1
+		i = #selfObj.__value + i + 1
 	else
 		i = i + 1 -- Python is 0-based, Luau is 1-based
 	end
-	if i < 1 or i > #(selfObj.__value) then
+	if i < 1 or i > #selfObj.__value then
 		error("IndexError: bytes index out of range", 2)
 	end
 	local b = string.byte(selfObj.__value, i)
@@ -134,7 +134,9 @@ bytesType.methods["__mul__"] = function(selfObj: PyObject, args: { PyObject }?)
 		return base.newPyObject("bytes", "")
 	end
 	local pieces = table.create(n)
-	for i = 1, n do pieces[i] = selfObj.__value end
+	for i = 1, n do
+		pieces[i] = selfObj.__value
+	end
 	return base.newPyObject("bytes", table.concat(pieces, ""))
 end
 

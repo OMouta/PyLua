@@ -99,11 +99,21 @@ local function parsePrimary(state: any): Expr
 		else
 			-- Fallback: derive content from value by stripping quotes (handles single or triple)
 			local v = current.value
-			if #v >= 6 and ((string.sub(v, 1, 3) == "\"\"\"" and string.sub(v, -3) == "\"\"\"")
-				or (string.sub(v, 1, 3) == "'''" and string.sub(v, -3) == "'''") ) then
+			if
+				#v >= 6
+				and (
+					(string.sub(v, 1, 3) == '"""' and string.sub(v, -3) == '"""')
+					or (string.sub(v, 1, 3) == "'''" and string.sub(v, -3) == "'''")
+				)
+			then
 				val = string.sub(v, 4, -4)
-			elseif #v >= 2 and ((string.sub(v, 1, 1) == '"' and string.sub(v, -1) == '"')
-				or (string.sub(v, 1, 1) == "'" and string.sub(v, -1) == "'")) then
+			elseif
+				#v >= 2
+				and (
+					(string.sub(v, 1, 1) == '"' and string.sub(v, -1) == '"')
+					or (string.sub(v, 1, 1) == "'" and string.sub(v, -1) == "'")
+				)
+			then
 				val = string.sub(v, 2, -2)
 			else
 				val = v
@@ -116,7 +126,9 @@ local function parsePrimary(state: any): Expr
 		local outKind: string? = kind
 		if outKind and string.find(outKind, "u", 1, true) then
 			outKind = string.gsub(outKind, "u", "")
-			if outKind == "" then outKind = nil end
+			if outKind == "" then
+				outKind = nil
+			end
 		end
 		local isBytes = outKind and string.find(outKind, "b", 1, true) ~= nil
 		if isBytes then

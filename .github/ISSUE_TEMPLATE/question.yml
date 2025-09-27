@@ -1,4 +1,4 @@
-name: "❓ Question / Help"
+name: "Question / Help"
 description: "Ask a question about PyLua usage, development, or get help with an issue."
 title: "[QUESTION] "
 labels: ["question", "help-wanted"]
@@ -18,7 +18,7 @@ body:
   - type: dropdown
     id: question-type
     attributes:
-      label: "❓ Question Type"
+      label: "Question Type"
       description: "What type of question do you have?"
       options:
         - "Usage help (how to use PyLua)"
@@ -35,7 +35,7 @@ body:
   - type: dropdown
     id: experience-level
     attributes:
-      label: "👤 Experience Level"
+      label: "Experience Level"
       description: "What's your experience level with the relevant technologies?"
       options:
         - "Beginner (new to Python/Luau/Roblox)"
@@ -48,7 +48,7 @@ body:
   - type: textarea
     id: question
     attributes:
-      label: "❓ Your Question"
+      label: "Your Question"
       description: "Ask your question clearly and provide context. What are you trying to achieve?"
       placeholder: "I'm trying to... but I'm having trouble with... How can I..."
     validations:
@@ -57,7 +57,7 @@ body:
   - type: textarea
     id: what-tried
     attributes:
-      label: "🔍 What You've Tried"
+      label: "What You've Tried"
       description: "What have you already tried? Include any code, error messages, or research you've done."
       placeholder: |
         I tried:
@@ -70,7 +70,7 @@ body:
   - type: textarea
     id: code-example
     attributes:
-      label: "💻 Code Example (if applicable)"
+      label: "Code Example (if applicable)"
       description: "Share any relevant code that demonstrates what you're trying to do"
       render: python
       placeholder: |
@@ -83,7 +83,7 @@ body:
   - type: textarea
     id: luau-code
     attributes:
-      label: "🌙 Luau Code (if applicable)"
+      label: "Luau Code (if applicable)"
       description: "Show how you're using PyLua in your Luau/Roblox code"
       render: lua
       placeholder: |
@@ -96,7 +96,7 @@ body:
   - type: textarea
     id: expected-outcome
     attributes:
-      label: "✅ Expected Outcome"
+      label: "Expected Outcome"
       description: "What would you like to happen? What's your goal?"
       placeholder: "I expect to be able to... so that I can..."
     validations:
@@ -105,7 +105,7 @@ body:
   - type: textarea
     id: environment
     attributes:
-      label: "🔧 Environment (if relevant)"
+      label: "Environment (if relevant)"
       description: "Your development environment details"
       placeholder: |
         - OS: Windows 11 / macOS 14 / Ubuntu 22.04
@@ -123,7 +123,7 @@ body:
   - type: checkboxes
     id: area-of-interest
     attributes:
-      label: "🎯 Related Areas"
+      label: "Related Areas"
       description: "Which areas of PyLua are you interested in or having questions about?"
       options:
         - label: "Basic usage and API"
@@ -138,7 +138,7 @@ body:
   - type: checkboxes
     id: checklist
     attributes:
-      label: "📋 Checklist"
+      label: "Checklist"
       description: "Please confirm:"
       options:
         - label: "I have searched existing issues and discussions for similar questions"
@@ -151,7 +151,7 @@ body:
   - type: textarea
     id: additional-context
     attributes:
-      label: "📝 Additional Context"
+      label: "Additional Context"
       description: "Any other information that might be helpful for answering your question"
     validations:
       required: false

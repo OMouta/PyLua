@@ -314,7 +314,7 @@ compileStmt = function(st: CompilerState, node: any)
 		-- Emit SETUP_LOOP to set up the loop block
 		local setupLoop = getCurrentAddress(st)
 		emit(st, "SETUP_LOOP", 0, node.lineno) -- Will be patched with end offset
-		
+
 		local loopStart = getCurrentAddress(st)
 		compileExpr(st, node.test)
 		local jumpIfFalse = getCurrentAddress(st)
@@ -335,10 +335,10 @@ compileStmt = function(st: CompilerState, node: any)
 
 		-- Mark the end position for the loop
 		local loopEnd = getCurrentAddress(st)
-		
+
 		-- Patch the end jump
 		patchJump(st, jumpIfFalse, loopEnd)
-		
+
 		-- Compile else clause if present
 		if #node.orelse > 0 then
 			for _, stmt in ipairs(node.orelse) do
@@ -394,17 +394,17 @@ compileStmt = function(st: CompilerState, node: any)
 
 		-- 10. Mark the end position for the loop (before patching)
 		local loopEnd = getCurrentAddress(st)
-		
+
 		-- 11. Patch the FOR_ITER jump to exit the loop
 		patchJump(st, forIterJump, loopEnd)
-		
+
 		-- 12. Compile else clause if present
 		if #node.orelse > 0 then
 			for _, stmt in ipairs(node.orelse) do
 				compileStmt(st, stmt)
 			end
 		end
-		
+
 		-- Pop the loop block and patch SETUP_LOOP with the end address (should point to POP_BLOCK)
 		local blockEnd = getCurrentAddress(st)
 		emit(st, "POP_BLOCK", nil, node.lineno)

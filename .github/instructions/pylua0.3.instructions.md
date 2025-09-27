@@ -19,7 +19,7 @@ You are working on **PyLua v0.3**, a complete rewrite of a Python interpreter im
 
 ## Luau Runtime
 
-We are using lune, a luau runtime for executing Luau code instead of the luau runtime. Use lune run <file> to execute a Luau file.
+We are using lute, a luau runtime for executing Luau code instead of the luau runtime. Use lute <file> to execute a Luau file.
 
 ## Architecture Overview
 

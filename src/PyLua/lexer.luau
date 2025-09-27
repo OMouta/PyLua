@@ -84,7 +84,7 @@ local function isStringStart(state: LexerState): boolean
 		return true
 	end
 	local lc1 = string.lower(c1)
-	if (lc1 == "r" or lc1 == "f" or lc1 == "u" or lc1 == "b") then
+	if lc1 == "r" or lc1 == "f" or lc1 == "u" or lc1 == "b" then
 		local c2 = peek(state, 2)
 		if c2 == '"' or c2 == "'" then
 			return true
@@ -177,7 +177,9 @@ local function tokenizeString(state: LexerState): Token
 	local prefix = ""
 	while true do
 		local c = peek(state)
-		if not c then break end
+		if not c then
+			break
+		end
 		local lc = string.lower(c)
 		if lc == "r" or lc == "f" or lc == "u" or lc == "b" then
 			prefix ..= lc
@@ -208,7 +210,9 @@ local function tokenizeString(state: LexerState): Token
 		local ch = peek(state) :: string
 		if isTriple then
 			if ch == quote and peek(state, 1) == quote and peek(state, 2) == quote then
-				advance(state); advance(state); advance(state)
+				advance(state)
+				advance(state)
+				advance(state)
 				break
 			else
 				content ..= advance(state) :: string
@@ -220,7 +224,9 @@ local function tokenizeString(state: LexerState): Token
 			elseif ch == "\\" then
 				-- Keep escapes verbatim here; decoding can occur later if needed (non-raw)
 				content ..= advance(state) :: string
-				if peek(state) then content ..= advance(state) :: string end
+				if peek(state) then
+					content ..= advance(state) :: string
+				end
 			elseif ch == "\n" then
 				return tokens.newToken("ERRORTOKEN", "Unterminated string", startLine, startCol)
 			else

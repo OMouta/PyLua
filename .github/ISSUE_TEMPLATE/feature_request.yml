@@ -1,4 +1,4 @@
-name: "💡 Feature Request"
+name: "Feature Request"
 description: "Suggest an idea or improvement for PyLua v0.3 (Python-in-Luau for Roblox)."
 title: "[FEATURE] "
 labels: ["enhancement", "needs-triage"]
@@ -15,7 +15,7 @@ body:
   - type: dropdown
     id: feature-type
     attributes:
-      label: "🎯 Feature Type"
+      label: "Feature Type"
       description: "What type of feature are you requesting?"
       options:
         - "New Python language feature/syntax support"
@@ -32,7 +32,7 @@ body:
   - type: dropdown
     id: development-phase
     attributes:
-      label: "📋 Development Phase Alignment"
+      label: "Development Phase Alignment"
       description: "Which development phase does this feature align with? (See REWRITE_PLAN.md)"
       options:
         - "Phase 1: Foundation (lexer, parser, AST)"
@@ -48,7 +48,7 @@ body:
   - type: textarea
     id: feature-description
     attributes:
-      label: "📝 Feature Description"
+      label: "Feature Description"
       description: "Describe the feature or enhancement you'd like to see in PyLua. Be specific about the Python or Luau functionality, API, or user experience."
       placeholder: "I would like PyLua to support Python's [feature] so that users can..."
     validations:
@@ -57,7 +57,7 @@ body:
   - type: textarea
     id: python-example
     attributes:
-      label: "🐍 Python Example"
+      label: "Python Example"
       description: "Show how this feature would work in Python 3.12 (if applicable)"
       render: python
       placeholder: |
@@ -71,7 +71,7 @@ body:
   - type: textarea
     id: proposed-api
     attributes:
-      label: "🌙 Proposed PyLua API"
+      label: "Proposed PyLua API"
       description: "How would users interact with this feature in PyLua? Show the Luau code."
       render: lua
       placeholder: |
@@ -88,7 +88,7 @@ body:
   - type: textarea
     id: motivation
     attributes:
-      label: "🚀 Motivation / Use Case"
+      label: "Motivation / Use Case"
       description: "Why is this feature important? What problem does it solve? What new capabilities does it enable for PyLua users?"
       placeholder: "This feature would solve the problem of... and enable users to..."
     validations:
@@ -97,7 +97,7 @@ body:
   - type: checkboxes
     id: python-compliance
     attributes:
-      label: "🐍 Python 3.12 Compliance"
+      label: "Python 3.12 Compliance"
       description: "How does this relate to Python 3.12 compliance?"
       options:
         - label: "This is a standard Python 3.12 feature that should be supported"
@@ -109,7 +109,7 @@ body:
   - type: checkboxes
     id: affected-components
     attributes:
-      label: "⚙️ Affected Components"
+      label: "Affected Components"
       description: "Which parts of PyLua would this feature affect? (Check all that apply)"
       options:
         - label: "Lexer/Tokenizer (`lexer.luau`)"
@@ -127,7 +127,7 @@ body:
   - type: textarea
     id: alternatives
     attributes:
-      label: "🔄 Alternatives Considered"
+      label: "Alternatives Considered"
       description: "Have you considered any alternative approaches or workarounds? How do other Python interpreters handle this?"
       placeholder: "I considered... but this approach would be better because..."
     validations:
@@ -136,7 +136,7 @@ body:
   - type: textarea
     id: implementation-notes
     attributes:
-      label: "🔧 Implementation Notes"
+      label: "Implementation Notes"
       description: "Do you have any ideas about how this could be implemented? Any technical considerations?"
       placeholder: "This could potentially be implemented by... Some challenges might include..."
     validations:
@@ -145,7 +145,7 @@ body:
   - type: checkboxes
     id: checklist
     attributes:
-      label: "📋 Checklist"
+      label: "Checklist"
       description: "Please confirm you have done the following:"
       options:
         - label: "I have searched existing issues to make sure this isn't a duplicate"
@@ -160,7 +160,7 @@ body:
   - type: textarea
     id: additional-context
     attributes:
-      label: "📝 Additional Context"
+      label: "Additional Context"
       description: "Any other information that might be helpful (links to Python documentation, similar implementations, etc.)"
     validations:
       required: false

@@ -8,7 +8,7 @@ local PyLua = {}
 PyLua.version = "0.3.0-dev"
 PyLua.description = "PyLua - Embedded Python interpreter for Luau"
 
--- Import core components (will be implemented in later phases)
+-- Import core components
 local lexer = require("@self/lexer")
 local parser = require("@self/parser")
 local compiler = require("@self/compiler")
@@ -59,6 +59,17 @@ function PyLua.new(options: RuntimeOptions?): Runtime
 		_debug = if opts.debug ~= nil then opts.debug else false,
 	}
 
+	-- Add PyLua version to globals
+	runtime._globals["__pylua_version__"] = PyLua.version
+
+	-- Initialize other global variables
+	runtime._globals["__name__"] = "__main__"
+	runtime._globals["__doc__"] = nil
+	runtime._globals["__package__"] = nil
+	runtime._globals["__loader__"] = nil
+	runtime._globals["__spec__"] = nil
+
+	-- Set metatable for method access
 	setmetatable(runtime, Runtime)
 	return runtime :: any -- Cast to bypass type checker temporarily
 end
@@ -69,7 +80,6 @@ function Runtime:execute(code: string)
 		error("Runtime.execute() requires a string argument", 2)
 	end
 
-	-- Implement the full pipeline
 	-- 1. Lexer: code -> tokens
 	local tokens = lexer.tokenize(code)
 
@@ -89,12 +99,11 @@ function Runtime:eval(code: string): any
 		error("Runtime.eval() requires a string argument", 2)
 	end
 
-	-- Implement the full pipeline for expressions
 	-- 1. Lexer: code -> tokens
 	local tokens = lexer.tokenize(code)
 
-	-- 2. Parser: tokens -> AST
-	local ast = parser.parse(tokens)
+	-- 2. Parser: tokens -> Expression AST (eval returns expression value)
+	local ast = parser.parseExpression(tokens)
 
 	-- 3. Compiler: AST -> bytecode
 	local bytecode = compiler.compile(ast)
@@ -105,14 +114,22 @@ function Runtime:eval(code: string): any
 	return result
 end
 
--- Compile Python source to bytecode (advanced API)
+-- Compile Python source to bytecode
 function Runtime:compile(code: string): any
 	if type(code) ~= "string" then
 		error("Runtime.compile() requires a string argument", 2)
 	end
 
-	-- TODO: Implement compilation pipeline
-	error("Not implemented yet - Phase 1 in progress", 2)
+	-- 1. Lexer: code -> tokens
+	local tokens = lexer.tokenize(code)
+
+	-- 2. Parser: tokens -> AST
+	local ast = parser.parse(tokens)
+
+	-- 3. Compiler: AST -> bytecode
+	local bytecode = compiler.compile(ast)
+
+	return bytecode
 end
 
 -- Execute pre-compiled bytecode
@@ -121,8 +138,7 @@ function Runtime:runBytecode(bytecode: any): any
 		error("Runtime.runBytecode() requires a bytecode table", 2)
 	end
 
-	-- TODO: Implement bytecode execution
-	error("Not implemented yet - Phase 1 in progress", 2)
+	return vm.execute(bytecode.bytecode, self._globals, self._builtins, bytecode.constants, bytecode.names)
 end
 
 -- Access the global environment

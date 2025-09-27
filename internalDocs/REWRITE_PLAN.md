@@ -1,7 +1,7 @@
 # PyLua v0.3 Rewrite Plan
 
 > **Complete rewrite of PyLua from scratch with proper Python syntax and core functionality**
-> Check [LANGUAGE_IMPLEMENTATION.md](LANGUAGE_IMPLEMENTATION.md) for in-depth CPython internals research.
+> Check [LANGUAGE_IMPLEMENTATION.md](LANGUAGE_IMPLEMENTATION.md) for in-depth CPython internals research made by ChatGPT.
 
 ## Overview
 
@@ -14,15 +14,6 @@ This document outlines the complete rewrite of PyLua to create a proper Python i
 - [x] Complete
 - [ ] Planned / Not started
 - [-] Deferred (explicitly postponed)
-
-## Current Issues with PyLua v0.2
-
-- ❌ Primitive tokenizer with poor Python syntax support
-- ❌ No proper Abstract Syntax Tree (AST) parsing
-- ❌ Limited Python compliance and missing core features
-- ❌ Brittle, tightly-coupled architecture
-- ❌ Incomplete Python object model
-- ❌ Poor error handling and debugging support
 
 ## Target Architecture
 
@@ -307,11 +298,11 @@ python:execute("result = lua_func(6, 7)")
 
 ### Unit Tests
 
-- [ ] Lexer: Token generation from source
-- [ ] Parser: AST generation from tokens
-- [ ] Objects: Python object behavior
-- [ ] VM: Bytecode execution
-- [ ] Built-ins: Function behavior
+- [-] Lexer: Token generation from source
+- [-] Parser: AST generation from tokens
+- [-] Objects: Python object behavior
+- [-] VM: Bytecode execution
+- [-] Built-ins: Function behavior
 
 ### Integration Tests
 
@@ -352,12 +343,12 @@ python:execute("result = lua_func(6, 7)")
 
 ## Success Criteria
 
-- ✅ **Correctness**: Python code executes with proper semantics
-- ✅ **Completeness**: Core Python features are implemented
-- ✅ **Performance**: Reasonable execution speed for interpreted code
-- ✅ **Usability**: Clean, Lupa-inspired API
-- ✅ **Maintainability**: Modular, well-documented codebase
-- ✅ **Extensibility**: Easy to add new Python features
+- **Correctness**: Python code executes with proper semantics
+- **Completeness**: Core Python features are implemented
+- **Performance**: Reasonable execution speed for interpreted code
+- **Usability**: Clean, Lupa-inspired API
+- **Maintainability**: Modular, well-documented codebase
+- **Extensibility**: Easy to add new Python features
 
 ## Getting Started
 
@@ -365,7 +356,3 @@ python:execute("result = lua_func(6, 7)")
 2. Set up the new directory structure in `src/`
 3. Use test-driven development throughout
 4. Refer to CPython source and Python language reference for accuracy
-
----
-
-*This rewrite represents a complete architectural overhaul to create a production-quality Python interpreter in Luau.*

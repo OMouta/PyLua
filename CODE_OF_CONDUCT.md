@@ -8,7 +8,7 @@ We pledge to act and interact in ways that contribute to an open, welcoming, div
 
 ## Our Standards
 
-### 💚 Examples of behavior that contributes to a positive environment include
+### Examples of behavior that contributes to a positive environment include
 
 - **Being respectful and inclusive** in language and actions
 - **Demonstrating empathy and kindness** toward other community members
@@ -19,7 +19,7 @@ We pledge to act and interact in ways that contribute to an open, welcoming, div
 - **Helping others** learn and grow in their development journey
 - **Celebrating diverse perspectives** and approaches to problem-solving
 
-### ❌ Examples of unacceptable behavior include
+### Examples of unacceptable behavior include
 
 - **Harassment or discriminatory language** of any kind
 - **Personal attacks, insults, or derogatory comments**
@@ -65,7 +65,7 @@ This Code of Conduct also applies when an individual is officially representing 
 
 ## Community Guidelines
 
-### 🤝 Contributing Positively
+### Contributing Positively
 
 - **Ask thoughtful questions** and provide helpful answers
 - **Share knowledge and resources** that benefit the community
@@ -74,7 +74,7 @@ This Code of Conduct also applies when an individual is officially representing 
 - **Acknowledge contributions** from others
 - **Stay on-topic** in discussions and issues
 
-### 🧠 Technical Discussions
+### Technical Discussions
 
 - **Focus on facts and technical merit** rather than personal preferences
 - **Provide evidence** for claims and suggestions
@@ -83,7 +83,7 @@ This Code of Conduct also applies when an individual is officially representing 
 - **Explain your reasoning** clearly and respectfully
 - **Avoid bikeshedding** and focus on important decisions
 
-### 🚀 Project-Specific Guidelines
+### Project-Specific Guidelines
 
 Given that PyLua is a Python interpreter implementation:
 
@@ -118,19 +118,19 @@ All reports will be handled with discretion and confidentiality.
 
 Violations of this Code of Conduct may result in:
 
-#### 🔸 Minor Violations
+#### Minor Violations
 
 - **Private warning** with explanation of inappropriate behavior
 - **Public clarification** of community standards
 - **Temporary cooling-off period** for heated discussions
 
-#### 🔸 Moderate Violations
+#### Moderate Violations
 
 - **Temporary suspension** from community participation
 - **Removal of specific content** (comments, posts, etc.)
 - **Required public apology** for harmful behavior
 
-#### 🔸 Severe Violations
+#### Severe Violations
 
 - **Permanent ban** from all community spaces
 - **Reporting to relevant platforms** (GitHub, etc.)
@@ -165,6 +165,4 @@ This Code of Conduct may be updated periodically to reflect community needs and 
 
 ---
 
-**Remember**: We're all here because we share a passion for making Python accessible in the Roblox ecosystem. Let's build something amazing together! 🐍✨
-
-*Last updated: [Date]*
+Last updated: 27/09/2025

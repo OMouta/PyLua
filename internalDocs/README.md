@@ -1,10 +1,10 @@
 # PyLua Internal Documentation
 
-This directory contains comprehensive internal documentation for PyLua v0.3 development. These documents are intended for contributors, maintainers, and anyone interested in understanding the deep technical implementation details of the PyLua interpreter.
+This directory contains internal documentation for PyLua v0.3 development. These documents are intended for contributors, maintainers, and anyone interested in understanding the implementation details of the PyLua interpreter.
 
 ## Documents Overview
 
-### 📋 [REWRITE_PLAN.md](./REWRITE_PLAN.md)
+### [REWRITE_PLAN.md](./REWRITE_PLAN.md)
 
 #### Complete development roadmap and architecture specification
 
@@ -20,11 +20,11 @@ This is the master planning document for PyLua v0.3. It outlines:
 
 **Start here** if you want to understand the overall project direction and implementation plan.
 
-### ⚙️ [LANGUAGE_IMPLEMENTATION.md](./LANGUAGE_IMPLEMENTATION.md)
+### [LANGUAGE_IMPLEMENTATION.md](./LANGUAGE_IMPLEMENTATION.md)
 
-#### Deep technical guide on interpreter implementation
+#### Guide on interpreter implementation
 
-This document provides comprehensive background on how programming language interpreters work, with specific focus on:
+This document provides background on how programming language interpreters work, with specific focus on:
 
 - The standard interpreter pipeline: Lexer → Parser → AST → Compiler → VM
 - CPython's internal architecture and execution model
@@ -59,17 +59,6 @@ Based on these documents, PyLua v0.3 follows these core principles:
 4. **Modular Design**: Clean separation between lexer, parser, compiler, and VM
 5. **Roblox Optimization**: Designed specifically for the Roblox/Luau environment
 
-## Current Development Phase
-
-As of the latest update, PyLua v0.3 is in **Phase 1: Foundation**, focusing on:
-
-- ✅ Project structure and module system
-- ✅ Comprehensive lexer with Python 3.12 tokenization
-- ✅ AST system foundation with visitor pattern
-- 🔄 Core parser implementation (in progress)
-
-See `REWRITE_PLAN.md` for detailed phase information and completion status.
-
 ## Contributing Guidelines
 
 When contributing to PyLua v0.3:
@@ -99,7 +88,3 @@ These documents reference and build upon:
 - [CPython Developer Documentation](https://devguide.python.org/)
 - [CPython Internals Guide](https://github.com/python/cpython/tree/main/InternalDocs)
 - [Lupa Documentation](https://github.com/scoder/lupa) (for API inspiration)
-
----
-
-*These documents are living specifications that evolve with the project. Keep them updated as implementation progresses and architectural decisions are made.*

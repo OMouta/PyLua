@@ -2,13 +2,13 @@
 
 Thank you for your interest in contributing to PyLua! This document provides guidelines and information for contributors to the PyLua v0.3 rewrite project.
 
-## 🎯 Project Overview
+## Project Overview
 
 PyLua v0.3 is a complete rewrite of the Python interpreter for Luau/Roblox. We're building a production-quality Python 3.12-compliant interpreter following CPython's design principles with a Lupa-inspired API.
 
 **Important**: We are currently in a major rewrite phase. Please read the [internalDocs/REWRITE_PLAN.md](./internalDocs/REWRITE_PLAN.md) to understand the current development phase and architecture goals.
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -49,44 +49,32 @@ PyLua v0.3 is a complete rewrite of the Python interpreter for Luau/Roblox. We'r
    - Configure your editor with Luau syntax highlighting
    - Familiarize yourself with the test framework in `tests/`
 
-## 📋 Current Development Phase
-
-**Phase 1: Foundation** *(Current Focus)*
-
-- ✅ Project structure and module system
-- ✅ Comprehensive lexer with Python 3.12 tokenization
-- ✅ AST system foundation
-- 🔄 Core parser implementation
-- ⏳ Object system foundation
-
-See [internalDocs/REWRITE_PLAN.md](./internalDocs/REWRITE_PLAN.md) for detailed phase information.
-
 ## 🤝 How to Contribute
 
 ### 1. Choose Your Contribution Type
 
-#### 🐛 Bug Reports
+#### Bug Reports
 
 - Check existing issues first
 - Use the bug report template
 - Include minimal reproduction steps
 - Specify which version/branch you're using
 
-#### 💡 Feature Requests
+#### Feature Requests
 
 - Review the rewrite plan to ensure alignment with project goals
 - Use the feature request template
 - Consider Python 3.12 compliance requirements
 - Discuss major features in issues before implementation
 
-#### 📝 Documentation
+#### Documentation
 
 - Improve existing documentation
 - Add code examples
 - Fix typos and clarifications
 - Update documentation when implementing features
 
-#### 🔧 Code Contributions
+#### Code Contributions
 
 - Follow the current development phase priorities
 - Implement features according to the architecture plan
@@ -121,7 +109,7 @@ See [internalDocs/REWRITE_PLAN.md](./internalDocs/REWRITE_PLAN.md) for detailed 
    # Build the project
    jelly run build
 
-   # Run tests (when test framework is implemented)
+   # Run tests
    jelly run test
 
    # Run development checks
@@ -135,47 +123,6 @@ See [internalDocs/REWRITE_PLAN.md](./internalDocs/REWRITE_PLAN.md) for detailed 
    - Link to related issues
    - Provide clear description of changes
    - Include test results
-
-## Coding Standards
-
-### Luau Style Guidelines
-
-```luau
--- Module header with clear purpose
-local ModuleName = {}
-
--- Import dependencies at the top
-local Types = require('src.PyLua.types')
-local Utils = require('src.PyLua.utils')
-
--- Export types for other modules
-export type ModuleType = {
-    field: string,
-    method: (self: ModuleType, param: number) -> boolean
-}
-
--- Private functions with local scope
-local function privateHelper(param: string): number
-    -- Implementation with proper error handling
-    if not param then
-        error("Parameter required")
-    end
-    return #param
-end
-
--- Public API functions with type annotations
-function ModuleName.publicFunction(input: string): (boolean, string?)
-    local result = privateHelper(input)
-    if result > 0 then
-        return true, nil
-    else
-        return false, "Invalid input"
-    end
-end
-
--- Return module table
-return ModuleName
-```
 
 ### Python 3.12 Compliance
 
@@ -229,7 +176,7 @@ local function testBasicTokenization()
 end
 ```
 
-## 🔍 Code Review Process
+## Code Review Process
 
 ### For Contributors
 
@@ -247,7 +194,7 @@ end
 - **Documentation**: Is it properly documented?
 - **Performance**: Is it reasonably efficient?
 
-## 🚨 Important Guidelines
+## Important Guidelines
 
 ### What to Focus On
 
@@ -265,7 +212,7 @@ end
 - **Don't submit untested code** - tests are mandatory
 - **Don't make breaking changes** without discussion
 
-## 🏷️ Issue Labels
+## Issue Labels
 
 - `phase-1-foundation` - Core infrastructure work
 - `phase-2-parser` - Parser implementation
@@ -277,7 +224,7 @@ end
 - `help-wanted` - Community assistance needed
 - `python-compliance` - Python behavior accuracy issues
 
-## 💬 Communication
+## Communication
 
 ### Where to Ask Questions
 
@@ -292,7 +239,7 @@ end
 - Ask specific, well-researched questions
 - Provide context and examples when asking for help
 
-## 🎉 Recognition
+## Recognition
 
 Contributors will be recognized in:
 
@@ -300,7 +247,7 @@ Contributors will be recognized in:
 - Release notes for significant contributions
 - Project documentation for major features
 
-## 📜 Code of Conduct
+## Code of Conduct
 
 Be respectful, constructive, and inclusive. We're building something great together!
 
@@ -309,7 +256,7 @@ Be respectful, constructive, and inclusive. We're building something great toget
 - **Ask questions** when something is unclear
 - **Help others** when you can
 
-## 🔗 Useful Resources
+## Useful Resources
 
 ### Python & Language Implementation
 
@@ -323,10 +270,7 @@ Be respectful, constructive, and inclusive. We're building something great toget
 
 ### Development Tools
 
-- [Jelly](https://github.com/OMouta/Jelly) - Project management and build tool
-- [Rokit](https://github.com/rojo-rbx/rokit) - Toolchain manager for Roblox projects
-- [Rojo](https://rojo.space/) - Project management tool for Roblox
+- [Jelly](https://github.com/OMouta/Jelly) - Project management
+- [Rokit](https://github.com/rojo-rbx/rokit) - Toolchain manager
 
----
-
-Thank you for contributing to PyLua! Your efforts help make Python accessible within the Roblox ecosystem. 🐍✨
+Thank you for contributing to PyLua! We look forward to your contributions and collaboration in building a great Python interpreter for Luau.

@@ -369,7 +369,9 @@ local function executeInstruction(
 	elseif opcode == "POP_JUMP_IF_TRUE" then
 		assert(arg ~= nil, "POP_JUMP_IF_TRUE requires argument")
 		local value = Frame.pop(frame)
-		local isTrue = if type(value) == "table" and value.__type ~= nil then Base.truthy(value) else (value and true or false)
+		local isTrue = if type(value) == "table" and value.__type ~= nil
+			then Base.truthy(value)
+			else (value and true or false)
 		if isTrue then
 			Frame.jump(frame, arg)
 			frame.skip_advance = true
@@ -377,7 +379,9 @@ local function executeInstruction(
 	elseif opcode == "POP_JUMP_IF_FALSE" then
 		assert(arg ~= nil, "POP_JUMP_IF_FALSE requires argument")
 		local value = Frame.pop(frame)
-		local isTrue = if type(value) == "table" and value.__type ~= nil then Base.truthy(value) else (value and true or false)
+		local isTrue = if type(value) == "table" and value.__type ~= nil
+			then Base.truthy(value)
+			else (value and true or false)
 		if not isTrue then
 			Frame.jump(frame, arg)
 			frame.skip_advance = true
@@ -385,7 +389,9 @@ local function executeInstruction(
 	elseif opcode == "JUMP_IF_TRUE_OR_POP" then
 		assert(arg ~= nil, "JUMP_IF_TRUE_OR_POP requires argument")
 		local value = Frame.peek(frame)
-		local isTrue = if type(value) == "table" and value.__type ~= nil then Base.truthy(value) else (value and true or false)
+		local isTrue = if type(value) == "table" and value.__type ~= nil
+			then Base.truthy(value)
+			else (value and true or false)
 		if isTrue then
 			Frame.jump(frame, arg)
 			frame.skip_advance = true
@@ -395,7 +401,9 @@ local function executeInstruction(
 	elseif opcode == "JUMP_IF_FALSE_OR_POP" then
 		assert(arg ~= nil, "JUMP_IF_FALSE_OR_POP requires argument")
 		local value = Frame.peek(frame)
-		local isTrue = if type(value) == "table" and value.__type ~= nil then Base.truthy(value) else (value and true or false)
+		local isTrue = if type(value) == "table" and value.__type ~= nil
+			then Base.truthy(value)
+			else (value and true or false)
 		if not isTrue then
 			Frame.jump(frame, arg)
 			frame.skip_advance = true

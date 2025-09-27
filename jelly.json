@@ -21,7 +21,7 @@
   "devDependencies": {},
   "scripts": {
     "build": "rojo build default.project.json --output build/PyLua.rbxm",
-    "test": "lune run tests/run_tests.luau",
+    "test": "lute tests/run_tests.luau",
     "lint": "stylua --check src",
     "format": "stylua src"
   },
