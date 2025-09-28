@@ -1,7 +1,3 @@
---!strict
--- Error and diagnostic helpers for parser
--- (Initial lightweight version; richer recovery TBD)
-
 local errors = {}
 
 export type Location = { line: number, column: number }

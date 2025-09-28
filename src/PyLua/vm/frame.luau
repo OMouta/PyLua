@@ -1,7 +1,3 @@
---!strict
--- PyLua Execution Frames
--- Phase 4 - Function call contexts
-
 local Frame = {}
 
 local Stack = require("./stack")

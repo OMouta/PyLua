@@ -1,7 +1,3 @@
---!strict
--- Central operator precedence and mapping tables for PyLua parser
--- Extracted from monolithic parser for modularization (2.5)
-
 local precedence = {}
 
 -- Precedence levels (lower number = lower precedence)
@@ -30,6 +26,7 @@ precedence.LEVELS = {
 	SLASH = 10,
 	DOUBLESLASH = 10,
 	PERCENT = 10,
+	AT = 10,
 	UNARY = 11, -- unary + - ~ handled specially
 	DOUBLESTAR = 12, -- exponentiation (right associative)
 }

@@ -1,7 +1,3 @@
---!strict
--- PyLua Virtual Machine Interpreter
--- Phase 4 - Main execution loop
-
 local Interpreter = {}
 
 local Frame = require("./frame")
@@ -382,6 +378,18 @@ local function executeInstruction(
 		local aVal = (type(a) == "table" and a.__value ~= nil) and a.__value or a
 		local bVal = (type(b) == "table" and b.__value ~= nil) and b.__value or b
 		Frame.push(frame, Base.ensurePyObject(aVal ^ bVal))
+	elseif opcode == "BINARY_FLOOR_DIVIDE" then
+		local b = Frame.pop(frame)
+		local a = Frame.pop(frame)
+		local left = if type(a) == "table" and (a :: any).__type ~= nil then a else Base.ensurePyObject(a)
+		local right = if type(b) == "table" and (b :: any).__type ~= nil then b else Base.ensurePyObject(b)
+		Frame.push(frame, Base.operate("floordiv", left :: any, right :: any))
+	elseif opcode == "BINARY_MATRIX_MULTIPLY" then
+		local b = Frame.pop(frame)
+		local a = Frame.pop(frame)
+		local left = if type(a) == "table" and (a :: any).__type ~= nil then a else Base.ensurePyObject(a)
+		local right = if type(b) == "table" and (b :: any).__type ~= nil then b else Base.ensurePyObject(b)
+		Frame.push(frame, Base.operate("matmul", left :: any, right :: any))
 
 	-- Unary operations
 	elseif opcode == "UNARY_POSITIVE" then

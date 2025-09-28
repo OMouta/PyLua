@@ -1,6 +1,3 @@
--- NOTE: This is an initial skeleton of the PyObject system. It will be
--- extended in later Phase 3 sub‑tasks (protocols, numeric tower, etc.).
-
 local Base = {}
 
 -- Forward declare types to allow mutual references
@@ -31,9 +28,7 @@ export type PyBoundMethod = PyObject & {
 -- Internal registry of types
 local typeRegistry: { [string]: PyType } = {}
 
----------------------------------------------------------------------
 -- Utility helpers
----------------------------------------------------------------------
 
 local function isPyObject(v: any): boolean
 	return type(v) == "table" and v.__type ~= nil and v.__typeobj ~= nil
@@ -69,9 +64,7 @@ function Base.toLuau(obj: PyObject): any
 	return obj.__value
 end
 
----------------------------------------------------------------------
 -- Type registration / lookup
----------------------------------------------------------------------
 
 function Base.registerType(name: string, spec: { methods: { [string]: any }? }?): PyType
 	if typeRegistry[name] then
@@ -95,9 +88,7 @@ function Base.getTypeObject(name: string): PyType
 	return t
 end
 
----------------------------------------------------------------------
 -- Object creation
----------------------------------------------------------------------
 
 function Base.newPyObject(typeName: string, value: any): PyObject
 	local t = typeRegistry[typeName]
@@ -150,9 +141,7 @@ function Base.newBytes(val: any): PyObject
 	end
 end
 
----------------------------------------------------------------------
 -- Attribute access / method resolution
----------------------------------------------------------------------
 
 -- Core getattr semantics (simplified subset of Python):
 -- 1. Instance dict
@@ -228,9 +217,7 @@ function Base.call(callable: PyObject, args: { PyObject }?): PyObject
 	error("TypeError: object of type '" .. callable.__type .. "' is not callable", 2)
 end
 
----------------------------------------------------------------------
 -- Operator / protocol helpers (initial subset)
----------------------------------------------------------------------
 
 local opNameMap: { [string]: string } = {
 	add = "__add__",
@@ -242,6 +229,7 @@ local opNameMap: { [string]: string } = {
 	pow = "__pow__",
 	neg = "__neg__",
 	pos = "__pos__",
+	matmul = "__matmul__",
 }
 
 function Base.operate(op: string, left: PyObject, right: PyObject): PyObject
@@ -309,9 +297,7 @@ function Base.truthy(obj: PyObject): boolean
 	return true
 end
 
----------------------------------------------------------------------
 -- Primitive / bootstrap types
----------------------------------------------------------------------
 
 local function bootstrap()
 	local objectType = Base.registerType("object", {})
@@ -329,9 +315,7 @@ end
 
 bootstrap()
 
----------------------------------------------------------------------
 -- Introspection helpers
----------------------------------------------------------------------
 
 function Base.getType(obj: PyObject): string
 	return obj.__type

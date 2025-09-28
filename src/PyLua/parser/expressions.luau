@@ -1,6 +1,3 @@
---!strict
--- Expression parsing module (literals, unary, binary, comparisons, collections)
-
 local tokens = require("../tokens")
 local nodes = require("../ast/nodes")
 local precedence = require("./precedence")
@@ -447,10 +444,6 @@ local function parsePrimary(state: any): Expr
 		state:raise("Unexpected end of input in expression")
 	end
 	local current: Token = currentOpt :: Token
-	-- Explicitly disallow matrix multiply '@' until opcode is implemented
-	if current.type == "AT" then
-		state:raise("Matrix multiply '@' is not supported yet")
-	end
 	-- Numbers
 	if current.type == "NUMBER" then
 		state:advance()

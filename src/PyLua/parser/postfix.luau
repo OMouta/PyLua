@@ -1,6 +1,3 @@
---!strict
--- Postfix parsing: attribute access, subscripts, calls & argument lists
-
 local tokens = require("../tokens")
 local nodes = require("../ast/nodes")
 

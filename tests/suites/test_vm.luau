@@ -7,6 +7,8 @@ local Interpreter = require("../../src/PyLua/vm/interpreter")
 local Frame = require("../../src/PyLua/vm/frame")
 local Stack = require("../../src/PyLua/vm/stack")
 local Instructions = require("../../src/PyLua/bytecode/instructions")
+local Collections = require("../../src/PyLua/objects/collections")
+local Base = require("../../src/PyLua/objects/base")
 
 -- VM Test Suite
 local vmTests: TestFramework.TestSuite = {
@@ -130,6 +132,39 @@ local vmTests: TestFramework.TestSuite = {
 					Instructions.make("RETURN_VALUE"),
 				}
 				TestFramework.assertEqual(Interpreter.execute(mulCode), 50, "10 * 5 = 50")
+
+				local floorCode = {
+					Instructions.make("LOAD_CONST", 7),
+					Instructions.make("LOAD_CONST", 2),
+					Instructions.make("BINARY_FLOOR_DIVIDE"),
+					Instructions.make("RETURN_VALUE"),
+				}
+				TestFramework.assertEqual(Interpreter.execute(floorCode), 3, "7 // 2 = 3")
+			end,
+		},
+
+		{
+			name = "Matrix multiplication opcode",
+			test = function()
+				local left = Collections.newList({
+					Collections.newList({ Base.newInt(1), Base.newInt(2) }),
+					Collections.newList({ Base.newInt(3), Base.newInt(4) }),
+				})
+				local right = Collections.newList({
+					Collections.newList({ Base.newInt(5), Base.newInt(6) }),
+					Collections.newList({ Base.newInt(7), Base.newInt(8) }),
+				})
+				local globals = { left = left, right = right }
+				local names = { "left", "right" }
+				local code = {
+					Instructions.make("LOAD_NAME", 0),
+					Instructions.make("LOAD_NAME", 1),
+					Instructions.make("BINARY_MATRIX_MULTIPLY"),
+					Instructions.make("RETURN_VALUE"),
+				}
+				local result = Interpreter.execute(code, globals, {}, nil, names)
+				TestFramework.assertType(result, "table", "Result should be PyObject list")
+				TestFramework.assertEqual(result.__value[1].__value[1].__value, 19, "Matrix entry [0][0] should equal 19")
 			end,
 		},
 

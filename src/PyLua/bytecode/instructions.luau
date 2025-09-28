@@ -1,7 +1,3 @@
---!strict
--- PyLua Bytecode Instructions
--- Phase 4 - Instruction definitions and utilities
-
 local Instructions = {}
 
 local opcodes = require("./opcodes")

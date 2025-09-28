@@ -1,7 +1,3 @@
---!strict
--- PyLua Value Stack Management
--- Phase 4 - Stack operations for bytecode execution
-
 local Stack = {}
 
 -- Value stack for VM operations

@@ -22,4 +22,15 @@ print("len(nums) =", len(nums))
 print("min(nums) =", min(nums))
 print("max(nums) =", max(nums))
 print("sum(nums) =", sum(nums))
+
+# Methods
+nums.append(4)
+print("after append:", nums)
+print("popped:", nums.pop())
+print("after pop:", nums)
+print("contains 2?", 2 in nums)
+
+# List comprehensions
+squares = [x * x for x in nums]
+print("squares:", squares)
 ]])

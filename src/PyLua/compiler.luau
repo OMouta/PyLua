@@ -1,7 +1,3 @@
---!strict
--- PyLua Compiler - AST to Bytecode compilation
--- Phase 4 - Will implement AST to bytecode transformation
-
 local Compiler = {}
 
 local instructions = require("./bytecode/instructions")
@@ -331,7 +327,8 @@ local BINOP_TO_OPCODE: { [nodes.BinOpType]: Opcode } = {
 	BitOr = "BINARY_OR",
 	BitXor = "BINARY_XOR",
 	BitAnd = "BINARY_AND",
-	-- MatMult, FloorDiv not yet mapped
+	FloorDiv = "BINARY_FLOOR_DIVIDE",
+	MatMult = "BINARY_MATRIX_MULTIPLY",
 }
 
 local function compileLoadTarget(st: CompilerState, target: any)

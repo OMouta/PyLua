@@ -1,7 +1,3 @@
---!strict
--- PyLua Function Objects
--- Phase 3 - Python function implementations
-
 local Functions = {}
 
 local Base = require("./base")
@@ -10,7 +6,7 @@ local Instructions = require("../bytecode/instructions")
 type PyObject = Base.PyObject
 type Instruction = Instructions.Instruction
 
--- Python function code object (similar to CPython's code object)
+-- Function code object (similar to CPython's code object)
 export type PyCode = {
 	name: string, -- Function name
 	argcount: number, -- Number of positional arguments

@@ -1,7 +1,3 @@
---!strict
--- PyLua Built-in Types
--- Phase 3 - Python built-in type implementations
-
 local Builtins = {}
 
 local base = require("./base")
@@ -9,7 +5,7 @@ type PyObject = base.PyObject
 
 -- Forward references to type registration already performed in base bootstrap
 
--- None -----------------------------------------------------------------
+-- None
 export type PyNone = PyObject & { __type: "NoneType", __value: nil }
 local NONE_SINGLETON: PyNone = base.newPyObject("NoneType", nil) :: PyNone
 
@@ -17,7 +13,7 @@ function Builtins.None(): PyNone
 	return NONE_SINGLETON
 end
 
--- Booleans --------------------------------------------------------------
+-- Booleans
 export type PyBool = PyObject & { __type: "bool", __value: boolean }
 
 function Builtins.True(): PyBool
@@ -28,7 +24,7 @@ function Builtins.False(): PyBool
 	return base.newPyObject("bool", false) :: PyBool
 end
 
--- Numbers ---------------------------------------------------------------
+-- Numbers
 export type PyInt = PyObject & { __type: "int", __value: number }
 export type PyFloat = PyObject & { __type: "float", __value: number }
 
@@ -49,7 +45,7 @@ function Builtins.Str(s: string): PyStr
 	return base.newPyObject("str", s) :: PyStr
 end
 
--- Bytes ---------------------------------------------------------------
+-- Bytes
 export type PyBytes = PyObject & { __type: "bytes", __value: string }
 
 function Builtins.Bytes(val: any): PyBytes
@@ -140,7 +136,7 @@ bytesType.methods["__mul__"] = function(selfObj: PyObject, args: { PyObject }?)
 	return base.newPyObject("bytes", table.concat(pieces, ""))
 end
 
--- Type objects (very small placeholder) --------------------------------
+-- Type objects (very small placeholder)
 export type PyTypeObj = PyObject & { __type: "type", __value: { name: string } }
 
 local function _makeTypeObject(name: string): PyTypeObj
@@ -206,14 +202,32 @@ local function attachPrimitiveMethods()
 			return base.newFloat(selfObj.__value / other.__value)
 		end
 
+		local numFloorDiv = function(selfObj: PyObject, args: { PyObject }?)
+			local other = args and args[1] or base.ensurePyObject(1)
+			if other.__type ~= "int" and other.__type ~= "float" then
+				error("TypeError: unsupported operand type(s) for //", 2)
+			end
+			if other.__value == 0 then
+				error("ZeroDivisionError: integer division or modulo by zero", 2)
+			end
+			local quotient = selfObj.__value / other.__value
+			local floored = math.floor(quotient)
+			if selfObj.__type == "float" or other.__type == "float" then
+				return base.newFloat(floored)
+			end
+			return base.newInt(floored)
+		end
+
 		intType.methods["__add__"] = numAdd
 		intType.methods["__sub__"] = numSub
 		intType.methods["__mul__"] = numMul
 		intType.methods["__truediv__"] = numTrueDiv
+		intType.methods["__floordiv__"] = numFloorDiv
 		floatType.methods["__add__"] = numAdd
 		floatType.methods["__sub__"] = numSub
 		floatType.methods["__mul__"] = numMul
 		floatType.methods["__truediv__"] = numTrueDiv
+		floatType.methods["__floordiv__"] = numFloorDiv
 
 		-- String concatenation & repetition minimal subset
 		strType.methods["__add__"] = function(selfObj: PyObject, args: { PyObject }?)

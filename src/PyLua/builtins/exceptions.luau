@@ -1,7 +1,3 @@
---!strict
--- PyLua Exception Handling
--- Phase 5 - Python exception system
-
 local Exceptions = {}
 
 local base = require("../objects/base")

@@ -54,6 +54,25 @@ local suite: TestFramework.TestSuite = {
 			end,
 		},
 		{
+			name = "List matrix multiplication",
+			test = function()
+				local left = collections.list({
+					collections.list({ builtins.Int(1), builtins.Int(2) }),
+					collections.list({ builtins.Int(3), builtins.Int(4) }),
+				})
+				local right = collections.list({
+					collections.list({ builtins.Int(5), builtins.Int(6) }),
+					collections.list({ builtins.Int(7), builtins.Int(8) }),
+				})
+				local matmul = base.getattr(left, "__matmul__")
+				local result = base.call(matmul, { right })
+				TestFramework.assertEqual(result.__type, "list", "Result should be list")
+				TestFramework.assertEqual(#result.__value, 2, "Matrix should have two rows")
+				TestFramework.assertEqual(result.__value[1].__value[1].__value, 19, "[0][0] should equal 19")
+				TestFramework.assertEqual(result.__value[2].__value[2].__value, 50, "[1][1] should equal 50")
+			end,
+		},
+		{
 			name = "Dict item methods",
 			test = function()
 				local d = collections.dict(nil)
