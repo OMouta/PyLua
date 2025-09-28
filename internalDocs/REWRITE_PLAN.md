@@ -237,7 +237,7 @@ Completion Criteria: Original `parser.luau` shrinks to thin façade (<150 lines)
 
 #### 5.2 Advanced Language Features
 
-- [ ] **List comprehensions**: [x for x in iterable]
+- [x] **List comprehensions**: [x for x in iterable]
 - [ ] **Lambda functions**: Anonymous functions
 - [ ] **Generators**: yield expressions and iteration
 - [ ] **Exception handling**: Basic try/except (future)

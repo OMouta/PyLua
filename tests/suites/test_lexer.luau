@@ -2,8 +2,8 @@
 -- PyLua Lexer Tests
 -- Test the Python tokenization functionality
 
-local TestFramework = require("./framework")
-local Lexer = require("../src/PyLua/lexer")
+local TestFramework = require("../framework")
+local Lexer = require("../../src/PyLua/lexer")
 
 -- Test suite for PyLua Lexer
 local lexerTests: TestFramework.TestSuite = {
@@ -85,7 +85,11 @@ local lexerTests: TestFramework.TestSuite = {
 				local tokens = Lexer.tokenize('f"hello {name}"')
 				TestFramework.assertEqual(tokens[1].type, "STRING", "Should tokenize f-string as STRING")
 				TestFramework.assertEqual((tokens[1] :: any).stringPrefix, "f", "Prefix should include f")
-				TestFramework.assertEqual((tokens[1] :: any).stringContent, "hello {name}", "Content should keep braces")
+				TestFramework.assertEqual(
+					(tokens[1] :: any).stringContent,
+					"hello {name}",
+					"Content should keep braces"
+				)
 			end,
 		},
 

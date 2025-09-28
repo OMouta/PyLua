@@ -1,8 +1,8 @@
 --!strict
 -- PyLua Object System Tests - Phase 3.1 Base Object System
 
-local TestFramework = require("./framework")
-local base = require("../src/PyLua/objects/base")
+local TestFramework = require("../framework")
+local base = require("../../src/PyLua/objects/base")
 
 local tests: TestFramework.TestSuite = {
 	name = "PyLua Base Object System",

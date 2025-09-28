@@ -1,11 +1,11 @@
 --!strict
 -- Tests for Python function support
 
-local TestFramework = require("./framework")
-local Lexer = require("../src/PyLua/lexer")
-local Parser = require("../src/PyLua/parser")
-local Compiler = require("../src/PyLua/compiler")
-local Interpreter = require("../src/PyLua/vm/interpreter")
+local TestFramework = require("../framework")
+local Lexer = require("../../src/PyLua/lexer")
+local Parser = require("../../src/PyLua/parser")
+local Compiler = require("../../src/PyLua/compiler")
+local Interpreter = require("../../src/PyLua/vm/interpreter")
 
 -- Helper function to compile and execute Python code
 local function executeCode(code: string): { [string]: any }

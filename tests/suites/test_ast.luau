@@ -2,9 +2,9 @@
 -- PyLua AST System Tests
 -- Phase 1.3 - Test AST node creation and visitor pattern
 
-local TestFramework = require("./framework")
-local nodes = require("../src/PyLua/ast/nodes")
-local visitor = require("../src/PyLua/ast/visitor")
+local TestFramework = require("../framework")
+local nodes = require("../../src/PyLua/ast/nodes")
+local visitor = require("../../src/PyLua/ast/visitor")
 
 local astTests = {
 	name = "PyLua AST Tests",

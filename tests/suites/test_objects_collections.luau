@@ -1,10 +1,10 @@
 --!strict
 -- Tests for Phase 3.3 Collections
 
-local TestFramework = require("./framework")
-local base = require("../src/PyLua/objects/base")
-local builtins = require("../src/PyLua/objects/builtins")
-local collections = require("../src/PyLua/objects/collections")
+local TestFramework = require("../framework")
+local base = require("../../src/PyLua/objects/base")
+local builtins = require("../../src/PyLua/objects/builtins")
+local collections = require("../../src/PyLua/objects/collections")
 
 local suite: TestFramework.TestSuite = {
 	name = "PyLua Collections",
@@ -33,31 +33,31 @@ local suite: TestFramework.TestSuite = {
 				TestFramework.assertEqual(#combined.__value, 2, "Length now 2")
 			end,
 		},
- 		{
- 			name = "List getitem setitem contains",
- 			test = function()
- 				local lst = collections.list({ builtins.Int(1), builtins.Int(2), builtins.Int(3) })
- 				local getItem = base.getattr(lst, "__getitem__")
- 				local first = base.call(getItem, { builtins.Int(0) })
- 				TestFramework.assertEqual(first.__value, 1, "Index 0 should be first element")
- 				local neg = base.call(getItem, { builtins.Int(-1) })
- 				TestFramework.assertEqual(neg.__value, 3, "Negative index should wrap")
- 				local setItem = base.getattr(lst, "__setitem__")
- 				base.call(setItem, { builtins.Int(1), builtins.Int(42) })
- 				local updated = base.call(getItem, { builtins.Int(1) })
- 				TestFramework.assertEqual(updated.__value, 42, "Assignment should update value")
- 				local contains = base.getattr(lst, "__contains__")
- 				local hasVal = base.call(contains, { builtins.Int(42) })
- 				TestFramework.assertTrue(hasVal.__value, "List should report containment")
- 				local missing = base.call(contains, { builtins.Int(99) })
- 				TestFramework.assertFalse(missing.__value, "Missing value should be false")
- 			end,
- 		},
- 		{
- 			name = "Dict item methods",
- 			test = function()
- 				local d = collections.dict(nil)
- 				local setItem = base.getattr(d, "__setitem__")
+		{
+			name = "List getitem setitem contains",
+			test = function()
+				local lst = collections.list({ builtins.Int(1), builtins.Int(2), builtins.Int(3) })
+				local getItem = base.getattr(lst, "__getitem__")
+				local first = base.call(getItem, { builtins.Int(0) })
+				TestFramework.assertEqual(first.__value, 1, "Index 0 should be first element")
+				local neg = base.call(getItem, { builtins.Int(-1) })
+				TestFramework.assertEqual(neg.__value, 3, "Negative index should wrap")
+				local setItem = base.getattr(lst, "__setitem__")
+				base.call(setItem, { builtins.Int(1), builtins.Int(42) })
+				local updated = base.call(getItem, { builtins.Int(1) })
+				TestFramework.assertEqual(updated.__value, 42, "Assignment should update value")
+				local contains = base.getattr(lst, "__contains__")
+				local hasVal = base.call(contains, { builtins.Int(42) })
+				TestFramework.assertTrue(hasVal.__value, "List should report containment")
+				local missing = base.call(contains, { builtins.Int(99) })
+				TestFramework.assertFalse(missing.__value, "Missing value should be false")
+			end,
+		},
+		{
+			name = "Dict item methods",
+			test = function()
+				local d = collections.dict(nil)
+				local setItem = base.getattr(d, "__setitem__")
 				local setArgsA: { base.PyObject } = {} :: any
 				setArgsA[1] = builtins.Str("a")
 				setArgsA[2] = builtins.Int(10)
@@ -66,26 +66,26 @@ local suite: TestFramework.TestSuite = {
 				setArgsB[1] = builtins.Str("b")
 				setArgsB[2] = builtins.Int(20)
 				base.call(setItem, setArgsB)
- 				local getItem = base.getattr(d, "__getitem__")
+				local getItem = base.getattr(d, "__getitem__")
 				local getArgs: { base.PyObject } = {} :: any
 				getArgs[1] = builtins.Str("a")
 				local aVal = base.call(getItem, getArgs)
- 				TestFramework.assertEqual(aVal.__value, 10, "__getitem__ should fetch value")
- 				local contains = base.getattr(d, "__contains__")
+				TestFramework.assertEqual(aVal.__value, 10, "__getitem__ should fetch value")
+				local contains = base.getattr(d, "__contains__")
 				local containsArgs: { base.PyObject } = {} :: any
 				containsArgs[1] = builtins.Str("a")
 				local hasA = base.call(contains, containsArgs)
- 				TestFramework.assertTrue(hasA.__value, "dict should contain key 'a'")
- 				local keys = base.call(base.getattr(d, "keys"), {})
- 				TestFramework.assertEqual(keys.__type, "list", "keys() should return list")
- 				TestFramework.assertEqual(#keys.__value, 2, "keys() should include two entries")
- 				local values = base.call(base.getattr(d, "values"), {})
- 				TestFramework.assertEqual(values.__value[1].__type, "int", "values() elements should be PyObjects")
- 				local items = base.call(base.getattr(d, "items"), {})
- 				TestFramework.assertEqual(items.__type, "list", "items() should return list of tuples")
- 				TestFramework.assertEqual(items.__value[1].__type, "tuple", "items should contain tuples")
- 			end,
- 		},
+				TestFramework.assertTrue(hasA.__value, "dict should contain key 'a'")
+				local keys = base.call(base.getattr(d, "keys"), {})
+				TestFramework.assertEqual(keys.__type, "list", "keys() should return list")
+				TestFramework.assertEqual(#keys.__value, 2, "keys() should include two entries")
+				local values = base.call(base.getattr(d, "values"), {})
+				TestFramework.assertEqual(values.__value[1].__type, "int", "values() elements should be PyObjects")
+				local items = base.call(base.getattr(d, "items"), {})
+				TestFramework.assertEqual(items.__type, "list", "items() should return list of tuples")
+				TestFramework.assertEqual(items.__value[1].__type, "tuple", "items should contain tuples")
+			end,
+		},
 		{
 			name = "Tuple creation and length",
 			test = function()

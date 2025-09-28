@@ -2,13 +2,13 @@
 -- PyLua Parser Tests - Phase 2.1 Expression Parser
 -- Test the expression parsing functionality
 
-local TestFramework = require("./framework")
-local Lexer = require("../src/PyLua/lexer")
-local Parser = require("../src/PyLua/parser")
+local TestFramework = require("../framework")
+local Lexer = require("../../src/PyLua/lexer")
+local Parser = require("../../src/PyLua/parser")
 
 -- Test suite for PyLua Parser
 local parserTests: TestFramework.TestSuite = {
-	name = "PyLua Parser Tests - Expression Parser",
+	name = "PyLua Parser Tests",
 	tests = {
 		{
 			name = "Parse Number Literal",
@@ -369,6 +369,34 @@ local parserTests: TestFramework.TestSuite = {
 				TestFramework.assertEqual(expr.type, "List", "Should be List node")
 				TestFramework.assertEqual(#expr.elts, 3, "List should have 3 elements")
 				TestFramework.assertEqual(expr.elts[1].value, 1, "First element 1")
+			end,
+		},
+		{
+			name = "Parse List Comprehension",
+			test = function()
+				local tokens = Lexer.tokenize("[x for x in data]")
+				local ast = Parser.parse(tokens)
+				local expr = ast.body[1].value
+				TestFramework.assertEqual(expr.type, "ListComp", "Should be ListComp node")
+				TestFramework.assertEqual(expr.elt.type, "Name", "Element should be Name")
+				TestFramework.assertEqual(#expr.generators, 1, "Should have one generator")
+				local gen = expr.generators[1]
+				TestFramework.assertEqual(gen.target.type, "Name", "Target should be Name")
+				TestFramework.assertEqual(gen.target.ctx, "Store", "Target context should be Store")
+				TestFramework.assertEqual(gen.iter.type, "Name", "Iter should be Name")
+				TestFramework.assertEqual(#gen.ifs, 0, "No filters")
+			end,
+		},
+		{
+			name = "Parse List Comprehension With Filter",
+			test = function()
+				local tokens = Lexer.tokenize("[x for x in data if x]")
+				local ast = Parser.parse(tokens)
+				local expr = ast.body[1].value
+				TestFramework.assertEqual(expr.type, "ListComp", "Should be ListComp node")
+				local gen = expr.generators[1]
+				TestFramework.assertEqual(#gen.ifs, 1, "Should have one filter")
+				TestFramework.assertEqual(gen.ifs[1].type, "Name", "Filter should be Name expression")
 			end,
 		},
 		{

@@ -1,9 +1,12 @@
-local TestFramework = require("./framework")
-local Lexer = require("../src/PyLua/lexer")
-local Parser = require("../src/PyLua/parser")
-local Compiler = require("../src/PyLua/compiler")
-local Interpreter = require("../src/PyLua/vm/interpreter")
-local BuiltinFunctions = require("../src/PyLua/builtins/functions")
+--!strict
+-- PyLua Built-in Function Tests
+
+local TestFramework = require("../framework")
+local Lexer = require("../../src/PyLua/lexer")
+local Parser = require("../../src/PyLua/parser")
+local Compiler = require("../../src/PyLua/compiler")
+local Interpreter = require("../../src/PyLua/vm/interpreter")
+local BuiltinFunctions = require("../../src/PyLua/builtins/functions")
 
 local function executeCode(code: string, builtins: { [string]: any }?): { [string]: any }
 	local tokens = Lexer.tokenize(code)
@@ -99,7 +102,11 @@ bytes_b = bytes([65, 67])
 				TestFramework.assert(globals.bytes_a ~= nil, "bytes() should return PyObject")
 				TestFramework.assertEqual(globals.bytes_a.__type, "bytes", "bytes() should create bytes object")
 				TestFramework.assertEqual(globals.bytes_a.__value, "AB", "bytes(str) should use underlying string")
-				TestFramework.assertEqual(globals.bytes_b.__value, "AC", "bytes(list[int]) should build string from ints")
+				TestFramework.assertEqual(
+					globals.bytes_b.__value,
+					"AC",
+					"bytes(list[int]) should build string from ints"
+				)
 			end,
 		},
 		{
@@ -111,7 +118,11 @@ fmt_num = format(3.14159, ".2f")
 fmt_str = format("hi", "5s")
 ]])
 				TestFramework.assertEqual(globals.repr_val, "'hi'", "repr() should wrap string in quotes")
-				TestFramework.assertEqual(globals.ascii_val, "'hi'", "ascii() should fall back to repr for ASCII strings")
+				TestFramework.assertEqual(
+					globals.ascii_val,
+					"'hi'",
+					"ascii() should fall back to repr for ASCII strings"
+				)
 				TestFramework.assertEqual(globals.fmt_num, "3.14", "format() should respect numeric spec")
 				TestFramework.assertEqual(globals.fmt_str, "   hi", "format() should honor width for strings")
 			end,
@@ -127,8 +138,16 @@ set_text = str({1, 2})
 ]])
 				TestFramework.assertEqual(globals.type_text, "<class 'int'>", "str(type(x)) should show class name")
 				TestFramework.assertEqual(globals.list_text, "[1, 'hi']", "str(list) should show repr of elements")
-				TestFramework.assertEqual(globals.tuple_text, "(1,)", "Single-element tuple should include trailing comma")
-				TestFramework.assertEqual(globals.dict_text, "{'a': 1, 'b': 2}", "dict repr should include key-value pairs")
+				TestFramework.assertEqual(
+					globals.tuple_text,
+					"(1,)",
+					"Single-element tuple should include trailing comma"
+				)
+				TestFramework.assertEqual(
+					globals.dict_text,
+					"{'a': 1, 'b': 2}",
+					"dict repr should include key-value pairs"
+				)
 				TestFramework.assertEqual(globals.set_text, "{1, 2}", "set repr should list elements")
 			end,
 		},
@@ -140,7 +159,8 @@ set_text = str({1, 2})
 					table.insert(captured, text)
 				end)
 				local builtins = BuiltinFunctions.createBuiltins()
-				executeCode([[print("type:", type(123))
+				executeCode(
+					[[print("type:", type(123))
 nums = [1, 2, "hi"]
 print("nums:", nums)
 pair = (1, 2)
@@ -149,12 +169,18 @@ conf = {'a': 1, 'b': 2}
 print("conf:", conf)
 letters = {1, 2}
 print("letters:", letters)
-]], builtins)
+]],
+					builtins
+				)
 				BuiltinFunctions.setWriter(nil)
 				TestFramework.assertEqual(captured[1], "type: <class 'int'>", "print(type(x)) should show class repr")
 				TestFramework.assertEqual(captured[2], "nums: [1, 2, 'hi']", "print(list) should use list repr")
 				TestFramework.assertEqual(captured[3], "pair: (1, 2)", "print(tuple) should use tuple repr")
-				TestFramework.assertEqual(captured[4], "conf: {'a': 1, 'b': 2}", "print(dict) should include mapping repr")
+				TestFramework.assertEqual(
+					captured[4],
+					"conf: {'a': 1, 'b': 2}",
+					"print(dict) should include mapping repr"
+				)
 				TestFramework.assertEqual(captured[5], "letters: {1, 2}", "print(set) should show set repr")
 			end,
 		},
@@ -190,7 +216,11 @@ combined = b + b" world"
 				TestFramework.assertEqual(globals.first, 104, "First byte should be ASCII for 'h'")
 				TestFramework.assertEqual(globals.last, 111, "Negative indexing should yield last byte")
 				TestFramework.assertEqual(globals.combined.__type, "bytes", "Concatenation should stay bytes")
-				TestFramework.assertEqual(globals.combined.__value, "hello world", "Bytes concatenation should join values")
+				TestFramework.assertEqual(
+					globals.combined.__value,
+					"hello world",
+					"Bytes concatenation should join values"
+				)
 			end,
 		},
 		{

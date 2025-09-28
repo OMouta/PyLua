@@ -2,8 +2,8 @@
 -- PyLua API Tests
 -- Test the main PyLua API interface
 
-local TestFramework = require("./framework")
-local PyLua = require("../src/PyLua")
+local TestFramework = require("../framework")
+local PyLua = require("../../src/PyLua")
 
 -- Test suite for PyLua API
 local apiTests: TestFramework.TestSuite = {

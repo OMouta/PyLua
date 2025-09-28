@@ -1,11 +1,11 @@
 --!strict
 -- Tests for control flow statements (if, while, for, break, continue)
 
-local TestFramework = require("./framework")
-local Lexer = require("../src/PyLua/lexer")
-local Parser = require("../src/PyLua/parser")
-local Compiler = require("../src/PyLua/compiler")
-local Interpreter = require("../src/PyLua/vm/interpreter")
+local TestFramework = require("../framework")
+local Lexer = require("../../src/PyLua/lexer")
+local Parser = require("../../src/PyLua/parser")
+local Compiler = require("../../src/PyLua/compiler")
+local Interpreter = require("../../src/PyLua/vm/interpreter")
 
 -- Helper function to compile and execute Python code
 local function executeCode(code: string): { [string]: any }
@@ -36,7 +36,7 @@ else:
 		},
 
 		{
-			name = "If Statement - False Condition", 
+			name = "If Statement - False Condition",
 			test = function()
 				local globals = executeCode([[
 x = 2
@@ -140,7 +140,7 @@ else:
 				local tokens = Lexer.tokenize("if x > 3:\n\ty = 1\nelse:\n\ty = 2")
 				local ast = Parser.parse(tokens)
 				local bytecode = Compiler.compile(ast)
-				
+
 				-- Check that bytecode contains control flow instructions
 				local hasJump = false
 				for _, instruction in ipairs(bytecode.bytecode) do
@@ -154,12 +154,12 @@ else:
 		},
 
 		{
-			name = "Compiler - While Loop Bytecode", 
+			name = "Compiler - While Loop Bytecode",
 			test = function()
 				local tokens = Lexer.tokenize("while x < 5:\n\tx = x + 1")
 				local ast = Parser.parse(tokens)
 				local bytecode = Compiler.compile(ast)
-				
+
 				-- Check that bytecode contains loop control instructions
 				local hasLoop = false
 				for _, instruction in ipairs(bytecode.bytecode) do
@@ -178,7 +178,7 @@ else:
 				local tokens = Lexer.tokenize("for i in [1, 2, 3]:\n    x = i")
 				local ast = Parser.parse(tokens)
 				local bytecode = Compiler.compile(ast)
-				
+
 				-- Check that bytecode contains iteration instructions
 				local hasGetIter = false
 				local hasForIter = false

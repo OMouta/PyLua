@@ -2,11 +2,11 @@
 -- PyLua Virtual Machine Tests
 -- Tests for Phase 4 - VM execution
 
-local TestFramework = require("./framework")
-local Interpreter = require("../src/PyLua/vm/interpreter")
-local Frame = require("../src/PyLua/vm/frame")
-local Stack = require("../src/PyLua/vm/stack")
-local Instructions = require("../src/PyLua/bytecode/instructions")
+local TestFramework = require("../framework")
+local Interpreter = require("../../src/PyLua/vm/interpreter")
+local Frame = require("../../src/PyLua/vm/frame")
+local Stack = require("../../src/PyLua/vm/stack")
+local Instructions = require("../../src/PyLua/bytecode/instructions")
 
 -- VM Test Suite
 local vmTests: TestFramework.TestSuite = {
@@ -16,7 +16,7 @@ local vmTests: TestFramework.TestSuite = {
 			name = "Stack Operations",
 			test = function()
 				local stack = Stack.new()
-				
+
 				-- Test basic push/pop
 				Stack.push(stack, 42)
 				Stack.push(stack, "hello")
@@ -24,19 +24,19 @@ local vmTests: TestFramework.TestSuite = {
 				TestFramework.assertEqual(Stack.pop(stack), "hello", "Should pop 'hello'")
 				TestFramework.assertEqual(Stack.pop(stack), 42, "Should pop 42")
 				TestFramework.assertTrue(Stack.isEmpty(stack), "Stack should be empty")
-				
+
 				-- Test peek
 				Stack.push(stack, 100)
 				TestFramework.assertEqual(Stack.peek(stack), 100, "Should peek 100")
 				TestFramework.assertEqual(Stack.size(stack), 1, "Stack should still have 1 item")
-				
+
 				-- Test rotation operations
 				Stack.push(stack, 200)
 				Stack.push(stack, 300)
 				Stack.rotTwo(stack)
 				TestFramework.assertEqual(Stack.pop(stack), 200, "After ROT_TWO, should pop 200")
 				TestFramework.assertEqual(Stack.pop(stack), 300, "After ROT_TWO, should pop 300")
-				
+
 				-- Test popN
 				Stack.push(stack, 1)
 				Stack.push(stack, 2)
@@ -56,28 +56,28 @@ local vmTests: TestFramework.TestSuite = {
 					Instructions.make("LOAD_CONST", 42),
 					Instructions.make("RETURN_VALUE"),
 				}
-				
+
 				local frame = Frame.new(code, {}, {})
-				
+
 				-- Test basic frame properties
 				TestFramework.assertEqual(frame.pc, 1, "Frame should start at PC=1")
 				TestFramework.assertTrue(Frame.hasNext(frame), "Frame should have next instruction")
-				
+
 				-- Test instruction retrieval
 				local inst = Frame.getCurrentInstruction(frame)
 				TestFramework.assert(inst ~= nil, "Should get current instruction")
 				if inst then
 					TestFramework.assertEqual(inst.opcode, "LOAD_CONST", "Should get LOAD_CONST")
 				end
-				
+
 				-- Test advancement
 				Frame.advance(frame)
 				TestFramework.assertEqual(frame.pc, 2, "PC should advance to 2")
-				
+
 				-- Test variable operations
 				Frame.setVariable(frame, "test", 123)
 				TestFramework.assertEqual(Frame.getVariable(frame, "test"), 123, "Should store and retrieve variable")
-				
+
 				-- Test stack operations through frame
 				Frame.push(frame, "test_value")
 				TestFramework.assertEqual(Frame.stackSize(frame), 1, "Frame stack should have 1 item")
@@ -95,7 +95,7 @@ local vmTests: TestFramework.TestSuite = {
 					Instructions.make("BINARY_ADD"),
 					Instructions.make("RETURN_VALUE"),
 				}
-				
+
 				local result = Interpreter.execute(code)
 				TestFramework.assertEqual(result, 8, "5 + 3 should equal 8")
 			end,
@@ -112,7 +112,7 @@ local vmTests: TestFramework.TestSuite = {
 					Instructions.make("RETURN_VALUE"),
 				}
 				TestFramework.assertEqual(Interpreter.execute(addCode), 15, "10 + 5 = 15")
-				
+
 				-- Test subtraction
 				local subCode = {
 					Instructions.make("LOAD_CONST", 10),
@@ -121,7 +121,7 @@ local vmTests: TestFramework.TestSuite = {
 					Instructions.make("RETURN_VALUE"),
 				}
 				TestFramework.assertEqual(Interpreter.execute(subCode), 5, "10 - 5 = 5")
-				
+
 				-- Test multiplication
 				local mulCode = {
 					Instructions.make("LOAD_CONST", 10),
@@ -144,7 +144,7 @@ local vmTests: TestFramework.TestSuite = {
 					Instructions.make("RETURN_VALUE"),
 				}
 				TestFramework.assertEqual(Interpreter.execute(ltCode), true, "5 < 10 should be true")
-				
+
 				-- Test equality (op code 2)
 				local eqCode = {
 					Instructions.make("LOAD_CONST", 5),
@@ -167,16 +167,20 @@ local vmTests: TestFramework.TestSuite = {
 					Instructions.make("BUILD_LIST", 3),
 					Instructions.make("RETURN_VALUE"),
 				}
-				
+
 				local listResult = Interpreter.execute(listCode)
 				TestFramework.assertType(listResult, "table", "Should build a list")
 				TestFramework.assertEqual(listResult.__type, "list", "Should be a PyObject list")
 				TestFramework.assertEqual(#listResult.__value, 3, "List should have 3 elements")
 				-- Check that elements are proper PyObjects
-				TestFramework.assertEqual(listResult.__value[1].__value, 1, "First element should be 1 (bottom of stack)")
+				TestFramework.assertEqual(
+					listResult.__value[1].__value,
+					1,
+					"First element should be 1 (bottom of stack)"
+				)
 				TestFramework.assertEqual(listResult.__value[2].__value, 2, "Second element should be 2")
 				TestFramework.assertEqual(listResult.__value[3].__value, 3, "Third element should be 3 (top of stack)")
-				
+
 				-- Test BUILD_MAP with constants
 				local mapConstants: { any } = { "key1", "value1", "key2", "value2" }
 				local mapCode = {
@@ -187,7 +191,7 @@ local vmTests: TestFramework.TestSuite = {
 					Instructions.make("BUILD_MAP", 2),
 					Instructions.make("RETURN_VALUE"),
 				}
-				
+
 				local mapResult = Interpreter.execute(mapCode, {}, {}, mapConstants)
 				TestFramework.assertType(mapResult, "table", "Should build a map")
 				TestFramework.assertEqual(mapResult.__type, "dict", "Should be a PyObject dict")
@@ -222,7 +226,7 @@ local vmTests: TestFramework.TestSuite = {
 					Instructions.make("LOAD_CONST", 2), -- 99 - This should be skipped
 					Instructions.make("RETURN_VALUE"),
 				}
-				
+
 				local jumpResult = Interpreter.execute(jumpCode, {}, {}, constants)
 				TestFramework.assertEqual(jumpResult, 42, "Should execute conditional path correctly")
 			end,
@@ -238,7 +242,7 @@ local vmTests: TestFramework.TestSuite = {
 					Instructions.make("RETURN_VALUE"),
 				}
 				TestFramework.assertEqual(Interpreter.execute(negCode), -42, "Unary negative should work")
-				
+
 				-- Test unary positive (identity)
 				local posCode = {
 					Instructions.make("LOAD_CONST", 42),

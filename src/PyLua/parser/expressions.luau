@@ -508,24 +508,105 @@ local function parsePrimary(state: any): Expr
 	-- List
 	if current.type == "LSQB" then
 		state:advance()
-		local elts: { Expr } = {}
-		while state.current and state.current.type ~= "RSQB" do
+		if state.current and state.current.type == "RSQB" then
+			state:advance()
+			local emptyList: Expr =
+				{ type = "List", elts = {}, ctx = "Load", lineno = current.line, col_offset = current.column }
+			return postfix.parse(state, emptyList, expressions.parse)
+		end
+
+		local function parseListElement(): Expr
+			if not state.current then
+				state:raise("Expected expression in list literal")
+			end
 			if state.current.type == "STAR" then
 				state:advance()
 				local starredValue = expressions.parse(state)
-				table.insert(elts, {
+				return {
 					type = "Starred",
 					value = starredValue,
 					ctx = "Load",
 					lineno = starredValue.lineno,
 					col_offset = starredValue.col_offset,
-				})
-			else
-				local elt = expressions.parse(state)
-				table.insert(elts, elt)
+				}
 			end
-			if state.current and state.current.type == "COMMA" then
+			return expressions.parse(state)
+		end
+
+		local function setComprehensionTargetContext(expr: Expr)
+			local t = expr.type
+			if t == "Name" or t == "Attribute" or t == "Subscript" then
+				(expr :: any).ctx = "Store"
+			elseif t == "Tuple" or t == "List" then
+				(expr :: any).ctx = "Store"
+				for _, elt in ipairs((expr :: any).elts) do
+					setComprehensionTargetContext(elt)
+				end
+			elseif t == "Starred" then
+				(expr :: any).ctx = "Store"
+				setComprehensionTargetContext((expr :: any).value)
+			else
+				state:raise("Invalid comprehension target")
+			end
+		end
+
+		local function parseComprehensionGenerators(): { nodes.Comprehension }
+			local gens: { nodes.Comprehension } = {}
+			while state.current and state.current.type == "FOR" do
 				state:advance()
+				local target = expressions.parsePrimaryForTarget(state)
+				if not target then
+					state:raise("Invalid comprehension target")
+				end
+				setComprehensionTargetContext(target :: Expr)
+				state:consume("IN", "Expected 'in' in comprehension")
+				local iterExpr = expressions.parse(state)
+				local filters: { Expr } = {}
+				while state.current and state.current.type == "IF" do
+					state:advance()
+					local ifExpr = expressions.parse(state)
+					table.insert(filters, ifExpr)
+				end
+				table.insert(gens, {
+					target = target :: Expr,
+					iter = iterExpr,
+					ifs = filters,
+					is_async = false,
+				})
+			end
+			if #gens == 0 then
+				state:raise("Expected comprehension generator")
+			end
+			return gens
+		end
+
+		local firstElement = parseListElement()
+
+		if state.current and state.current.type == "FOR" then
+			if firstElement.type == "Starred" then
+				state:raise("Starred expression not allowed in list comprehension")
+			end
+			local generators = parseComprehensionGenerators()
+			state:consume("RSQB", "Expected ']' to close list comprehension")
+			local listComp: Expr = {
+				type = "ListComp",
+				elt = firstElement,
+				generators = generators,
+				lineno = current.line,
+				col_offset = current.column,
+			}
+			return postfix.parse(state, listComp, expressions.parse)
+		end
+
+		local elts: { Expr } = { firstElement }
+		while state.current and state.current.type ~= "RSQB" do
+			if state.current.type == "COMMA" then
+				state:advance()
+				if state.current and state.current.type == "RSQB" then
+					break
+				end
+				local nextElt = parseListElement()
+				table.insert(elts, nextElt)
 			else
 				break
 			end

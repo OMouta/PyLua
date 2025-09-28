@@ -237,6 +237,20 @@ export type Set = Expr & {
 	elts: { Expr }, -- Elements
 }
 
+-- List comprehension: [elt for target in iter if ...]
+export type Comprehension = {
+	target: Expr,
+	iter: Expr,
+	ifs: { Expr },
+	is_async: boolean,
+}
+
+export type ListComp = Expr & {
+	type: "ListComp",
+	elt: Expr,
+	generators: { Comprehension },
+}
+
 -- Starred expression: *value (in lists, tuples, calls)
 export type Starred = Expr & {
 	type: "Starred",
@@ -316,6 +330,7 @@ export type AnyExpr =
 	| Tuple
 	| Dict
 	| Set
+	| ListComp
 	| Starred
 	| DictUnpack
 

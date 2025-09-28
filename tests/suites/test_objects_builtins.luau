@@ -1,9 +1,9 @@
 --!strict
 -- Tests for Phase 3.2 Built-in Types (numbers, strings, booleans, None, type objects placeholder)
 
-local TestFramework = require("./framework")
-local base = require("../src/PyLua/objects/base")
-local builtins = require("../src/PyLua/objects/builtins")
+local TestFramework = require("../framework")
+local base = require("../../src/PyLua/objects/base")
+local builtins = require("../../src/PyLua/objects/builtins")
 
 local suite: TestFramework.TestSuite = {
 	name = "PyLua Built-in Types",
@@ -79,17 +79,17 @@ local suite: TestFramework.TestSuite = {
 				local b1 = builtins.Bytes("")
 				TestFramework.assertEqual(b1.__type, "bytes", "empty bytes failed")
 				TestFramework.assertEqual(b1.__value, "", "empty bytes value failed")
-				local b2 = builtins.Bytes({65, 66, 67})
+				local b2 = builtins.Bytes({ 65, 66, 67 })
 				TestFramework.assertEqual(b2.__value, "ABC", "bytes from table failed")
 				local b3 = builtins.Bytes("\255\001")
-				TestFramework.assertEqual(#(b3.__value), 2, "bytes from string failed")
+				TestFramework.assertEqual(#b3.__value, 2, "bytes from string failed")
 			end,
 		},
 
 		{
 			name = "builtins.bytes len and getitem",
 			test = function()
-				local b = builtins.Bytes({0, 1, 2, 255})
+				local b = builtins.Bytes({ 0, 1, 2, 255 })
 				local len = base.call(base.getattr(b, "__len__"), {})
 				TestFramework.assertEqual(len.__type, "int", "bytes __len__ type failed")
 				TestFramework.assertEqual(len.__value, 4, "bytes __len__ failed")
@@ -104,7 +104,7 @@ local suite: TestFramework.TestSuite = {
 		{
 			name = "builtins.bytes eq and repr",
 			test = function()
-				local b1 = builtins.Bytes({65, 66})
+				local b1 = builtins.Bytes({ 65, 66 })
 				local b2 = builtins.Bytes("AB")
 				local eq = base.call(base.getattr(b1, "__eq__"), { b2 })
 				TestFramework.assertEqual(eq.__type, "bool", "bytes __eq__ type failed")

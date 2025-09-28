@@ -32,6 +32,7 @@ type CompilerState = {
 	nameIndex: { [string]: number },
 	loopStack: { { startLabel: number, endLabel: number } }, -- For break/continue
 	labelCounter: number, -- For generating unique labels
+	tempNameCounter: number,
 }
 
 -- Forward declarations
@@ -49,7 +50,13 @@ local function newState(): CompilerState
 		nameIndex = {},
 		loopStack = {},
 		labelCounter = 0,
+		tempNameCounter = 0,
 	}
+end
+
+local function newTempName(st: CompilerState, prefix: string): string
+	st.tempNameCounter += 1
+	return prefix .. tostring(st.tempNameCounter)
 end
 
 local function serializeConst(v: any): string
@@ -101,6 +108,163 @@ end
 local function emit(st: CompilerState, op: Opcode, arg: number?, lineno: number?)
 	local inst = instructions.make(op, arg, lineno)
 	st.code.bytecode[#st.code.bytecode + 1] = inst
+end
+
+local function deepCopy(value: any): any
+	if type(value) ~= "table" then
+		return value
+	end
+	local result = {}
+	for k, v in pairs(value) do
+		result[k] = deepCopy(v)
+	end
+	return result
+end
+
+local function cloneExpr(expr: any): any
+	return deepCopy(expr)
+end
+
+local function setStoreContext(node: any)
+	local t = node.type
+	if t == "Name" or t == "Attribute" or t == "Subscript" then
+		node.ctx = "Store"
+	elseif t == "Tuple" or t == "List" then
+		node.ctx = "Store"
+		for _, elt in ipairs(node.elts) do
+			setStoreContext(elt)
+		end
+	elseif t == "Starred" then
+		node.ctx = "Store"
+		setStoreContext(node.value)
+	end
+end
+
+local function makeNameExpr(id: string, ctx: nodes.ExprContext, lineno: number, col: number)
+	return { type = "Name", id = id, ctx = ctx, lineno = lineno, col_offset = col }
+end
+
+local function buildListCompStatements(node: nodes.ListComp, resultName: string): { any }
+	local stmts: { any } = {}
+	local listInit = {
+		type = "Assign",
+		targets = {
+			{
+				type = "Name",
+				id = resultName,
+				ctx = "Store",
+				lineno = node.lineno,
+				col_offset = node.col_offset,
+			},
+		},
+		value = { type = "List", elts = {}, ctx = "Load", lineno = node.lineno, col_offset = node.col_offset },
+		lineno = node.lineno,
+		col_offset = node.col_offset,
+	}
+	stmts[#stmts + 1] = listInit
+
+	local function appendCall(): any
+		local valueExpr = cloneExpr(node.elt)
+		local attr = {
+			type = "Attribute",
+			value = makeNameExpr(resultName, "Load", node.lineno, node.col_offset),
+			attr = "append",
+			ctx = "Load",
+			lineno = node.lineno,
+			col_offset = node.col_offset,
+		}
+		return {
+			type = "Call",
+			func = attr,
+			args = { valueExpr },
+			keywords = {},
+			lineno = valueExpr.lineno or node.lineno,
+			col_offset = valueExpr.col_offset or node.col_offset,
+		}
+	end
+
+	local function wrapIfs(ifs: { any }, inner: { any }): { any }
+		local body = inner
+		for i = #ifs, 1, -1 do
+			local cond = cloneExpr(ifs[i])
+			body = {
+				{
+					type = "If",
+					test = cond,
+					body = body,
+					orelse = {},
+					lineno = cond.lineno or node.lineno,
+					col_offset = cond.col_offset or node.col_offset,
+				},
+			}
+		end
+		return body
+	end
+
+	local function buildGenerator(index: number): { any }
+		local gen = node.generators[index]
+		local targetClone = cloneExpr(gen.target)
+		setStoreContext(targetClone)
+		local iterClone = cloneExpr(gen.iter)
+		local innerBody: { any }
+		if index == #node.generators then
+			local callExpr = appendCall()
+			innerBody = {
+				{ type = "Expr", value = callExpr, lineno = callExpr.lineno, col_offset = callExpr.col_offset },
+			}
+		else
+			innerBody = buildGenerator(index + 1)
+		end
+		if gen.ifs and #gen.ifs > 0 then
+			innerBody = wrapIfs(gen.ifs, innerBody)
+		end
+		local forNode = {
+			type = "For",
+			target = targetClone,
+			iter = iterClone,
+			body = innerBody,
+			orelse = {},
+			lineno = targetClone.lineno or node.lineno,
+			col_offset = targetClone.col_offset or node.col_offset,
+		}
+		return { forNode }
+	end
+
+	local loopStmts = buildGenerator(1)
+	for _, stmt in ipairs(loopStmts) do
+		stmts[#stmts + 1] = stmt
+	end
+
+	stmts[#stmts + 1] = {
+		type = "Return",
+		value = makeNameExpr(resultName, "Load", node.lineno, node.col_offset),
+		lineno = node.lineno,
+		col_offset = node.col_offset,
+	}
+
+	return stmts
+end
+
+local function compileListCompExpr(st: CompilerState, node: nodes.ListComp)
+	local compState = newState()
+	compState.code.name = "<listcomp>"
+	compState.code.firstlineno = node.lineno
+	compState.code.argcount = 0
+	compState.code.kwonlyargcount = 0
+	compState.code.varnames = {}
+
+	local resultName = newTempName(compState, "__listcomp_result_")
+	local stmts = buildListCompStatements(node, resultName)
+	for _, stmt in ipairs(stmts) do
+		compileStmt(compState, stmt)
+	end
+
+	local codeIdx = addConst(st, compState.code)
+	local zeroIdx = addConst(st, 0)
+	emit(st, "LOAD_CONST", codeIdx, node.lineno)
+	emit(st, "LOAD_CONST", zeroIdx, node.lineno)
+	emit(st, "MAKE_FUNCTION", 0, node.lineno)
+	emit(st, "CALL_FUNCTION", 0, node.lineno)
 end
 
 -- Label and jump management
@@ -300,6 +464,8 @@ compileExpr = function(st: CompilerState, node: any)
 		-- Emit CALL_FUNCTION with argument count
 		local arg_count = #node.args
 		emit(st, "CALL_FUNCTION", arg_count, node.lineno)
+	elseif t == "ListComp" then
+		compileListCompExpr(st, node)
 	elseif t == "List" then
 		-- Compile list literal: [1, 2, 3]
 		-- Push all elements onto stack
@@ -584,7 +750,7 @@ end
 function Compiler.compile(ast: any): CodeObject
 	if ast.type == "Module" then
 		return compileModule(ast)
-	elseif ast.type == "Expr" or ast.type == "BinOp" or ast.type == "Constant" then
+	elseif ast.type == "Expr" or ast.type == "BinOp" or ast.type == "Constant" or ast.type == "ListComp" then
 		-- Wrap expression into fake module returning value
 		local fakeModule = {
 			type = "Module",

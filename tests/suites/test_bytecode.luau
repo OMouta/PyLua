@@ -1,11 +1,14 @@
 --!strict
 -- PyLua Bytecode / Compiler Tests (Phase 4.1 minimal subset)
 
-local TestFramework = require("./framework")
-local Lexer = require("../src/PyLua/lexer")
-local Parser = require("../src/PyLua/parser")
-local Compiler = require("../src/PyLua/compiler")
-local instr = require("../src/PyLua/bytecode/instructions")
+local TestFramework = require("../framework")
+local Lexer = require("../../src/PyLua/lexer")
+local Parser = require("../../src/PyLua/parser")
+local Compiler = require("../../src/PyLua/compiler")
+local instr = require("../../src/PyLua/bytecode/instructions")
+local Collections = require("../../src/PyLua/objects/collections")
+local Base = require("../../src/PyLua/objects/base")
+local Interpreter = require("../../src/PyLua/vm/interpreter")
 
 local function compileSource(src: string)
 	local tokens = Lexer.tokenize(src)
@@ -14,7 +17,7 @@ local function compileSource(src: string)
 end
 
 local bytecodeTests: TestFramework.TestSuite = {
-	name = "Bytecode Compiler Minimal Tests",
+	name = "Bytecode Compiler Tests",
 	tests = {
 		{
 			name = "Compile constant expression at module level",
@@ -53,7 +56,19 @@ local bytecodeTests: TestFramework.TestSuite = {
 			name = "Compile return inside function-like synthetic module wrapper",
 			test = function()
 				-- Simulate by directly compiling a Return node (not via parser for now)
-				local returnAst = { type = "Module", body = { { type = "Return", value = { type = "Constant", value = 5, lineno = 1, col_offset = 0 }, lineno = 1, col_offset = 0 } }, lineno = 1, col_offset = 0 }
+				local returnAst = {
+					type = "Module",
+					body = {
+						{
+							type = "Return",
+							value = { type = "Constant", value = 5, lineno = 1, col_offset = 0 },
+							lineno = 1,
+							col_offset = 0,
+						},
+					},
+					lineno = 1,
+					col_offset = 0,
+				}
 				local code = Compiler.compile(returnAst)
 				local last = code.bytecode[#code.bytecode]
 				TestFramework.assertEqual(last.opcode, "RETURN_VALUE", "Ends with RETURN_VALUE")
@@ -71,17 +86,31 @@ local bytecodeTests: TestFramework.TestSuite = {
 			name = "Compile and execute bytes literal",
 			test = function()
 				-- Compile expression so result is returned
-				local Lexer = require("../src/PyLua/lexer")
-				local Parser = require("../src/PyLua/parser")
 				local tokens = Lexer.tokenize("b'AB'")
 				local exprAst = Parser.parseExpression(tokens)
 				local code = Compiler.compile(exprAst)
 				-- Execute via interpreter to realize bytes object
-				local Interpreter = require("../src/PyLua/vm/interpreter")
 				local result = Interpreter.execute(code.bytecode, {}, {}, code.constants, code.names)
 				TestFramework.assertType(result, "table", "Result should be PyObject")
 				TestFramework.assertEqual(result.__type, "bytes", "Type should be bytes")
 				TestFramework.assertEqual(result.__value, "AB", "Bytes content should match")
+			end,
+		},
+		{
+			name = "Compile list comprehension and execute",
+			test = function()
+				local tokens = Lexer.tokenize("[x for x in data]")
+				local exprAst = Parser.parseExpression(tokens)
+				local code = Compiler.compile(exprAst)
+				local dataList = Collections.newList({ Base.newInt(1), Base.newInt(2), Base.newInt(3) })
+				local globals = { data = dataList }
+				local result = Interpreter.execute(code.bytecode, globals, {}, code.constants, code.names)
+				TestFramework.assertType(result, "table", "Result should be PyObject list")
+				TestFramework.assertEqual(result.__type, "list", "Result should be list")
+				TestFramework.assertEqual(#result.__value, 3, "List should have three elements")
+				TestFramework.assertEqual(result.__value[1].__value, 1, "First element should be 1")
+				TestFramework.assertEqual(result.__value[3].__value, 3, "Last element should be 3")
+				TestFramework.assertEqual(globals.x, nil, "Comprehension target should not leak to globals")
 			end,
 		},
 	},
