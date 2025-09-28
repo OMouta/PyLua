@@ -1,7 +1,3 @@
---!strict
--- PyLua Lexer - Python-compliant tokenization
--- Phase 1.2 - Comprehensive Python tokenization
-
 local Lexer = {}
 
 local tokens = require("./tokens")

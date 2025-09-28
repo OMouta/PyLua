@@ -1,7 +1,3 @@
---!strict
--- PyLua v0.3 - Python Interpreter for Luau
--- Main API module with Lupa-inspired interface (inverse: Python-in-Luau)
-
 local PyLua = {}
 
 -- Version information

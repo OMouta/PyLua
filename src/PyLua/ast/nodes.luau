@@ -1,10 +1,6 @@
---!strict
--- PyLua AST Node Definitions
--- Phase 1.3 - Complete Python AST node types following CPython's AST
-
 local Nodes = {}
 
--- Python operator types
+-- Operator types
 export type UnaryOpType = "Invert" | "Not" | "UAdd" | "USub"
 export type BinOpType =
 	"Add"
@@ -42,8 +38,7 @@ export type Stmt = ASTNode & {
 	-- All statements inherit from this
 }
 
--- ========== MODULE ==========
-
+-- MODULE
 -- Module node (top-level container)
 export type Module = ASTNode & {
 	type: "Module",
@@ -51,8 +46,7 @@ export type Module = ASTNode & {
 	type_ignores: { any }?, -- For type: ignore comments
 }
 
--- ========== STATEMENTS ==========
-
+-- STATEMENTS
 -- Assignment statement: x = 1, x, y = 1, 2
 export type Assign = Stmt & {
 	type: "Assign",
@@ -140,8 +134,7 @@ export type Pass = Stmt & {
 	type: "Pass",
 }
 
--- ========== EXPRESSIONS ==========
-
+-- EXPRESSIONS
 -- Binary operation: left op right
 export type BinOpNode = Expr & {
 	type: "BinOp",
@@ -264,8 +257,7 @@ export type DictUnpack = Expr & {
 	value: Expr,
 }
 
--- ========== HELPER TYPES ==========
-
+-- HELPER TYPES
 -- Expression context (how the expression is used)
 export type ExprContext = "Load" | "Store" | "Del"
 
@@ -337,8 +329,7 @@ export type AnyExpr =
 -- Union type for all AST node types
 export type AnyNode = Module | AnyStmt | AnyExpr
 
--- ========== UTILITY FUNCTIONS ==========
-
+-- UTILITY FUNCTIONS
 -- Create a new AST node with source location
 function Nodes.new_node(node_type: string, lineno: number, col_offset: number): ASTNode
 	return {

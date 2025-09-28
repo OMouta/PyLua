@@ -1,7 +1,3 @@
---!strict
--- PyLua Token Definitions
--- Python token types and utilities
-
 local Tokens = {}
 
 -- All Python token types (based on Python's token module)

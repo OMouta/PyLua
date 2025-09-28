@@ -113,6 +113,57 @@ local bytecodeTests: TestFramework.TestSuite = {
 				TestFramework.assertEqual(globals.x, nil, "Comprehension target should not leak to globals")
 			end,
 		},
+		{
+			name = "Compile floor division expression",
+			test = function()
+				local tokens = Lexer.tokenize("7 // 3")
+				local exprAst = Parser.parseExpression(tokens)
+				local code = Compiler.compile(exprAst)
+				local seenFloorDiv = false
+				for _, ins in ipairs(code.bytecode) do
+					if ins.opcode == "BINARY_FLOOR_DIVIDE" then
+						seenFloorDiv = true
+						break
+					end
+				end
+				TestFramework.assertTrue(seenFloorDiv, "Bytecode should include BINARY_FLOOR_DIVIDE")
+				local result = Interpreter.execute(code.bytecode, {}, {}, code.constants, code.names)
+				TestFramework.assertEqual(result, 2, "7 // 3 should evaluate to 2")
+			end,
+		},
+		{
+			name = "Compile matrix multiplication expression",
+			test = function()
+				local tokens = Lexer.tokenize("left @ right")
+				local exprAst = Parser.parseExpression(tokens)
+				local code = Compiler.compile(exprAst)
+				local sawMatmul = false
+				for _, ins in ipairs(code.bytecode) do
+					if ins.opcode == "BINARY_MATRIX_MULTIPLY" then
+						sawMatmul = true
+						break
+					end
+				end
+				TestFramework.assertTrue(sawMatmul, "Bytecode should include BINARY_MATRIX_MULTIPLY")
+				local left = Collections.newList({
+					Collections.newList({ Base.newInt(1), Base.newInt(2) }),
+					Collections.newList({ Base.newInt(3), Base.newInt(4) }),
+				})
+				local right = Collections.newList({
+					Collections.newList({ Base.newInt(5), Base.newInt(6) }),
+					Collections.newList({ Base.newInt(7), Base.newInt(8) }),
+				})
+				local globals = { left = left, right = right }
+				local result = Interpreter.execute(code.bytecode, globals, {}, code.constants, code.names)
+				TestFramework.assertType(result, "table", "Result should be PyObject list")
+				TestFramework.assertEqual(result.__type, "list", "Result should be list")
+				TestFramework.assertEqual(#result.__value, 2, "Matrix should have two rows")
+				TestFramework.assertEqual(result.__value[1].__value[1].__value, 19, "[0][0] should equal 19")
+				TestFramework.assertEqual(result.__value[1].__value[2].__value, 22, "[0][1] should equal 22")
+				TestFramework.assertEqual(result.__value[2].__value[1].__value, 43, "[1][0] should equal 43")
+				TestFramework.assertEqual(result.__value[2].__value[2].__value, 50, "[1][1] should equal 50")
+			end,
+		},
 	},
 }
 

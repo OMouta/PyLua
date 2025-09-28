@@ -181,6 +181,28 @@ local parserTests: TestFramework.TestSuite = {
 		},
 
 		{
+			name = "Parse Floor Division",
+			test = function()
+				local tokens = Lexer.tokenize("7 // 3")
+				local ast = Parser.parse(tokens)
+				local expr = ast.body[1].value
+				TestFramework.assertEqual(expr.type, "BinOp", "Should be BinOp node")
+				TestFramework.assertEqual(expr.op, "FloorDiv", "Operator should be FloorDiv")
+			end,
+		},
+
+		{
+			name = "Parse Matrix Multiply",
+			test = function()
+				local tokens = Lexer.tokenize("A @ B")
+				local ast = Parser.parse(tokens)
+				local expr = ast.body[1].value
+				TestFramework.assertEqual(expr.type, "BinOp", "Should be BinOp node")
+				TestFramework.assertEqual(expr.op, "MatMult", "Operator should be MatMult")
+			end,
+		},
+
+		{
 			name = "Parse Unary Minus",
 			test = function()
 				local tokens = Lexer.tokenize("-42")

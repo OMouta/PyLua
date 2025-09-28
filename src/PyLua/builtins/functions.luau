@@ -1,7 +1,3 @@
---!strict
--- PyLua Built-in Functions
--- Phase 5 - Python built-in function implementations
-
 local Functions = {}
 
 local base = require("../objects/base")

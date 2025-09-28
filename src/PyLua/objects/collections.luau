@@ -1,7 +1,3 @@
---!strict
--- PyLua Collection Types
--- Phase 3.3 - Python collection implementations (initial subset)
-
 local Collections = {}
 
 local base = require("./base")
@@ -13,9 +9,7 @@ export type PyTuple = PyObject & { __type: "tuple", __value: { PyObject } }
 export type PyDict = PyObject & { __type: "dict", __value: { [string]: { key: PyObject, value: PyObject } } }
 export type PySet = PyObject & { __type: "set", __value: { [string]: { value: PyObject } } }
 
----------------------------------------------------------------------
 -- Helper utilities
----------------------------------------------------------------------
 
 local function hashKey(obj: PyObject): string
 	local t = obj.__type
@@ -84,6 +78,84 @@ local function boolResult(value: boolean): PyObject
 	return base.newPyObject("bool", value)
 end
 
+local function extractNumber(cell: PyObject, context: string): (number, boolean)
+	if cell.__type == "int" then
+		return cell.__value, false
+	elseif cell.__type == "float" then
+		return cell.__value, true
+	end
+	error("TypeError: " .. context .. " must contain numeric values", 2)
+end
+
+local function validateMatrix(listObj: PyObject, label: string): ({ PyObject }, number, number)
+	if listObj.__type ~= "list" then
+		error("TypeError: matrix multiplication requires list operands", 2)
+	end
+	local rows = listObj.__value :: { PyObject }
+	if #rows == 0 then
+		return rows, 0, 0
+	end
+	local firstRow = rows[1]
+	if not firstRow or firstRow.__type ~= "list" then
+		error("TypeError: " .. label .. " operand for @ must be a list of lists", 2)
+	end
+	local expectedCols = #(firstRow.__value :: { PyObject })
+	for _, rowObj in ipairs(rows) do
+		if rowObj.__type ~= "list" then
+			error("TypeError: " .. label .. " operand for @ must be a list of lists", 2)
+		end
+		local rowValues = rowObj.__value :: { PyObject }
+		if #rowValues ~= expectedCols then
+			error("ValueError: inconsistent row lengths in " .. label .. " matrix", 2)
+		end
+	end
+	return rows, #rows, expectedCols
+end
+
+local function matrixMultiply(left: PyObject, right: PyObject): PyObject
+	local leftRows, leftRowCount, leftColCount = validateMatrix(left, "left")
+	local rightRows, rightRowCount, rightColCount = validateMatrix(right, "right")
+	if leftColCount ~= rightRowCount then
+		error("ValueError: matrix dimension mismatch for @", 2)
+	end
+	local resultRows: { PyObject } = {}
+	if leftRowCount == 0 or rightColCount == 0 then
+		return Collections.newList(resultRows)
+	end
+	for i = 1, leftRowCount do
+		local leftRowObj = leftRows[i]
+		local leftValues = leftRowObj.__value :: { PyObject }
+		local rowValues: { PyObject } = {}
+		for j = 1, rightColCount do
+			local sum = 0
+			local sumHasFloat = false
+			for k = 1, leftColCount do
+				local rightRowObj = rightRows[k]
+				local rightValues = rightRowObj.__value :: { PyObject }
+				local leftCell = leftValues[k]
+				local rightCell = rightValues[j]
+				if not leftCell or not rightCell then
+					error("ValueError: matrix dimension mismatch for @", 2)
+				end
+				local leftNumber, leftIsFloat = extractNumber(leftCell, "matrix")
+				local rightNumber, rightIsFloat = extractNumber(rightCell, "matrix")
+				local product = leftNumber * rightNumber
+				sum += product
+				sumHasFloat = sumHasFloat or leftIsFloat or rightIsFloat or (product % 1 ~= 0)
+			end
+			local cell: PyObject
+			if sumHasFloat or (sum % 1 ~= 0) then
+				cell = base.newFloat(sum)
+			else
+				cell = base.newInt(sum)
+			end
+			rowValues[#rowValues + 1] = cell
+		end
+		resultRows[#resultRows + 1] = Collections.newList(rowValues)
+	end
+	return Collections.newList(resultRows)
+end
+
 local getTypeObject = (base :: any).getTypeObject
 local function ensureType(name: string)
 	local ok = pcall(function()
@@ -100,9 +172,7 @@ ensureType("dict")
 ensureType("set")
 ensureType("list_iterator")
 
----------------------------------------------------------------------
 -- List implementation
----------------------------------------------------------------------
 
 function Collections.newList(values: { PyObject }?): PyList
 	local arr: { PyObject } = {}
@@ -210,11 +280,25 @@ do
 		local found = sequenceContains(selfObj.__value :: { PyObject }, needle)
 		return boolResult(found)
 	end
+
+	listType.methods["__matmul__"] = function(selfObj: PyObject, args: { PyObject }?)
+		local other = args and args[1]
+		if not other then
+			error("TypeError: matrix multiplication requires right operand", 2)
+		end
+		return matrixMultiply(selfObj, base.ensurePyObject(other))
+	end
+
+	listType.methods["__rmatmul__"] = function(selfObj: PyObject, args: { PyObject }?)
+		local other = args and args[1]
+		if not other then
+			error("TypeError: matrix multiplication requires left operand", 2)
+		end
+		return matrixMultiply(base.ensurePyObject(other), selfObj)
+	end
 end
 
----------------------------------------------------------------------
 -- Tuple implementation (immutable)
----------------------------------------------------------------------
 
 function Collections.newTuple(values: { PyObject }?): PyTuple
 	local arr: { PyObject } = {}
@@ -260,9 +344,7 @@ do
 	end
 end
 
----------------------------------------------------------------------
 -- Dict implementation
----------------------------------------------------------------------
 
 function Collections.newDict(entries: { { PyObject } }?): PyDict
 	local storage: { [string]: { key: PyObject, value: PyObject } } = {}
@@ -371,9 +453,7 @@ do
 	end
 end
 
----------------------------------------------------------------------
 -- Set implementation
----------------------------------------------------------------------
 
 function Collections.newSet(values: { PyObject }?): PySet
 	local storage: { [string]: { value: PyObject } } = {}
@@ -442,10 +522,7 @@ do
 	end
 end
 
----------------------------------------------------------------------
 -- Public API shortcuts
----------------------------------------------------------------------
-
 Collections.list = Collections.newList
 Collections.tuple = Collections.newTuple
 Collections.dict = Collections.newDict

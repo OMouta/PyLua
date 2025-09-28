@@ -1,7 +1,3 @@
---!strict
--- PyLua AST Visitor Pattern
--- Phase 1.3 - Complete AST traversal and manipulation system
-
 local Visitor = {}
 
 local nodes = require("./nodes")
@@ -253,8 +249,7 @@ function Visitor:generic_visit(node: ASTNode): any
 	return nil
 end
 
--- ========== UTILITY VISITORS ==========
-
+-- UTILITY VISITORS
 -- Node transformer - creates modified copies of AST nodes
 export type NodeTransformer = Visitor & {
 	transform: (self: NodeTransformer, node: ASTNode) -> ASTNode,

@@ -1,7 +1,3 @@
---!strict
--- PyLua Bytecode Opcodes
--- Phase 4 - Python-like instruction set
-
 local Opcodes = {}
 
 -- Python-like opcodes (based on CPython)
@@ -34,6 +30,8 @@ export type Opcode =
 	| "BINARY_OR"
 	| "BINARY_XOR"
 	| "BINARY_AND"
+	| "BINARY_FLOOR_DIVIDE"
+	| "BINARY_MATRIX_MULTIPLY"
 	-- Unary operations  
 	| "UNARY_POSITIVE"
 	| "UNARY_NEGATIVE"
@@ -110,6 +108,8 @@ local OPCODE_INFO: { [Opcode]: OpcodeInfo } = {
 	BINARY_OR = { name = "BINARY_OR", arg = false, doc = "TOS = TOS1 | TOS" },
 	BINARY_XOR = { name = "BINARY_XOR", arg = false, doc = "TOS = TOS1 ^ TOS" },
 	BINARY_AND = { name = "BINARY_AND", arg = false, doc = "TOS = TOS1 & TOS" },
+	BINARY_FLOOR_DIVIDE = { name = "BINARY_FLOOR_DIVIDE", arg = false, doc = "TOS = TOS1 // TOS" },
+	BINARY_MATRIX_MULTIPLY = { name = "BINARY_MATRIX_MULTIPLY", arg = false, doc = "TOS = TOS1 @ TOS" },
 
 	-- Unary operations
 	UNARY_POSITIVE = { name = "UNARY_POSITIVE", arg = false, doc = "+TOS" },

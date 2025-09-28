@@ -1,6 +1,3 @@
---!strict
--- Statement parsing (simple + compound)
-
 local nodes = require("../ast/nodes")
 local precedence = require("./precedence")
 local expressions = require("./expressions")

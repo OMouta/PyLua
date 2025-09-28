@@ -1,6 +1,3 @@
---!strict
--- Public parser API facade; composes internal modularized sub-parsers
-
 local tokens = require("./tokens")
 local nodes = require("./ast/nodes")
 local errors = require("@self/errors")
