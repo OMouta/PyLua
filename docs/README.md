@@ -1,6 +1,6 @@
 # PyLua Documentation (v0.3 dev)
 
-Welcome to the living docs for the PyLua 0.3 rewrite. This version is a ground-up interpreter for running Python 3.12- on Luau. It’s in active development; see `internalDocs/REWRITE_PLAN.md` for the roadmap and supported features.
+Welcome to the living docs for the PyLua 0.3 rewrite. This version is a ground-up interpreter for running Python 3.12- on Luau. It’s in active development; see [internalDocs/REWRITE_PLAN.md](../internalDocs/REWRITE_PLAN.md) for the roadmap and supported features.
 
 If you’re just looking to try things, the examples below are the best starting point.
 
@@ -32,10 +32,12 @@ lute docs/examples/basics.luau
 
 ## Current API surface
 
+See the full [API documentation](API.md) for details.
+
 Create a runtime and run code:
 
 ```lua
-local PyLua = require("src/PyLua")
+local PyLua = require("./src/PyLua")
 local py = PyLua.new({ debug = false })
 
 py:execute([[print("hi")]])
@@ -51,6 +53,36 @@ Useful methods:
 - `Runtime:compile(code: string)` and `Runtime:runBytecode(bytecode)` – advanced use
 - `Runtime:globals()` / `setGlobal(name, value)` / `getGlobal(name)` – share values
 
----
+## Guides
+
+Deep dives and references:
+
+- [Architecture](docs/ARCHITECTURE.md)
+- [Lexer](docs/LEXER.md)
+- [Parser](docs/PARSER.md) & [AST](docs/AST.md)
+- [Compiler](docs/COMPILER.md)
+- [Bytecode](docs/BYTECODE.md)
+- [Virtual Machine](docs/VM.md)
+- [Object Model](`docs/OBJECTS.md)
+- [Built-ins](docs/BUILTINS.md)
+- [Interop](docs/INTEROP.md)
+- [Testing](docs/TESTING.md)
+- [Limitations](docs/LIMITATIONS.md)
+
+## Running tests
+
+You can run the full test suite via Lute from the repo root:
+
+```powershell
+lute tests/run_tests.luau
+```
+
+or with Jelly:
+
+```powershell
+jelly run test
+```
+
+This will execute unit and integration tests for the lexer, parser, object model, bytecode, VM, and builtins.
 
 [Lute]: https://github.com/luau-lang/lute

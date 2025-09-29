@@ -23,8 +23,6 @@ export type Runtime = {
 	-- Core execution methods
 	execute: (self: Runtime, code: string) -> (),
 	eval: (self: Runtime, code: string) -> any,
-
-	-- Advanced methods
 	compile: (self: Runtime, code: string) -> any, -- Will return bytecode
 	runBytecode: (self: Runtime, bytecode: any) -> any,
 
