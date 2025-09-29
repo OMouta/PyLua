@@ -502,8 +502,8 @@ local function executeInstruction(
 		end
 	elseif opcode == "SETUP_LOOP" then
 		assert(arg ~= nil, "SETUP_LOOP requires argument")
-		-- Push loop block onto block stack
-		Frame.pushBlock(frame, "loop", frame.pc, arg)
+		-- Push loop block onto block stack; start at next instruction so continue jumps re-evaluate condition
+		Frame.pushBlock(frame, "loop", frame.pc + 1, arg)
 	elseif opcode == "POP_BLOCK" then
 		-- Pop block from block stack
 		Frame.popBlock(frame)
@@ -529,9 +529,16 @@ local function executeInstruction(
 		Frame.jump(frame, block.endPos)
 		frame.skip_advance = true
 	elseif opcode == "CONTINUE_LOOP" then
-		assert(arg ~= nil, "CONTINUE_LOOP requires argument")
-		-- Continue to start of loop
-		Frame.jump(frame, arg)
+		local block = Frame.getCurrentBlock(frame)
+		if not block or block.type ~= "loop" then
+			error("'continue' not properly in loop", 2)
+		end
+		local target = block.start
+		if target == nil then
+			assert(arg ~= nil, "CONTINUE_LOOP requires argument")
+			target = arg
+		end
+		Frame.jump(frame, target)
 		frame.skip_advance = true
 	elseif opcode == "RETURN_VALUE" then
 		vm.return_value = Frame.pop(frame)

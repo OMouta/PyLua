@@ -277,7 +277,18 @@ local function patchJump(st: CompilerState, jumpAddr: number, targetAddr: number
 	local target = targetAddr or getCurrentAddress(st)
 	local instruction = st.code.bytecode[jumpAddr + 1] -- +1 for 1-based indexing
 	if instruction then
-		instruction.arg = target + 1 -- Convert to 1-based index for VM
+		local opcode = instruction.opcode
+		if opcode == "JUMP_FORWARD" then
+			-- TOOK ME 4 HOURS TO FIND I DID NOT IMPLEMENT THIS
+			-- Why did I ignore JUMP_FORWARD instructions in patching???
+
+			-- Relative jump; calculate offset from next instruction
+			-- JUMP_FORWARD arg is number of instructions to skip
+			local targetIndex = target + 1
+			instruction.arg = targetIndex - (jumpAddr + 2)
+		else
+			instruction.arg = target + 1 -- Convert to 1-based index for absolute jump targets
+		end
 	end
 end
 
