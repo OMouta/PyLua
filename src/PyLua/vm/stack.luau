@@ -70,13 +70,13 @@ function Stack.rotThree(stack: Stack)
 		error("Not enough items on stack for ROT_THREE", 2)
 	end
 
-	local a = stack.values[stack.top]
-	local b = stack.values[stack.top - 1]
-	local c = stack.values[stack.top - 2]
+	local top = stack.values[stack.top]
+	local second = stack.values[stack.top - 1]
+	local third = stack.values[stack.top - 2]
 
-	stack.values[stack.top] = c
-	stack.values[stack.top - 1] = a
-	stack.values[stack.top - 2] = b
+	stack.values[stack.top] = second
+	stack.values[stack.top - 1] = third
+	stack.values[stack.top - 2] = top
 end
 
 -- Duplicate top stack item (equivalent to DUP_TOP)

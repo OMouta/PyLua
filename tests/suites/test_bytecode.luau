@@ -40,6 +40,44 @@ local bytecodeTests: TestFramework.TestSuite = {
 			end,
 		},
 		{
+			name = "Compile chained comparison emits short-circuit sequence",
+			test = function()
+				local code = compileSource("a < b < c")
+				local opcodesSeen: { string } = {}
+				for _, instruction in ipairs(code.bytecode) do
+					opcodesSeen[#opcodesSeen + 1] = instruction.opcode
+				end
+				local joined = table.concat(opcodesSeen, ",")
+				TestFramework.assertTrue(
+					string.find(joined, "DUP_TOP", 1, true) ~= nil,
+					"Should duplicate comparator for chaining"
+				)
+				TestFramework.assertTrue(
+					string.find(joined, "ROT_THREE", 1, true) ~= nil,
+					"Should rotate stack to preserve operands"
+				)
+				TestFramework.assertTrue(
+					string.find(joined, "JUMP_IF_FALSE_OR_POP", 1, true) ~= nil,
+					"Should short-circuit on failed comparison"
+				)
+				local compareCount = 0
+				for _, opcode in ipairs(opcodesSeen) do
+					if opcode == "COMPARE_OP" then
+						compareCount += 1
+					end
+				end
+				TestFramework.assertEqual(compareCount, 2, "Should emit COMPARE_OP for each comparator")
+				TestFramework.assertTrue(
+					string.find(joined, "ROT_TWO", 1, true) ~= nil,
+					"Should rotate stack during cleanup"
+				)
+				TestFramework.assertTrue(
+					string.find(joined, "POP_TOP", 1, true) ~= nil,
+					"Should remove duplicated operand on early exit"
+				)
+			end,
+		},
+		{
 			name = "Compile binary addition expression statement",
 			test = function()
 				local code = compileSource("1 + 2")
