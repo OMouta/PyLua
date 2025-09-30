@@ -342,6 +342,19 @@ local BINOP_TO_OPCODE: { [nodes.BinOpType]: Opcode } = {
 	MatMult = "BINARY_MATRIX_MULTIPLY",
 }
 
+local COMPARE_TO_OPCODE: { [nodes.CmpOp]: number } = {
+	Lt = 0,
+	LtE = 1,
+	Eq = 2,
+	NotEq = 3,
+	Gt = 4,
+	GtE = 5,
+	Is = 6,
+	IsNot = 7,
+	In = 8,
+	NotIn = 9,
+}
+
 local function compileLoadTarget(st: CompilerState, target: any)
 	if target.type == "Name" then
 		withContext(target, "Load", function()
@@ -426,39 +439,52 @@ compileExpr = function(st: CompilerState, node: any)
 			error("Unsupported unary op: " .. tostring(node.op))
 		end
 	elseif t == "Compare" then
-		-- Compile comparison: left op right
+		local opCount = #node.ops
+		local comparatorCount = #node.comparators
+		if opCount ~= comparatorCount or opCount == 0 then
+			error("Invalid comparison operands")
+		end
+
 		compileExpr(st, node.left)
-		-- For now, only handle single comparison (not chained)
-		if #node.ops == 1 and #node.comparators == 1 then
-			compileExpr(st, node.comparators[1])
-			local op = node.ops[1]
-			local opcode: number
-			if op == "Lt" then
-				opcode = 0 -- <
-			elseif op == "LtE" then
-				opcode = 1 -- <=
-			elseif op == "Eq" then
-				opcode = 2 -- ==
-			elseif op == "NotEq" then
-				opcode = 3 -- !=
-			elseif op == "Gt" then
-				opcode = 4 -- >
-			elseif op == "GtE" then
-				opcode = 5 -- >=
-			elseif op == "Is" then
-				opcode = 6 -- is
-			elseif op == "IsNot" then
-				opcode = 7 -- is not
-			elseif op == "In" then
-				opcode = 8 -- in
-			elseif op == "NotIn" then
-				opcode = 9 -- not in
-			else
+		local falseJumpFixups: { number } = {}
+
+		for index, op in ipairs(node.ops) do
+			local comparator = node.comparators[index]
+			local isLast = index == opCount
+			local lineno = (comparator and comparator.lineno) or node.lineno
+
+			compileExpr(st, comparator)
+			if not isLast then
+				emit(st, "DUP_TOP", nil, lineno)
+				emit(st, "ROT_THREE", nil, lineno)
+			end
+
+			local opcode = COMPARE_TO_OPCODE[op]
+			if opcode == nil then
 				error("Unsupported comparison op: " .. tostring(op))
 			end
-			emit(st, "COMPARE_OP", opcode, node.lineno)
-		else
-			error("Chained comparisons not yet supported")
+			emit(st, "COMPARE_OP", opcode, lineno)
+
+			if not isLast then
+				local jumpAddr = getCurrentAddress(st)
+				emit(st, "JUMP_IF_FALSE_OR_POP", 0, lineno)
+				falseJumpFixups[#falseJumpFixups + 1] = jumpAddr
+			end
+		end
+
+		if #falseJumpFixups > 0 then
+			local jumpPastCleanup = getCurrentAddress(st)
+			emit(st, "JUMP_FORWARD", 0, node.lineno)
+
+			local cleanupAddr = getCurrentAddress(st)
+			emit(st, "ROT_TWO", nil, node.lineno)
+			emit(st, "POP_TOP", nil, node.lineno)
+			local doneAddr = getCurrentAddress(st)
+
+			for _, addr in ipairs(falseJumpFixups) do
+				patchJump(st, addr, cleanupAddr)
+			end
+			patchJump(st, jumpPastCleanup, doneAddr)
 		end
 	elseif t == "Call" then
 		-- Compile function call: func(args)

@@ -10,6 +10,17 @@ elif x < 10:
 else:
     print("large")
 
+# chained comparisons combine checks without repeating the middle operand
+value = 8
+if 5 < value < 10:
+    print("value is between 5 and 10")
+
+print("strictly increasing chain:", 1 < 2 < 3)
+
+# failing a link short-circuits further comparisons
+if not (0 < value < 5):
+    print("value is not less than 5")
+
 # while + break/continue
 i = 0
 while i < 5:
