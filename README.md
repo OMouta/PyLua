@@ -1,4 +1,4 @@
-# PyLua — Embedded Python Interpreter for Luau
+# PyLua - Embedded Python Interpreter for Luau
 
 > Notice: For v0.2 docs, see [docs/other/0.2.md](docs/other/0.2.md).
 
