@@ -608,6 +608,49 @@ local function executeInstruction(
 		end
 		local dict = Collections.newDict(entries)
 		Frame.push(frame, dict)
+	elseif opcode == "BUILD_MAP_UNPACK" then
+		assert(arg ~= nil, "BUILD_MAP_UNPACK requires argument")
+		-- Pop N dicts/mappings from the stack and merge them into one
+		local dicts = Stack.popN(frame.stack, arg)
+		
+		-- Reverse to get correct order (first pushed = first in result)
+		local orderedDicts = {}
+		for i = #dicts, 1, -1 do
+			orderedDicts[#orderedDicts + 1] = dicts[i]
+		end
+		
+		-- Start with an empty dict and merge each one
+		local merged = Collections.newDict(nil)
+		local dictType = Base.getTypeObject("dict")
+		local methods = dictType.methods
+		if not methods then
+			error("Dict type has no methods", 2)
+		end
+		local setMethod = methods["set"]
+		if not setMethod then
+			error("Dict type has no set method", 2)
+		end
+		
+		for _, dictObj in ipairs(orderedDicts) do
+			local pyDict = Base.ensurePyObject(dictObj)
+			
+			-- Verify it's a dict
+			if pyDict.__type ~= "dict" then
+				error(string.format("Argument to ** unpacking must be a mapping, not %s", pyDict.__type), 2)
+			end
+			
+			-- Merge: copy all key-value pairs from pyDict into merged
+			-- In Python, later values overwrite earlier ones
+			local storage = pyDict.__value :: any
+			if storage then
+				for _, entry in pairs(storage) do
+					-- Use the set method to add/update the key-value pair
+					setMethod(merged, { entry.key, entry.value })
+				end
+			end
+		end
+		
+		Frame.push(frame, merged)
 
 	-- Function operations
 	elseif opcode == "MAKE_FUNCTION" then

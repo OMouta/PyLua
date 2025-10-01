@@ -68,6 +68,7 @@ export type Opcode =
 	| "BUILD_LIST"
 	| "BUILD_SET"
 	| "BUILD_MAP"
+	| "BUILD_MAP_UNPACK"
 
 -- Opcode information
 export type OpcodeInfo = {
@@ -153,6 +154,7 @@ local OPCODE_INFO: { [Opcode]: OpcodeInfo } = {
 	BUILD_LIST = { name = "BUILD_LIST", arg = true, doc = "Build list from N stack items" },
 	BUILD_SET = { name = "BUILD_SET", arg = true, doc = "Build set from N stack items" },
 	BUILD_MAP = { name = "BUILD_MAP", arg = true, doc = "Build map from 2*N stack items" },
+	BUILD_MAP_UNPACK = { name = "BUILD_MAP_UNPACK", arg = true, doc = "Merge N dicts on stack into one" },
 }
 
 -- Public API

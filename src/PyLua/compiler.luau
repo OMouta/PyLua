@@ -520,16 +520,73 @@ compileExpr = function(st: CompilerState, node: any)
 		emit(st, "BUILD_SET", #node.elts, node.lineno)
 	elseif t == "Dict" then
 		local count = #node.keys
+		local hasUnpack = false
+		
+		-- Check if we have any unpacking
 		for i = 1, count do
 			local key = node.keys[i]
-			local value = node.values[i]
-			if key == nil then
-				error("Dictionary unpacking not yet supported", 2)
+			if key and key.type == "DictUnpack" then
+				hasUnpack = true
+				break
 			end
-			compileExpr(st, key)
-			compileExpr(st, value)
 		end
-		emit(st, "BUILD_MAP", count, node.lineno)
+		
+		if not hasUnpack then
+			-- Simple dict without unpacking: {k1: v1, k2: v2}
+			for i = 1, count do
+				local key = node.keys[i]
+				local value = node.values[i]
+				compileExpr(st, key)
+				compileExpr(st, value)
+			end
+			emit(st, "BUILD_MAP", count, node.lineno)
+		else
+			-- Dict with unpacking: {k1: v1, **d, k2: v2}
+			-- Strategy: Build separate dicts and merge them
+			-- Push each segment (regular pairs or unpacked dict) onto stack
+			local segments = 0
+			local currentPairs: { { key: any, value: any } } = {}
+			
+			local function flushCurrentPairs()
+				if #currentPairs > 0 then
+					-- Build a dict from accumulated key-value pairs
+					for _, pair in ipairs(currentPairs) do
+						compileExpr(st, pair.key)
+						compileExpr(st, pair.value)
+					end
+					emit(st, "BUILD_MAP", #currentPairs, node.lineno)
+					segments += 1
+					currentPairs = {}
+				end
+			end
+			
+			for i = 1, count do
+				local key = node.keys[i]
+				local value = node.values[i]
+				
+				if key and key.type == "DictUnpack" then
+					-- Flush any accumulated pairs first
+					flushCurrentPairs()
+					-- Push the dict to unpack onto stack
+					compileExpr(st, value)
+					segments += 1
+				else
+					-- Accumulate regular key-value pair
+					table.insert(currentPairs, { key = key, value = value })
+				end
+			end
+			
+			-- Flush any remaining pairs
+			flushCurrentPairs()
+			
+			-- Now merge all segments with BUILD_MAP_UNPACK
+			if segments > 0 then
+				emit(st, "BUILD_MAP_UNPACK", segments, node.lineno)
+			else
+				-- Edge case: empty dict
+				emit(st, "BUILD_MAP", 0, node.lineno)
+			end
+		end
 	else
 		error("Unsupported expression node type: " .. tostring(t))
 	end

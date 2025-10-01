@@ -11,7 +11,7 @@ Key groups:
 - Compare: `COMPARE_OP` with arg mapping (0..9) for `<, <=, ==, !=, >, >=, is, is not, in, not in`
 - Control flow: `JUMP_FORWARD`, `POP_JUMP_IF_TRUE`, `POP_JUMP_IF_FALSE`, `JUMP_IF_TRUE_OR_POP`, `JUMP_IF_FALSE_OR_POP`, `SETUP_LOOP`, `POP_BLOCK`, `BREAK_LOOP`, `CONTINUE_LOOP`, `RETURN_VALUE`
 - Iteration: `GET_ITER`, `FOR_ITER`
-- Collections: `BUILD_LIST`, `BUILD_TUPLE`, `BUILD_SET`, `BUILD_MAP`
+- Collections: `BUILD_LIST`, `BUILD_TUPLE`, `BUILD_SET`, `BUILD_MAP`, `BUILD_MAP_UNPACK`
 - Functions: `MAKE_FUNCTION`, `CALL_FUNCTION`
 
 Constants:

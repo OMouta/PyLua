@@ -5,6 +5,7 @@ local TestFramework = require("../framework")
 local base = require("../../src/PyLua/objects/base")
 local builtins = require("../../src/PyLua/objects/builtins")
 local collections = require("../../src/PyLua/objects/collections")
+local PyLua = require("../../src/PyLua")
 
 local suite: TestFramework.TestSuite = {
 	name = "PyLua Collections",
@@ -188,6 +189,162 @@ local suite: TestFramework.TestSuite = {
 				args[2] = builtins.Int(1)
 				base.call(setM, args)
 				TestFramework.assertTrue(base.truthy(d), "Non-empty dict truthy")
+			end,
+		},
+		{
+			name = "Empty dict unpacking",
+			test = function()
+				local python = PyLua.new()
+				python:execute([[
+d1 = {}
+d2 = {**d1}
+result = d2
+]])
+				local globals = python:globals()
+				local result = globals.result
+				TestFramework.assert(result ~= nil, "result should exist")
+				TestFramework.assert(result.__type == "dict", "result should be a dict")
+				-- Check it's empty
+				local storage = result.__value
+				local count = 0
+				for _ in pairs(storage) do
+					count = count + 1
+				end
+				TestFramework.assertEqual(count, 0, "result should be empty")
+			end,
+		},
+
+		{
+			name = "Single dict unpacking",
+			test = function()
+				local python = PyLua.new()
+				python:execute([[
+d1 = {'a': 1, 'b': 2}
+d2 = {**d1}
+result = d2
+]])
+				local globals = python:globals()
+				local result = globals.result
+				TestFramework.assert(result ~= nil, "result should exist")
+				TestFramework.assert(result.__type == "dict", "result should be a dict")
+
+				-- Verify values are copied
+				local storage = result.__value
+				local count = 0
+				for _ in pairs(storage) do
+					count = count + 1
+				end
+				TestFramework.assertEqual(count, 2, "result should have 2 entries")
+			end,
+		},
+
+		{
+			name = "Multiple dict unpacking",
+			test = function()
+				local python = PyLua.new()
+				python:execute([[
+d1 = {'a': 1, 'b': 2}
+d2 = {'c': 3, 'd': 4}
+d3 = {**d1, **d2}
+result = d3
+]])
+				local globals = python:globals()
+				local result = globals.result
+				TestFramework.assert(result ~= nil, "result should exist")
+				TestFramework.assert(result.__type == "dict", "result should be a dict")
+
+				local storage = result.__value
+				local count = 0
+				for _ in pairs(storage) do
+					count = count + 1
+				end
+				TestFramework.assertEqual(count, 4, "result should have 4 entries")
+			end,
+		},
+
+		{
+			name = "Dict unpacking with additional keys",
+			test = function()
+				local python = PyLua.new()
+				python:execute([[
+d1 = {'a': 1, 'b': 2}
+d2 = {'x': 10, **d1, 'y': 20}
+result = d2
+]])
+				local globals = python:globals()
+				local result = globals.result
+				TestFramework.assert(result ~= nil, "result should exist")
+				TestFramework.assert(result.__type == "dict", "result should be a dict")
+
+				local storage = result.__value
+				local count = 0
+				for _ in pairs(storage) do
+					count = count + 1
+				end
+				TestFramework.assertEqual(count, 4, "result should have 4 entries (x, a, b, y)")
+			end,
+		},
+
+		{
+			name = "Dict unpacking with overwrite",
+			test = function()
+				local python = PyLua.new()
+				python:execute([[
+d1 = {'a': 1, 'b': 2}
+d2 = {'a': 10, 'c': 3}
+d3 = {**d1, **d2}
+result = d3
+]])
+				local globals = python:globals()
+				local result = globals.result
+				TestFramework.assert(result ~= nil, "result should exist")
+				TestFramework.assert(result.__type == "dict", "result should be a dict")
+
+				local storage = result.__value
+				local count = 0
+				for _ in pairs(storage) do
+					count = count + 1
+				end
+				TestFramework.assertEqual(count, 3, "result should have 3 entries (a, b, c)")
+
+				-- Get the value for key 'a'
+				local dictType = base.getTypeObject("dict")
+				local methods = dictType.methods
+				if not methods then
+					error("Dict type has no methods")
+				end
+				local getMethod = methods["get"]
+				if not getMethod then
+					error("Dict type has no get method")
+				end
+				local keyA = base.newPyObject("str", "a")
+				local valueA = getMethod(result, { keyA })
+				TestFramework.assert(valueA ~= nil, "value for 'a' should exist")
+				TestFramework.assertEqual(valueA.__value, 10, "value for 'a' should be 10 (overwritten)")
+			end,
+		},
+
+		{
+			name = "Dict unpacking mixed with regular keys",
+			test = function()
+				local python = PyLua.new()
+				python:execute([[
+d1 = {'a': 1}
+d2 = {'b': 2}
+d3 = {'x': 10, **d1, 'y': 20, **d2, 'z': 30}
+result = d3
+]])
+				local globals = python:globals()
+				local result = globals.result
+				TestFramework.assert(result ~= nil, "result should exist")
+				TestFramework.assert(result.__type == "dict", "result should be a dict")
+
+				local storage = result.__value
+				local count = 0
+				for _ in pairs(storage) do
+					count = count + 1
+				end
+				TestFramework.assertEqual(count, 5, "result should have 5 entries")
 			end,
 		},
 	},
