@@ -307,11 +307,8 @@ result = d3
 				end
 				TestFramework.assertEqual(count, 3, "result should have 3 entries (a, b, c)")
 
-				-- The 'a' key should have value 10 (from d2, which comes later)
-				local Base = require("../../src/PyLua/objects/base")
-
 				-- Get the value for key 'a'
-				local dictType = Base.getTypeObject("dict")
+				local dictType = base.getTypeObject("dict")
 				local methods = dictType.methods
 				if not methods then
 					error("Dict type has no methods")
@@ -320,7 +317,7 @@ result = d3
 				if not getMethod then
 					error("Dict type has no get method")
 				end
-				local keyA = Base.newPyObject("str", "a")
+				local keyA = base.newPyObject("str", "a")
 				local valueA = getMethod(result, { keyA })
 				TestFramework.assert(valueA ~= nil, "value for 'a' should exist")
 				TestFramework.assertEqual(valueA.__value, 10, "value for 'a' should be 10 (overwritten)")
