@@ -28,9 +28,13 @@ Compiles AST into a compact Python-like bytecode executed by the VM.
 
 - Expr → evaluate + `POP_TOP`
 - Assign / AugAssign → load/store targets; attribute/subscript targets supported
+  - Tuple assignment targets fully supported with recursive unpacking
 - If/elif/else → conditional with `POP_JUMP_IF_FALSE` and `JUMP_FORWARD` (patched)
 - While → `SETUP_LOOP` + test/jumps; supports `break`/`continue` and optional `else`
-- For → `GET_ITER` + `FOR_ITER` loop; stores to simple Name targets
+- For → `GET_ITER` + `FOR_ITER` loop; supports tuple destructuring via `UNPACK_SEQUENCE`
+  - Simple targets: `for x in items:`
+  - Tuple targets: `for x, y in items:` or `for (x, y) in items:`
+  - Nested tuples: `for (a, b), c in items:` recursively unpacks
 - Return → push value or `None` and `RETURN_VALUE`
 - FunctionDef → compiles nested CodeObject and creates a function via `MAKE_FUNCTION`, then `STORE_NAME`
 - Module → implicit final `return None`
@@ -43,5 +47,4 @@ Compiles AST into a compact Python-like bytecode executed by the VM.
 ## Known gaps
 
 - Chained comparisons not yet emitted (parser may build them)
-- For-loop assignment targets beyond simple Name are not yet compiled
 - Function defaults/kwargs in `MAKE_FUNCTION` are stubbed

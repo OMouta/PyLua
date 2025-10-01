@@ -37,4 +37,23 @@ for n in range(3):
 
 for v in ["a", "b", "c"]:
     print("list:", v)
+
+# Iterate over list of tuples
+for x, y in [(1, 2), (3, 4), (5, 6)]:
+    print(f"x={x}, y={y}, sum={x + y}")
+
+# Parenthesized tuple targets work too
+for (a, b) in [(10, 20), (30, 40)]:
+    print(f"a={a}, b={b}, product={a * b}")
+
+# Triple tuple destructuring
+coordinates = [(1, 2, 3), (4, 5, 6), (7, 8, 9)]
+for x, y, z in coordinates:
+    print(f"point: ({x}, {y}, {z})")
+
+# Nested tuple destructuring
+data = [((1, 2), 100), ((3, 4), 200)]
+for (a, b), value in data:
+    print(f"pair ({a}, {b}) has value {value}")
 ]])
+

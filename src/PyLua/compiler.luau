@@ -326,6 +326,39 @@ local function compileName(st: CompilerState, node: any)
 	end
 end
 
+-- Compile an assignment target (handles Name, Tuple, etc.)
+local function compileAssignmentTarget(st: CompilerState, target: any)
+	if target.type == "Name" then
+		target.ctx = "Store"
+		compileName(st, target)
+	elseif target.type == "Tuple" then
+		-- For tuple targets, we need to unpack the value on TOS
+		-- Emit UNPACK_SEQUENCE with the count of elements
+		local count = #target.elts
+		emit(st, "UNPACK_SEQUENCE", count, target.lineno)
+		
+		-- Now compile each element as a store target
+		-- UNPACK_SEQUENCE pushes values in reverse order, so we store them in forward order
+		for _, elt in ipairs(target.elts) do
+			compileAssignmentTarget(st, elt)
+		end
+	elseif target.type == "Attribute" then
+		-- For attribute assignment: obj.attr = value
+		-- TOS is value, compile the object
+		compileExpr(st, target.value)
+		local idx = addName(st, target.attr)
+		emit(st, "STORE_ATTR", idx, target.lineno)
+	elseif target.type == "Subscript" then
+		-- For subscript assignment: obj[key] = value
+		-- TOS is value, need obj and key
+		compileExpr(st, target.value)
+		compileExpr(st, target.slice)
+		emit(st, "STORE_SUBSCR", nil, target.lineno)
+	else
+		error("Unsupported assignment target type: " .. tostring(target.type))
+	end
+end
+
 local BINOP_TO_OPCODE: { [nodes.BinOpType]: Opcode } = {
 	Add = "BINARY_ADD",
 	Sub = "BINARY_SUBTRACT",
@@ -711,13 +744,9 @@ compileStmt = function(st: CompilerState, node: any)
 		-- 6. Setup loop for break/continue
 		enterLoop(st, loopStart, forIterJump)
 
-		-- 7. Store the iteration value in the target variable
-		if node.target.type == "Name" then
-			node.target.ctx = "Store"
-			compileName(st, node.target)
-		else
-			error("Complex assignment targets not supported yet", 2)
-		end
+		-- 7. Store the iteration value in the target variable(s)
+		-- Now supports tuple unpacking: for x, y in items: ...
+		compileAssignmentTarget(st, node.target)
 
 		-- 8. Compile loop body
 		for _, stmt in ipairs(node.body) do

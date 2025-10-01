@@ -3,7 +3,6 @@
 A practical subset is implemented; some features are deferred or partial:
 
 - Comparisons: identity (`is`) and membership (`in`) semantics are simplified compared to CPython
-- For-loop targets: only simple `Name` targets compiled (no tuple destructuring yet)
 - Function defs: default args/kwargs are stubbed; `MAKE_FUNCTION` ignores defaults
 - Exceptions: structured exception handling not implemented
 - f-strings: prefixes tokenized; full runtime interpolation/formatting still in progress

@@ -52,6 +52,8 @@ export type Opcode =
 	-- Iteration
 	| "GET_ITER"
 	| "FOR_ITER"
+	-- Unpacking
+	| "UNPACK_SEQUENCE"
 	-- Function calls
 	| "MAKE_FUNCTION"
 	| "CALL_FUNCTION"
@@ -135,6 +137,9 @@ local OPCODE_INFO: { [Opcode]: OpcodeInfo } = {
 	-- Iteration
 	GET_ITER = { name = "GET_ITER", arg = false, doc = "Get iterator from iterable" },
 	FOR_ITER = { name = "FOR_ITER", arg = true, doc = "Iterate over iterator or jump" },
+
+	-- Unpacking
+	UNPACK_SEQUENCE = { name = "UNPACK_SEQUENCE", arg = true, doc = "Unpack sequence into N values" },
 
 	-- Function calls
 	MAKE_FUNCTION = { name = "MAKE_FUNCTION", arg = true, doc = "Create function object" },
