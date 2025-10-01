@@ -21,6 +21,7 @@ Compiles AST into a compact Python-like bytecode executed by the VM.
 - Compare → `COMPARE_OP` with small int tag (0..9); currently single comparator only
 - Calls → push func then args; `CALL_FUNCTION argc`
 - Collections → `BUILD_LIST`/`BUILD_TUPLE`/`BUILD_SET`/`BUILD_MAP`
+- Dict unpacking → `BUILD_MAP_UNPACK` merges multiple dicts; segments built separately then merged
 - List comprehension → compiled into a tiny function created via `MAKE_FUNCTION` then immediately `CALL_FUNCTION`
 
 ## Statements
@@ -42,6 +43,5 @@ Compiles AST into a compact Python-like bytecode executed by the VM.
 ## Known gaps
 
 - Chained comparisons not yet emitted (parser may build them)
-- Dict unpacking in literals not yet supported
 - For-loop assignment targets beyond simple Name are not yet compiled
 - Function defaults/kwargs in `MAKE_FUNCTION` are stubbed

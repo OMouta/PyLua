@@ -8,9 +8,13 @@ pair = ("a", 42)
 conf = {"host": "localhost", "port": 8080}
 letters = {"a", "b", "c"}
 
+# Unpacking into new dict
+conf2 = {**conf, "debug": True}
+
 print("nums:", nums)
 print("pair:", pair)
 print("conf:", conf)
+print("conf2:", conf2)
 print("letters:", letters)
 
 # Looping
