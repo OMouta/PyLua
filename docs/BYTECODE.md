@@ -34,8 +34,8 @@ Bytecode includes:
 
 - `FOR_ITER` → pushes tuple `(1, 2)` onto stack
 - `UNPACK_SEQUENCE 2` → pops tuple, pushes `2` then `1`
-- `STORE_NAME` (for y) → pops `1`, stores in `y`
 - `STORE_NAME` (for x) → pops `2`, stores in `x`
+- `STORE_NAME` (for y) → pops `1`, stores in `y`
 
 Constants:
 
