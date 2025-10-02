@@ -563,6 +563,50 @@ local function executeInstruction(
 			frame.skip_advance = true
 		end
 
+	-- Unpacking
+	elseif opcode == "UNPACK_SEQUENCE" then
+		assert(arg ~= nil, "UNPACK_SEQUENCE requires argument")
+		local sequence = Frame.pop(frame)
+		
+		-- Get the underlying array from PyObject sequences
+		local values: { any }
+		if type(sequence) == "table" then
+			local obj = sequence :: any
+			if obj.__type == "list" or obj.__type == "tuple" then
+				values = obj.__value
+			elseif obj.__type == "set" then
+				-- Sets are unordered, but we need to extract values
+				local arr = {}
+				for _, entry in pairs(obj.__value) do
+					arr[#arr + 1] = entry.value
+				end
+				values = arr
+			else
+				error("ValueError: cannot unpack non-sequence", 2)
+			end
+		else
+			error("ValueError: cannot unpack non-sequence", 2)
+		end
+		
+		-- Check that we have the right number of values
+		if #values ~= arg then
+			error(
+				string.format(
+					"ValueError: too %s values to unpack (expected %d, got %d)",
+					if #values < arg then "few" else "many",
+					arg,
+					#values
+				),
+				2
+			)
+		end
+		
+		-- Push values onto stack in reverse order (rightmost first)
+		-- So they can be popped in forward order for assignment
+		for i = #values, 1, -1 do
+			Frame.push(frame, values[i])
+		end
+
 	-- Collections
 	elseif opcode == "BUILD_LIST" then
 		assert(arg ~= nil, "BUILD_LIST requires argument")

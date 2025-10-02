@@ -18,11 +18,13 @@ Parses tokens into a Python-like AST. Split across small modules for maintainabi
 
 ## Statements supported
 
-- Assign: simple and multiple targets (Name, attribute, subscript; see compiler limitations)
+- Assign: simple and multiple targets (Name, attribute, subscript; tuple destructuring fully supported)
 - AugAssign: `+=, -=, *=, /=, //=, %=, **=, <<=, >>=, &=, ^=, |=, @=`
 - Expr statements: function calls, expressions
 - Control flow: `if`/`elif`/`else`
 - Loops: `while`, `for ... in ...` (+ optional `else:`)
+  - For-loop targets support tuple destructuring: `for x, y in items:` or `for (x, y) in items:`
+  - Nested tuple destructuring: `for (a, b), c in items:` works recursively
 - Function definitions: `def name(args): ...`
 
 ## Notes

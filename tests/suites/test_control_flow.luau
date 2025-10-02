@@ -357,6 +357,60 @@ for i in [1, 2]:
 				TestFramework.assertEqual(globals.result, 86, "Continue should only skip inner iteration")
 			end,
 		},
+
+		{
+			name = "For Loop - Tuple Destructuring (Parenthesized)",
+			test = function()
+				local globals = executeCode([[
+result = []
+for (x, y) in [(1, 2), (3, 4), (5, 6)]:
+    result.append(x + y)
+]])
+				TestFramework.assertEqual(globals.result.__value[1].__value, 3, "First tuple should unpack to 1+2=3")
+				TestFramework.assertEqual(globals.result.__value[2].__value, 7, "Second tuple should unpack to 3+4=7")
+				TestFramework.assertEqual(globals.result.__value[3].__value, 11, "Third tuple should unpack to 5+6=11")
+			end,
+		},
+
+		{
+			name = "For Loop - Tuple Destructuring (Implicit)",
+			test = function()
+				local globals = executeCode([[
+result = []
+for x, y in [(1, 2), (3, 4)]:
+    result.append(x * y)
+]])
+				TestFramework.assertEqual(globals.result.__value[1].__value, 2, "First tuple should unpack to 1*2=2")
+				TestFramework.assertEqual(globals.result.__value[2].__value, 12, "Second tuple should unpack to 3*4=12")
+			end,
+		},
+
+		{
+			name = "For Loop - Triple Tuple Destructuring",
+			test = function()
+				local globals = executeCode([[
+result = 0
+for x, y, z in [(1, 2, 3), (4, 5, 6)]:
+    result = result + x + y + z
+]])
+				-- Expected: (1+2+3) + (4+5+6) = 6 + 15 = 21
+				TestFramework.assertEqual(globals.result, 21, "Triple tuple destructuring should work")
+			end,
+		},
+
+		{
+			name = "For Loop - Nested Tuple Destructuring",
+			test = function()
+				local globals = executeCode([[
+result = []
+for (a, b), c in [((1, 2), 3), ((4, 5), 6)]:
+    result.append(a + b + c)
+]])
+				-- Expected: (1+2+3) = 6, (4+5+6) = 15
+				TestFramework.assertEqual(globals.result.__value[1].__value, 6, "First nested tuple should unpack correctly")
+				TestFramework.assertEqual(globals.result.__value[2].__value, 15, "Second nested tuple should unpack correctly")
+			end,
+		},
 	},
 }
 
