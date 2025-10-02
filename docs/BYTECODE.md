@@ -21,7 +21,7 @@ Key groups:
 **Argument**: Count of values to unpack (N)  
 **Stack Effect**: Replaces TOS with N values
 
-Pops a sequence (list, tuple, or set) from the top of the stack and pushes its elements onto the stack in reverse order (rightmost element pushed last). Validates that the sequence has exactly N elements, raising `ValueError` if the count doesn't match.
+Pops a sequence (list, tuple, or set) from the top of the stack and pushes its elements onto the stack in reverse order (rightmost element pushed first). Validates that the sequence has exactly N elements, raising `ValueError` if the count doesn't match.
 
 Example:
 
