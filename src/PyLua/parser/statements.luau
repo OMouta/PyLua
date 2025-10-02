@@ -266,11 +266,13 @@ function statements.parseCompound(state: any): Stmt
 			}
 		end
 		
+		-- Mark target as Store context before consuming 'in'
+		target = assignmentTarget(target)
+		
 		state:consume("IN", "Expected 'in' after for target")
 		local iter = expressions.parse(state)
 		state:consume("COLON", "Expected ':' after for clause")
 		local body = parseSuiteAfterColon(state)
-		target = assignmentTarget(target)
 		return {
 			type = "For",
 			target = target,

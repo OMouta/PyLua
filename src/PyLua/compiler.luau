@@ -333,6 +333,9 @@ local function compileAssignmentTarget(st: CompilerState, target: any)
 		compileName(st, target)
 	elseif target.type == "Tuple" then
 		-- For tuple targets, we need to unpack the value on TOS
+		-- Set context to Store for consistency
+		target.ctx = "Store"
+		
 		-- Emit UNPACK_SEQUENCE with the count of elements
 		local count = #target.elts
 		emit(st, "UNPACK_SEQUENCE", count, target.lineno)
