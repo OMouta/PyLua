@@ -1,6 +1,6 @@
 # PyLua - Embedded Python Interpreter for Luau
 
-> Notice: For v0.2 docs, see [docs/other/0.2.md](docs/other/0.2.md).
+> Notice: For v0.2 docs, see [docs/0.2/README.md](docs/0.2/README.md).
 
 PyLua lets you run Python inside Luau (e.g., Roblox). The v0.3 rewrite is a proper interpreter built in Luau with a CPython-inspired design.
 

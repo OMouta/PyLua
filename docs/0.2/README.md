@@ -2,16 +2,7 @@
 
 A Python interpreter implementation written in Luau that runs inside Roblox. PyLua 0.2 compiles Python code to bytecode for efficient execution, featuring comprehensive support for Python language features.
 
-## ✨ Features
-
-- 🚀 **Bytecode Compilation**: Compile Python code once, execute multiple times
-- 🐍 **Python Syntax**: Almost full support for Python variables, operators, control flow, and data structures
-- 📦 **Data Structures**: Lists, dictionaries, tuples, sets with proper Python semantics
-- 🔄 **Control Flow**: if/elif/else, for loops, while loops with nested support
-- 🛠️ **Built-ins**: print(), len(), type(), range(), int(), float(), str(), bool()
-- ⚡ **Optimized VM**: Stack-based virtual machine for efficient bytecode execution
-
-## 🚀 Quick Start
+## Quick Start
 
 ### Basic Usage
 
@@ -98,7 +89,7 @@ else
 end
 ```
 
-## 📚 API Reference
+## API Reference
 
 ### `python.execute(code)`
 
@@ -164,7 +155,7 @@ Debug output includes:
 - Function calls
 - Instruction execution flow
 
-## 🐍 Supported Python Features
+## Supported Python Features
 
 ### Data Types
 
@@ -200,7 +191,7 @@ Debug output includes:
 - **Comparison**: `==`, `!=`, `<`, `<=`, `>`, `>=`
 - **Assignment**: `=`
 
-## 🏗️ Architecture
+## Architecture
 
 PyLua 0.2 uses a three-phase architecture:
 
@@ -218,7 +209,7 @@ Python Source Code
   [VM Executor] → Results
 ```
 
-## 🚧 Limitations
+## Limitations
 
 Current limitations (may be addressed in future versions):
 
@@ -228,10 +219,6 @@ Current limitations (may be addressed in future versions):
 - No module imports
 - No list comprehensions
 
-## 🤝 Contributing
-
-> **Note:** For detailed refactoring plans and development guidelines, please see [`REFACTOR_PLAN.md`](./REFACTOR_PLAN.md).
-
-## 📝 License
+## License
 
 This repository is under the [`MIT license`](./LICENSE).
