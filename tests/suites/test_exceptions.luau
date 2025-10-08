@@ -1,0 +1,106 @@
+--!strict
+-- Tests for exception handling (try/except)
+
+local TestFramework = require("../framework")
+local Lexer = require("../../src/PyLua/lexer")
+local Parser = require("../../src/PyLua/parser")
+local Compiler = require("../../src/PyLua/compiler")
+local Interpreter = require("../../src/PyLua/vm/interpreter")
+local BuiltinFunctions = require("../../src/PyLua/builtins/functions")
+
+local function executeCode(code: string): { [string]: any }
+	local tokens = Lexer.tokenize(code)
+	local ast = Parser.parse(tokens)
+	local bytecode = Compiler.compile(ast)
+	local globals = {}
+	local builtins = BuiltinFunctions.createBuiltins()
+	Interpreter.execute(bytecode.bytecode, globals, builtins, bytecode.constants, bytecode.names)
+	return globals
+end
+
+local exceptionTests: TestFramework.TestSuite = {
+	name = "Exception Handling",
+	tests = {
+		{
+			name = "ValueError caught with alias",
+			test = function()
+				local globals = executeCode([[ 
+result = "unset"
+err_type = None
+try:
+	int("abc")
+except ValueError as err:
+	result = str(err)
+	err_type = type(err)
+]])
+				local expectedMessage = "ValueError: invalid literal for int() with base 10"
+				local actualMessage = globals.result
+				local debugMessage = "ValueError message should propagate into handler (got '" .. tostring(actualMessage) .. "')"
+				TestFramework.assertEqual(actualMessage, expectedMessage, debugMessage)
+				local typeObj = globals.err_type
+				TestFramework.assertType(typeObj, "table", "type() should return a PyObject table")
+				TestFramework.assertEqual(typeObj.__value.name, "ValueError", "type(err) should report ValueError")
+			end,
+		},
+		{
+			name = "Else block executes when no exception",
+			test = function()
+				local globals = executeCode([[ 
+result = "unset"
+try:
+	x = 5
+except ValueError:
+	result = "caught"
+else:
+	result = "no error"
+]])
+				TestFramework.assertEqual(globals.result, "no error", "Else clause should run when try succeeds")
+			end,
+		},
+		{
+			name = "Ordered handlers evaluate sequentially",
+			test = function()
+				local globals = executeCode([[ 
+result = "unset"
+try:
+	int("abc")
+except TypeError:
+	result = "type"
+except ValueError:
+	result = "value"
+]])
+				TestFramework.assertEqual(globals.result, "value", "Matching handler should execute in order")
+			end,
+		},
+		{
+			name = "Bare except captures NameError",
+			test = function()
+				local globals = executeCode([[ 
+result = "unset"
+try:
+	missing_variable
+except:
+	result = "caught"
+]])
+				TestFramework.assertEqual(globals.result, "caught", "Bare except should catch NameError")
+			end,
+		},
+		{
+			name = "Unhandled exception propagates",
+			test = function()
+				TestFramework.assertError(function()
+					return executeCode([[ 
+try:
+	int("abc")
+except TypeError:
+	result = "type"
+]])
+				end, "Unhandled exceptions should propagate out of try")
+			end,
+		},
+	},
+}
+
+TestFramework.runSuite(exceptionTests)
+
+return {}

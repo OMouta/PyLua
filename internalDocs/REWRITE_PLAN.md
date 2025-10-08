@@ -240,7 +240,7 @@ Completion Criteria: Original `parser.luau` shrinks to thin façade (<150 lines)
 - [x] **List comprehensions**: [x for x in iterable]
 - [ ] **Lambda functions**: Anonymous functions
 - [ ] **Generators**: yield expressions and iteration
-- [ ] **Exception handling**: Basic try/except (future)
+- [-] **Exception handling**: Basic try/except (tuple patterns and finally clauses still pending)
 - [x] **f-strings**: Runtime expression interpolation and formatting (lexer already tokenizes prefixes; implement evaluation and formatting).
 - [x] **FloorDiv and MatMult**: Implement `//` and `@` operators end-to-end (lexer, parser, compiler, VM).
 
@@ -252,7 +252,7 @@ Completion Criteria: Original `parser.luau` shrinks to thin façade (<150 lines)
 
 **Key Files**: `builtins/functions.luau`, `builtins/exceptions.luau`
 
-## API Design (Lupa-inspired)
+## API Design
 
 ### Target Usage
 

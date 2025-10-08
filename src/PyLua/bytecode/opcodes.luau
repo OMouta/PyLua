@@ -46,6 +46,7 @@ export type Opcode =
 	| "POP_JUMP_IF_TRUE"
 	| "POP_JUMP_IF_FALSE"
 	| "SETUP_LOOP"
+	| "SETUP_EXCEPT"
 	| "POP_BLOCK"
 	| "BREAK_LOOP"
 	| "CONTINUE_LOOP"
@@ -130,6 +131,7 @@ local OPCODE_INFO: { [Opcode]: OpcodeInfo } = {
 	POP_JUMP_IF_TRUE = { name = "POP_JUMP_IF_TRUE", arg = true, doc = "Pop and jump if true" },
 	POP_JUMP_IF_FALSE = { name = "POP_JUMP_IF_FALSE", arg = true, doc = "Pop and jump if false" },
 	SETUP_LOOP = { name = "SETUP_LOOP", arg = true, doc = "Setup loop with end offset" },
+	SETUP_EXCEPT = { name = "SETUP_EXCEPT", arg = true, doc = "Setup exception handler" },
 	POP_BLOCK = { name = "POP_BLOCK", arg = false, doc = "Pop a block from block stack" },
 	BREAK_LOOP = { name = "BREAK_LOOP", arg = false, doc = "Break out of current loop" },
 	CONTINUE_LOOP = { name = "CONTINUE_LOOP", arg = true, doc = "Continue to loop start" },

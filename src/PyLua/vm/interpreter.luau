@@ -7,6 +7,7 @@ local Instructions = require("../bytecode/instructions")
 local Base = require("../objects/base")
 local Collections = require("../objects/collections")
 local ObjBuiltins = require("../objects/builtins")
+local Exceptions = require("../builtins/exceptions")
 
 type Frame = Frame.Frame
 type Stack = Stack.Stack
@@ -203,7 +204,7 @@ end
 local callPyFunction = nil
 
 -- Execute a single instruction
-local function executeInstruction(
+local function dispatchInstruction(
 	vm: VMState,
 	frame: Frame,
 	instruction: Instruction,
@@ -510,7 +511,22 @@ local function executeInstruction(
 	elseif opcode == "SETUP_LOOP" then
 		assert(arg ~= nil, "SETUP_LOOP requires argument")
 		-- Push loop block onto block stack; start at next instruction so continue jumps re-evaluate condition
-		Frame.pushBlock(frame, "loop", frame.pc + 1, arg)
+		Frame.pushBlock(frame, {
+			type = "loop",
+			start = frame.pc + 1,
+			endPos = arg,
+			handler = nil,
+			stackSize = Frame.stackSize(frame),
+		})
+	elseif opcode == "SETUP_EXCEPT" then
+		assert(arg ~= nil, "SETUP_EXCEPT requires argument")
+		Frame.pushBlock(frame, {
+			type = "except",
+			handler = arg,
+			start = nil,
+			endPos = nil,
+			stackSize = Frame.stackSize(frame),
+		})
 	elseif opcode == "POP_BLOCK" then
 		-- Pop block from block stack
 		Frame.popBlock(frame)
@@ -533,7 +549,8 @@ local function executeInstruction(
 			end
 		end
 		-- Jump to end of loop; POP_BLOCK at target will remove the loop block
-		Frame.jump(frame, block.endPos)
+		assert(block.endPos ~= nil, "Loop block missing end position")
+		Frame.jump(frame, block.endPos :: number)
 		frame.skip_advance = true
 	elseif opcode == "CONTINUE_LOOP" then
 		local block = Frame.getCurrentBlock(frame)
@@ -545,7 +562,7 @@ local function executeInstruction(
 			assert(arg ~= nil, "CONTINUE_LOOP requires argument")
 			target = arg
 		end
-		Frame.jump(frame, target)
+		Frame.jump(frame, target :: number)
 		frame.skip_advance = true
 	elseif opcode == "RETURN_VALUE" then
 		vm.return_value = Frame.pop(frame)
@@ -791,6 +808,46 @@ local function executeInstruction(
 	end
 
 	return true -- Continue execution
+end
+
+local function handleException(vm: VMState, frame: Frame, err: any): (boolean, PyObject?)
+	local excObj = Exceptions.fromLuauError(err)
+	while true do
+		local block = Frame.popBlock(frame)
+		if not block then
+			return false, excObj
+		end
+		assert(block.stackSize ~= nil, "Block is missing required stackSize")
+		Frame.truncateStack(frame, block.stackSize)
+		if block.type == "except" then
+			if not block.handler then
+				return false, excObj
+			end
+			Frame.push(frame, excObj)
+			Frame.jump(frame, block.handler)
+			frame.skip_advance = true
+			return true, nil
+		end
+	end
+end
+
+local function executeInstruction(
+	vm: VMState,
+	frame: Frame,
+	instruction: Instruction,
+	constants: { any }?,
+	names: { string }?
+): boolean
+	local ok, result = pcall(dispatchInstruction, vm, frame, instruction, constants, names)
+	if ok then
+		return result
+	end
+	local handled, excObj = handleException(vm, frame, result)
+	if handled then
+		return true
+	end
+	local message = Exceptions.toLuauMessage(excObj :: PyObject)
+	error(message, 0)
 end
 
 -- Call a Python function (moved from functions module to avoid circular dependency)

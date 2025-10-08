@@ -17,5 +17,6 @@ require("./suites/test_bytecode")
 require("./suites/test_vm")
 require("./suites/test_functions")
 require("./suites/test_control_flow")
+require("./suites/test_exceptions")
 
 TestFramework.printSummary()

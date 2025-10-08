@@ -2,6 +2,7 @@ local Functions = {}
 
 local base = require("../objects/base")
 local obj_builtins = require("../objects/builtins")
+local exceptions = require("./exceptions")
 
 type PyObject = base.PyObject
 
@@ -115,6 +116,15 @@ local function pyToString(obj: PyObject): string
 	elseif t == "bytes" then
 		return objectRepr(obj)
 	else
+		local ok, strMethod = pcall(function()
+			return base.getattr(obj, "__str__")
+		end)
+		if ok and strMethod then
+			local result = base.call(strMethod, {})
+			if result.__type == "str" then
+				return result.__value
+			end
+		end
 		return objectRepr(obj)
 	end
 end
@@ -723,7 +733,7 @@ function Functions.bytes(val: PyObject?): PyObject
 end
 
 function Functions.createBuiltins(): { [string]: PyObject }
-	return {
+	local builtinsTable = {
 		["print"] = wrapBuiltin("print", function(args)
 			return Functions.print_(args)
 		end),
@@ -788,6 +798,28 @@ function Functions.createBuiltins(): { [string]: PyObject }
 			return Functions.isinstance_(args)
 		end),
 	}
+
+	local exceptionTypes = exceptions.createBuiltins()
+	for name, obj in pairs(exceptionTypes) do
+		builtinsTable[name] = obj
+	end
+
+	builtinsTable["_pylua_match_exception"] = wrapBuiltin("_pylua_match_exception", function(args)
+		if #args ~= 2 then
+			error("TypeError: _pylua_match_exception expects 2 arguments", 2)
+		end
+		return exceptions.matchException(args[1], args[2])
+	end)
+
+	builtinsTable["_pylua_raise"] = wrapBuiltin("_pylua_raise", function(args)
+		if #args ~= 1 then
+			error("TypeError: _pylua_raise expects an exception instance", 2)
+		end
+		exceptions.reraise(args[1])
+		return obj_builtins.None()
+	end)
+
+	return builtinsTable
 end
 
 return Functions

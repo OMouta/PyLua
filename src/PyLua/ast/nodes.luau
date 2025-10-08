@@ -103,6 +103,26 @@ export type FunctionDef = Stmt & {
 	returns: Expr?, -- Return type annotation
 }
 
+export type ExceptHandler = {
+	type: "ExceptHandler",
+	lineno: number,
+	col_offset: number,
+	end_lineno: number?,
+	end_col_offset: number?,
+	body: { Stmt },
+	expr: Expr?,
+	typeName: string?,
+	name: string?,
+}
+
+export type Try = Stmt & {
+	type: "Try",
+	body: { Stmt },
+	handlers: { ExceptHandler },
+	orelse: { Stmt },
+	finalbody: { Stmt },
+}
+
 -- Class definition: class Name(bases): ...
 export type ClassDef = Stmt & {
 	type: "ClassDef",
@@ -306,6 +326,7 @@ export type AnyStmt =
 	| Break
 	| Continue
 	| Pass
+	| Try
 
 -- Union type for all expression types
 export type AnyExpr =

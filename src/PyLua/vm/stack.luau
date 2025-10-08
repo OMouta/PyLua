@@ -32,6 +32,21 @@ function Stack.pop(stack: Stack): any
 	return value
 end
 
+-- Truncate the stack to a specific size
+function Stack.truncate(stack: Stack, targetTop: number)
+	if targetTop < 0 then
+		targetTop = 0
+	end
+	if targetTop < stack.top then
+		for i = stack.top, math.max(targetTop + 1, 1), -1 do
+			stack.values[i] = nil
+		end
+		stack.top = targetTop
+	elseif targetTop > stack.top then
+		error("Cannot increase stack size via truncate", 2)
+	end
+end
+
 -- Peek at top value without popping
 function Stack.peek(stack: Stack): any
 	if stack.top <= 0 then
