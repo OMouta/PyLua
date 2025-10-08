@@ -24,7 +24,10 @@ local function ensureExceptionType(name: string)
 		return typeCache[name]
 	end
 	local ok, existing = pcall(function()
-		return (base :: any).getTypeObject(name)
+		if typeof(base.getTypeObject) == "function" then
+			return base.getTypeObject(name)
+		end
+		return nil
 	end)
 	local typeObj
 	if ok then
