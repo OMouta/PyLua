@@ -46,7 +46,7 @@ See docs and examples for usage and API details:
 
 You can also quickly try an example with Lute from the repo root:
 
-```powershell
+```bash
 lute docs/examples/hello_world.luau
 ```
 

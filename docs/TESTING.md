@@ -4,7 +4,7 @@ Tests are written in Luau and run with Lute.
 
 ## Run all tests
 
-```powershell
+```bash
 lute tests/run_tests.luau
 ```
 
