@@ -872,9 +872,15 @@ compileStmt = function(st: CompilerState, node: any)
 		patchJump(st, jumpPastHandlers, endLabel)
 
 		for _, record in ipairs(matchFailJumps) do
-			local targetIndex = record.index + 1
-			local target = handlerStarts[targetIndex] or unhandledLabel
-			patchJump(st, record.jump, target)
+			local target: number? = nil
+			for nextIndex = record.index + 1, #handlerStarts do
+				local start = handlerStarts[nextIndex]
+				if start ~= nil then
+					target = start
+					break
+				end
+			end
+			patchJump(st, record.jump, target or unhandledLabel)
 		end
 
 		for _, jump in ipairs(handlerFallthroughJumps) do

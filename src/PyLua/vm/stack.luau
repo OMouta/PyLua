@@ -38,7 +38,7 @@ function Stack.truncate(stack: Stack, targetTop: number)
 		targetTop = 0
 	end
 	if targetTop < stack.top then
-		for i = stack.top, targetTop + 1, -1 do
+		for i = stack.top, math.max(targetTop + 1, 1), -1 do
 			stack.values[i] = nil
 		end
 		stack.top = targetTop
