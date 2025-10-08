@@ -256,10 +256,8 @@ local function compileListCompExpr(st: CompilerState, node: nodes.ListComp)
 	end
 
 	local codeIdx = addConst(st, compState.code)
-	local zeroIdx = addConst(st, 0)
 	emit(st, "LOAD_CONST", codeIdx, node.lineno)
-	emit(st, "LOAD_CONST", zeroIdx, node.lineno)
-	emit(st, "MAKE_FUNCTION", 0, node.lineno)
+	emit(st, "MAKE_FUNCTION", 0, node.lineno) -- No defaults, so flags=0 and no tuple
 	emit(st, "CALL_FUNCTION", 0, node.lineno)
 end
 
@@ -845,11 +843,26 @@ compileFunctionDef = function(st: CompilerState, node: any)
 	local funcCodeIdx = addConst(st, funcState.code)
 	emit(st, "LOAD_CONST", funcCodeIdx, node.lineno)
 
-	-- Add function defaults (simplified - no defaults for now)
-	emit(st, "LOAD_CONST", addConst(st, 0), node.lineno) -- default count
+	-- Handle default arguments
+	-- Python stores defaults for parameters with defaults, aligned to the END of the parameter list
+	-- E.g., def foo(a, b, c=1, d=2): has 4 params, 2 defaults [1, 2] applying to params c and d
+	local defaultCount = 0
+	local flags = 0
+	if args and args.defaults and #args.defaults > 0 then
+		-- Compile each default expression
+		for _, defaultExpr in ipairs(args.defaults) do
+			compileExpr(st, defaultExpr)
+			defaultCount = defaultCount + 1
+		end
+		-- Build tuple of defaults
+		emit(st, "BUILD_TUPLE", defaultCount, node.lineno)
+		flags = flags + 0x01 -- Set defaults flag
+	end
 
 	-- Create the function object
-	emit(st, "MAKE_FUNCTION", 0, node.lineno) -- flags = 0 (no defaults, closure, etc.)
+	-- MAKE_FUNCTION flags:
+	-- 0x01 = defaults, 0x02 = kwdefaults, 0x04 = annotations, 0x08 = closure
+	emit(st, "MAKE_FUNCTION", flags, node.lineno)
 
 	-- Store the function in the current scope
 	local nameIdx = addName(st, funcName)

@@ -7,8 +7,8 @@ This guide explains the public API users interact with when embedding Python in 
 From this repository when running with Lute:
 
 ```lua
--- From docs/examples/* the relative import is:
-local PyLua = require("../../src/PyLua")
+-- From examples/* the relative import is:
+local PyLua = require("../src/PyLua")
 
 -- From the repo root or your own project layout, adjust the path accordingly,
 -- e.g. local PyLua = require("src/PyLua").
@@ -163,7 +163,7 @@ Important limitations (v0.3.0‑dev):
 - Chained comparisons parsed but not yet compiled
 - Dict unpacking in literals not yet compiled
 - For-loop assignment targets beyond simple `Name` unsupported
-- Function defaults/kwargs are stubbed in function creation
+- Keyword-only arguments (**kwargs) not yet supported
 - Exceptions/try-except not implemented
 - f-strings tokenized; full runtime formatting in progress
 

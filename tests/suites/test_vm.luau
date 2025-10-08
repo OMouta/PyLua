@@ -268,6 +268,30 @@ local vmTests: TestFramework.TestSuite = {
 		},
 
 		{
+			name = "Boolean Constants",
+			test = function()
+				local constants: { any } = { false, true }
+				local falseCode = {
+					Instructions.make("LOAD_CONST", 0),
+					Instructions.make("RETURN_VALUE"),
+				}
+
+				local falseResult = Interpreter.execute(falseCode, {}, {}, constants)
+				TestFramework.assertType(falseResult, "boolean", "False constant should unwrap to boolean")
+				TestFramework.assertFalse(falseResult, "LOAD_CONST false should produce false result")
+
+				local trueCode = {
+					Instructions.make("LOAD_CONST", 1),
+					Instructions.make("RETURN_VALUE"),
+				}
+
+				local trueResult = Interpreter.execute(trueCode, {}, {}, constants)
+				TestFramework.assertType(trueResult, "boolean", "True constant should unwrap to boolean")
+				TestFramework.assertTrue(trueResult, "LOAD_CONST true should produce true result")
+			end,
+		},
+
+		{
 			name = "Unary Operations",
 			test = function()
 				-- Test unary negative

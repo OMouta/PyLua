@@ -1,15 +1,8 @@
-# Project place file
-/PyLua.rbxlx
-
-# Roblox Studio lock files
-/*.rbxlx.lock
-/*.rbxl.lock
+# Roblox files
+*.rbxm
 
 # Rojo files
-/*sourcemap.json
-
-# Build files
-/build/*
+*sourcemap.json
 
 # Packages
 /Packages/*

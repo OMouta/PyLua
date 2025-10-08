@@ -47,4 +47,4 @@ Compiles AST into a compact Python-like bytecode executed by the VM.
 ## Known gaps
 
 - Chained comparisons not yet emitted (parser may build them)
-- Function defaults/kwargs in `MAKE_FUNCTION` are stubbed
+- Keyword-only arguments (**kwargs) in `MAKE_FUNCTION` not yet implemented

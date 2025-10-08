@@ -110,6 +110,68 @@ result = main(5)
 				TestFramework.assertEqual(globals.result, 12, "Function should be able to call other functions")
 			end,
 		},
+
+		{
+			name = "Function with Single Default Argument",
+			test = function()
+				local globals = executeCode([[
+def greet(name, greeting="Hello"):
+	return greeting
+
+result1 = greet("Alice", "Hi")
+result2 = greet("Bob")
+]])
+				TestFramework.assertEqual(globals.result1, "Hi", "Explicit argument should override default")
+				TestFramework.assertEqual(globals.result2, "Hello", "Should use default argument value")
+			end,
+		},
+
+		{
+			name = "Function with Multiple Default Arguments",
+			test = function()
+				local globals = executeCode([[
+def add(a, b=5, c=10):
+	return a + b + c
+
+result1 = add(1, 2, 3)
+result2 = add(1, 2)
+result3 = add(1)
+]])
+				TestFramework.assertEqual(globals.result1, 6, "All arguments explicitly provided")
+				TestFramework.assertEqual(globals.result2, 13, "Should use default for c")
+				TestFramework.assertEqual(globals.result3, 16, "Should use defaults for b and c")
+			end,
+		},
+
+		{
+			name = "Default Arguments with Expressions",
+			test = function()
+				local globals = executeCode([[
+def compute(x, y=2*3):
+	return x * y
+
+result1 = compute(5)
+result2 = compute(5, 10)
+]])
+				TestFramework.assertEqual(globals.result1, 30, "Should evaluate default expression (2*3=6, 5*6=30)")
+				TestFramework.assertEqual(globals.result2, 50, "Explicit argument should override default expression")
+			end,
+		},
+
+		{
+			name = "Function with All Defaults",
+			test = function()
+				local globals = executeCode([[
+def get_value(x=42):
+	return x
+
+result1 = get_value()
+result2 = get_value(100)
+]])
+				TestFramework.assertEqual(globals.result1, 42, "Should use default when no argument provided")
+				TestFramework.assertEqual(globals.result2, 100, "Should use provided argument")
+			end,
+		},
 	},
 }
 

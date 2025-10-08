@@ -304,6 +304,17 @@ function statements.parseCompound(state: any): Stmt
 			}
 			table.insert(args.args, param)
 
+			-- Check for default value (e.g., param=value)
+			if state.current and state.current.type == "EQUAL" then
+				state:advance() -- consume '='
+				local defaultExpr = expressions.parse(state)
+				table.insert(args.defaults, defaultExpr)
+			else
+				-- If no default for this parameter, we may need to track it
+				-- In Python, once you have a default, all following params must have defaults
+				-- For now, only add to defaults array when we actually see '='
+			end
+
 			-- Check for comma or end
 			if state.current and state.current.type == "COMMA" then
 				state:advance() -- consume comma

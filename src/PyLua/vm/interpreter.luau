@@ -6,6 +6,7 @@ local Opcodes = require("../bytecode/opcodes")
 local Instructions = require("../bytecode/instructions")
 local Base = require("../objects/base")
 local Collections = require("../objects/collections")
+local ObjBuiltins = require("../objects/builtins")
 
 type Frame = Frame.Frame
 type Stack = Stack.Stack
@@ -227,16 +228,22 @@ local function executeInstruction(
 	elseif opcode == "LOAD_CONST" then
 		-- Load constant by index from constants table
 		assert(arg ~= nil, "LOAD_CONST requires argument")
-		if constants and constants[arg + 1] then -- +1 for 1-based indexing
-			local value = constants[arg + 1]
+		local value = nil
+		if constants then
+			value = constants[arg + 1]
+		end
+		if constants and value ~= nil then -- +1 for 1-based indexing
+			local resolved = value
 			-- Handle nil sentinel
-			if typeof(value) == "table" and value.__nil then
-				value = nil
-			elseif typeof(value) == "table" and (value :: any).__bytes_literal then
-				local ObjBuiltins = require("../objects/builtins")
-				value = ObjBuiltins.Bytes((value :: any).value)
+			if typeof(resolved) == "table" and resolved.__nil then
+				resolved = nil
+			elseif typeof(resolved) == "table" and (resolved :: any).__bytes_literal then
+				resolved = ObjBuiltins.Bytes((resolved :: any).value)
+			elseif typeof(resolved) == "boolean" then
+				-- Convert Luau booleans to Python bool objects
+				resolved = if resolved then ObjBuiltins.True() else ObjBuiltins.False()
 			end
-			Frame.push(frame, value)
+			Frame.push(frame, resolved)
 		else
 			-- Fallback: treat arg as the constant value itself (for simple tests)
 			Frame.push(frame, arg)
@@ -700,10 +707,46 @@ local function executeInstruction(
 	elseif opcode == "MAKE_FUNCTION" then
 		assert(arg ~= nil, "MAKE_FUNCTION requires argument")
 		local flags = arg
-		local defaultCount = Frame.pop(frame) -- Number of defaults
-		local codeObj = Frame.pop(frame) -- Code object
+		
+		-- Stack layout (bottom to top):
+		-- - code object (pushed first, at bottom)
+		-- - defaults tuple (if flag 0x01, pushed after code)
+		-- - kwdefaults dict (if flag 0x02) - not implemented yet
+		-- - annotations dict (if flag 0x04) - not implemented yet
+		-- - closure tuple (if flag 0x08) - not implemented yet
+		--
+		-- We pop from top to bottom, so reverse order
+		
+		-- Pop in reverse order: top items first
+		-- Pop closure if present
+		if bit32.band(flags, 0x08) ~= 0 then
+			Frame.pop(frame) -- closure (not implemented)
+		end
+		-- Pop annotations if present
+		if bit32.band(flags, 0x04) ~= 0 then
+			Frame.pop(frame) -- annotations (not implemented)
+		end
+		-- Pop kwdefaults if present
+		if bit32.band(flags, 0x02) ~= 0 then
+			Frame.pop(frame) -- kwdefaults (not implemented)
+		end
+		
+		-- Pop defaults tuple if present
+		local defaults = nil
+		if bit32.band(flags, 0x01) ~= 0 then
+			local defaultsTuple = Frame.pop(frame)
+			-- Convert tuple to array
+			if defaultsTuple.__type == "tuple" then
+				defaults = {}
+				for _, value in ipairs(defaultsTuple.__value) do
+					table.insert(defaults, value)
+				end
+			end
+		end
+		
+		-- Pop code object (at bottom of our items)
+		local codeObj = Frame.pop(frame)
 
-		-- For now, ignore defaults (simplified)
 		local Functions = require("../objects/functions")
 
 		-- Convert CodeObject to PyCode
@@ -715,13 +758,13 @@ local function executeInstruction(
 			codeObj.bytecode,
 			codeObj.constants,
 			codeObj.names,
-			nil, -- defaults
+			defaults, -- Pass the defaults
 			"<string>", -- filename
 			codeObj.firstlineno
 		)
 
 		-- Create function object
-		local func = Functions.newFunction(pyCode, vm.globals, nil, nil)
+		local func = Functions.newFunction(pyCode, vm.globals, defaults, nil)
 		Frame.push(frame, func)
 	elseif opcode == "CALL_FUNCTION" then
 		assert(arg ~= nil, "CALL_FUNCTION requires argument")
@@ -861,7 +904,7 @@ callPyFunction = function(vm: VMState, func: any, args: { any }?, kwargs: { [str
 	end
 
 	-- Execute function bytecode using a new frame
-	local funcFrame = Frame.new(code.bytecode, funcGlobals, {}, locals, code.name)
+	local funcFrame = Frame.new(code.bytecode, funcGlobals, vm.builtins, locals, code.name)
 
 	-- Save current frame and push new frame
 	local prevFrame = vm.current_frame

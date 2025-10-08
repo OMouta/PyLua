@@ -1,4 +1,4 @@
-local PyLua = require("../../src/PyLua")
+local PyLua = require("../src/PyLua")
 local python = PyLua.new()
 
 python:execute([[ 
@@ -56,4 +56,3 @@ data = [((1, 2), 100), ((3, 4), 200)]
 for (a, b), value in data:
     print(f"pair ({a}, {b}) has value {value}")
 ]])
-

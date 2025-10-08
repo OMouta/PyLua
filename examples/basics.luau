@@ -1,4 +1,4 @@
-local PyLua = require("../../src/PyLua")
+local PyLua = require("../src/PyLua")
 
 -- Create a Python runtime
 local python = PyLua.new()

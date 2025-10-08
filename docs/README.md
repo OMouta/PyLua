@@ -6,7 +6,7 @@ If you’re just looking to try things, the examples below are the best starting
 
 ## Examples
 
-All examples live in `docs/examples/` and can be run directly with [Lute]. They exercise the public API in `src/PyLua/init.luau`:
+All examples live in `examples/` and can be run directly with [Lute]. They exercise the public API in `src/PyLua/init.luau`:
 
 - `hello_world.luau` – tiny smoke test printing the version and a greeting
 - `basics.luau` – execute vs eval, sharing values through `globals()`
@@ -25,9 +25,9 @@ From the repo root:
 
 2) Run any example like this:
 
-```powershell
-lute docs/examples/hello_world.luau
-lute docs/examples/basics.luau
+```bash
+lute examples/hello_world.luau
+lute examples/basics.luau
 ```
 
 ## Current API surface
@@ -73,13 +73,13 @@ Deep dives and references:
 
 You can run the full test suite via Lute from the repo root:
 
-```powershell
+```bash
 lute tests/run_tests.luau
 ```
 
 or with Jelly:
 
-```powershell
+```bash
 jelly run test
 ```
 

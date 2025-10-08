@@ -1,4 +1,4 @@
-local PyLua = require("../../src/PyLua")
+local PyLua = require("../src/PyLua")
 local python = PyLua.new()
 
 -- Minimal interop: expose a Luau value/function via globals
