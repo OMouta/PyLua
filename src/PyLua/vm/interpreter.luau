@@ -817,7 +817,8 @@ local function handleException(vm: VMState, frame: Frame, err: any): (boolean, P
 		if not block then
 			return false, excObj
 		end
-		Frame.truncateStack(frame, block.stackSize or 0)
+		assert(block.stackSize ~= nil, "Block is missing required stackSize")
+		Frame.truncateStack(frame, block.stackSize)
 		if block.type == "except" then
 			if not block.handler then
 				return false, excObj
