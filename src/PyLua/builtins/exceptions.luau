@@ -4,8 +4,10 @@ local base = require("../objects/base")
 local builtins = require("../objects/builtins")
 
 type PyObject = base.PyObject
+type PyType = base.PyType
 
 local DEFAULT_EXCEPTIONS = {
+	"BaseException",
 	"Exception",
 	"TypeError",
 	"ValueError",
@@ -15,29 +17,36 @@ local DEFAULT_EXCEPTIONS = {
 	"IndexError",
 	"AttributeError",
 	"RuntimeError",
+	"KeyError",
+	"ImportError",
+	"StopIteration",
+	"NotImplementedError",
+	"AssertionError",
+	"KeyboardInterrupt",
 }
 
-local typeCache: { [string]: any } = {}
+local typeCache: { [string]: PyType } = {}
 
-local function ensureExceptionType(name: string)
+local function ensureExceptionType(name: string): PyType
 	if typeCache[name] then
 		return typeCache[name]
 	end
-	local ok, existing = pcall(function()
-		if typeof(base.getTypeObject) == "function" then
-			return base.getTypeObject(name)
-		end
-		return nil
+
+	local typeObj: PyType
+	local ok, existing = pcall(function(): PyType
+		return (base :: any).getTypeObject(name)
 	end)
-	local typeObj
-	if ok then
+
+	if ok and existing then
 		typeObj = existing
 	else
 		typeObj = base.registerType(name, {})
 	end
-	typeObj.methods = typeObj.methods or {}
 
-	local function render(selfObj: PyObject)
+	typeObj.methods = typeObj.methods or {}
+	local methods = typeObj.methods :: { [string]: (PyObject, { PyObject }?) -> PyObject }
+
+	local function render(selfObj: PyObject, _args: { PyObject }?): PyObject
 		local payload = selfObj.__value
 		local message = if type(payload) == "table" then (payload :: any).message else nil
 		if message and message ~= "" then
@@ -46,11 +55,11 @@ local function ensureExceptionType(name: string)
 		return base.newPyObject("str", name)
 	end
 
-	if not typeObj.methods["__str__"] then
-		typeObj.methods["__str__"] = render
+	if not methods["__str__"] then
+		methods["__str__"] = render
 	end
-	if not typeObj.methods["__repr__"] then
-		typeObj.methods["__repr__"] = function(selfObj: PyObject)
+	if not methods["__repr__"] then
+		methods["__repr__"] = function(selfObj: PyObject, _args: { PyObject }?): PyObject
 			local payload = selfObj.__value
 			local message = if type(payload) == "table" then (payload :: any).message else nil
 			if message and message ~= "" then
@@ -71,7 +80,13 @@ local function normalizeMessage(err: string): string
 	local colonPos = string.find(cleaned, ": ")
 	if colonPos and colonPos < 40 then
 		local prefix = string.sub(cleaned, 1, colonPos - 1)
-		if not string.find(prefix, "%s") then
+		local errorMatch = string.match(prefix, "^[%a_][%w_]*Error$")
+		local exceptionMatch = string.match(prefix, "^[%a_][%w_]*Exception$")
+		local isErrorLike = (errorMatch ~= nil) or (exceptionMatch ~= nil)
+		local hasPathChars = string.find(prefix, "[%./\\]") ~= nil
+		if not string.find(prefix, "%s") and not isErrorLike then
+			cleaned = string.sub(cleaned, colonPos + 2)
+		elseif hasPathChars then
 			cleaned = string.sub(cleaned, colonPos + 2)
 		end
 	end
@@ -162,7 +177,8 @@ function Exceptions.reraise(exc: PyObject)
 end
 
 local function createTypeObject(name: string): PyObject
-	return base.newPyObject("type", { name = name })
+	local typeObj = ensureExceptionType(name)
+	return base.newPyObject("type", { name = name, type = typeObj })
 end
 
 function Exceptions.createBuiltins(): { [string]: PyObject }
