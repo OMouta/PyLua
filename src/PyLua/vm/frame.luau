@@ -18,8 +18,16 @@ export type Frame = {
 	lineno: number, -- Current line number
 	function_name: string?, -- Function name for debugging
 	previous: Frame?, -- Previous frame (call stack)
-	block_stack: { { type: string, start: number, endPos: number } }, -- Block stack for loops
+	block_stack: { Block }, -- Block stack for structured control flow
 	skip_advance: boolean?, -- Flag to skip PC advance (for jumps)
+}
+
+export type Block = {
+	type: string,
+	start: number?,
+	endPos: number?,
+	handler: number?,
+	stackSize: number,
 }
 
 -- Create a new execution frame
@@ -176,16 +184,21 @@ function Frame.stackSize(frame: Frame): number
 	return Stack.size(frame.stack)
 end
 
--- Block stack operations for loops
-function Frame.pushBlock(frame: Frame, blockType: string, start: number, endPos: number)
-	table.insert(frame.block_stack, { type = blockType, start = start, endPos = endPos })
+function Frame.truncateStack(frame: Frame, targetSize: number)
+	Stack.truncate(frame.stack, targetSize)
 end
 
-function Frame.popBlock(frame: Frame): { type: string, start: number, endPos: number }?
+-- Block stack operations for loops
+function Frame.pushBlock(frame: Frame, block: Block)
+	block.stackSize = block.stackSize or Frame.stackSize(frame)
+	table.insert(frame.block_stack, block)
+end
+
+function Frame.popBlock(frame: Frame): Block?
 	return table.remove(frame.block_stack)
 end
 
-function Frame.getCurrentBlock(frame: Frame): { type: string, start: number, endPos: number }?
+function Frame.getCurrentBlock(frame: Frame): Block?
 	return frame.block_stack[#frame.block_stack]
 end
 

@@ -793,6 +793,93 @@ compileStmt = function(st: CompilerState, node: any)
 	elseif node.type == "Pass" then
 		-- Pass statement does nothing
 		-- No bytecode emitted
+	elseif node.type == "Try" then
+		if #node.handlers == 0 then
+			error("try statement must have at least one handler", 2)
+		end
+
+		local setupIndex = getCurrentAddress(st)
+		emit(st, "SETUP_EXCEPT", 0, node.lineno)
+
+		for _, stmt in ipairs(node.body) do
+			compileStmt(st, stmt)
+		end
+
+		emit(st, "POP_BLOCK", nil, node.lineno)
+
+		if #node.orelse > 0 then
+			for _, stmt in ipairs(node.orelse) do
+				compileStmt(st, stmt)
+			end
+		end
+
+		local jumpPastHandlers = getCurrentAddress(st)
+		emit(st, "JUMP_FORWARD", 0, node.lineno)
+
+		local handlerStarts = {}
+		local handlerFallthroughJumps = {}
+		local matchFailJumps = {}
+
+		for index, handler in ipairs(node.handlers) do
+			local handlerStart = getCurrentAddress(st)
+			handlerStarts[index] = handlerStart
+
+			local matchJumpIndex: number? = nil
+			if handler.expr and handler.typeName then
+				-- Duplicate exception so one copy survives after the match call
+				emit(st, "DUP_TOP", nil, handler.lineno)
+				local matchNameIdx = addName(st, "_pylua_match_exception")
+				emit(st, "LOAD_NAME", matchNameIdx, handler.lineno)
+				emit(st, "ROT_TWO", nil, handler.lineno)
+				local typeNameIdx = addName(st, handler.typeName)
+				emit(st, "LOAD_NAME", typeNameIdx, handler.lineno)
+				emit(st, "CALL_FUNCTION", 2, handler.lineno)
+				matchJumpIndex = getCurrentAddress(st)
+				emit(st, "POP_JUMP_IF_FALSE", 0, handler.lineno)
+			end
+			if matchJumpIndex then
+				matchFailJumps[#matchFailJumps + 1] = { index = index, jump = matchJumpIndex }
+			end
+
+			if handler.name then
+				local storeIdx = addName(st, handler.name)
+				emit(st, "STORE_NAME", storeIdx, handler.lineno)
+			else
+				emit(st, "POP_TOP", nil, handler.lineno)
+			end
+
+			for _, stmt in ipairs(handler.body) do
+				compileStmt(st, stmt)
+			end
+
+			local exitJump = getCurrentAddress(st)
+			emit(st, "JUMP_FORWARD", 0, handler.lineno)
+			handlerFallthroughJumps[#handlerFallthroughJumps + 1] = exitJump
+		end
+
+		local unhandledLabel = getCurrentAddress(st)
+		if #node.handlers > 0 then
+			local raiseIdx = addName(st, "_pylua_raise")
+			emit(st, "LOAD_NAME", raiseIdx, node.lineno)
+			emit(st, "ROT_TWO", nil, node.lineno)
+			emit(st, "CALL_FUNCTION", 1, node.lineno)
+			emit(st, "POP_TOP", nil, node.lineno) -- Unreachable but keeps stack balanced if ever continued
+		end
+
+		local endLabel = getCurrentAddress(st)
+
+		patchJump(st, setupIndex, handlerStarts[1])
+		patchJump(st, jumpPastHandlers, endLabel)
+
+		for _, record in ipairs(matchFailJumps) do
+			local targetIndex = record.index + 1
+			local target = handlerStarts[targetIndex] or unhandledLabel
+			patchJump(st, record.jump, target)
+		end
+
+		for _, jump in ipairs(handlerFallthroughJumps) do
+			patchJump(st, jump, endLabel)
+		end
 	elseif node.type == "FunctionDef" then
 		-- Compile function definition
 		compileFunctionDef(st, node)

@@ -174,9 +174,9 @@ function TestFramework.printSummary()
 		)
 	)
 	if failedTestCases == 0 and failedAssertions == 0 then
-		print(colorize(ANSI.green, "✅ All tests passed"))
+		print(colorize(ANSI.green, "✓ All tests passed"))
 	else
-		print(colorize(ANSI.red, "❌ Some tests failed"))
+		print(colorize(ANSI.red, "✗ Some tests failed"))
 	end
 	return failedTestCases == 0 and failedAssertions == 0
 end

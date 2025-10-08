@@ -283,6 +283,76 @@ function statements.parseCompound(state: any): Stmt
 			col_offset = current.column,
 		}
 	end
+	if current.type == "TRY" then
+		local tryToken = current
+		state:advance()
+		state:consume("COLON", "Expected ':' after try")
+		local body = parseSuiteAfterColon(state)
+
+		local handlers = {}
+		while state.current and state.current.type == "EXCEPT" do
+			local exceptToken = state.current
+			state:advance()
+			local handlerExpr: Expr? = nil
+			local handlerTypeName: string? = nil
+			if state.current and state.current.type ~= "COLON" then
+				handlerExpr = expressions.parse(state)
+				if handlerExpr and handlerExpr.type == "Name" then
+					handlerTypeName = (handlerExpr :: any).id
+				else
+					state:raise("Only simple names are supported in except type clauses")
+				end
+			end
+
+			local aliasName: string? = nil
+			if state.current and state.current.type == "AS" then
+				state:advance()
+				local nameToken = state:consume("NAME", "Expected name after 'as'")
+				aliasName = nameToken.value
+			end
+
+			state:consume("COLON", "Expected ':' after except clause")
+			local handlerBody = parseSuiteAfterColon(state)
+
+			table.insert(handlers, {
+				type = "ExceptHandler",
+				lineno = exceptToken.line,
+				col_offset = exceptToken.column,
+				end_lineno = nil,
+				end_col_offset = nil,
+				body = handlerBody,
+				expr = handlerExpr,
+				typeName = handlerTypeName,
+				name = aliasName,
+			})
+		end
+
+		if #handlers == 0 then
+			state:raise("Expected at least one except clause for try statement")
+		end
+		for i, handler in ipairs(handlers) do
+			if (handler :: any).expr == nil and i < #handlers then
+				state:raise("Bare 'except' must be the final handler")
+			end
+		end
+
+		local orelse: { Stmt } = {}
+		if state.current and state.current.type == "ELSE" then
+			state:advance()
+			state:consume("COLON", "Expected ':' after else")
+			orelse = parseSuiteAfterColon(state)
+		end
+
+		return {
+			type = "Try",
+			body = body,
+			handlers = handlers,
+			orelse = orelse,
+			finalbody = {},
+			lineno = tryToken.line,
+			col_offset = tryToken.column,
+		}
+	end
 	if current.type == "DEF" then
 		state:advance()
 		local nameToken = state:consume("NAME", "Expected function name after 'def'")
@@ -352,7 +422,13 @@ function statements.parse(state: any): Stmt
 	if not current then
 		state:raise("Unexpected end of input in statement")
 	end
-	if current.type == "IF" or current.type == "WHILE" or current.type == "FOR" or current.type == "DEF" then
+	if
+		current.type == "IF"
+		or current.type == "WHILE"
+		or current.type == "FOR"
+		or current.type == "DEF"
+		or current.type == "TRY"
+	then
 		return statements.parseCompound(state)
 	end
 	return statements.parseSimple(state)
