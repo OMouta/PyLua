@@ -241,14 +241,14 @@ Completion Criteria: Original `parser.luau` shrinks to thin façade (<150 lines)
 - [ ] **Lambda functions**: Anonymous functions
 - [ ] **Generators**: yield expressions and iteration
 - [x] **Exception handling**: Basic try/except with tuple patterns and finally clauses
-- [x] **f-strings**: Runtime expression interpolation and formatting (lexer already tokenizes prefixes; implement evaluation and formatting).
+- [-] **f-strings**: Runtime expression interpolation and formatting (lexer already tokenizes prefixes; implement evaluation and formatting).
 - [x] **FloorDiv and MatMult**: Implement `//` and `@` operators end-to-end (lexer, parser, compiler, VM).
 
 #### 5.3 Python-Luau Interop
 
 - [ ] **Luau function calls**: Call Luau from Python
 - [ ] **Object conversion**: Python ↔ Luau type mapping
-- [ ] **Error translation**: Python exceptions ↔ Luau errors
+- [x] **Error translation**: Python exceptions ↔ Luau errors
 
 **Key Files**: `builtins/functions.luau`, `builtins/exceptions.luau`
 
