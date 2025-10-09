@@ -139,12 +139,23 @@ end
 local function parseSuiteAfterColon(state: any): { Stmt }
 	local body: { Stmt } = {}
 
+	local function skipEmptyLines()
+		while
+			state.current
+			and (state.current.type == "NEWLINE" or state.current.type == "COMMENT")
+		do
+			state:advance()
+		end
+	end
+
 	if state.current and state.current.type == "NEWLINE" then
 		-- Multi-line suite
 		state:advance()
 		if state.current and state.current.type == "INDENT" then
 			state:advance()
 		end
+
+		skipEmptyLines()
 
 		while
 			state.current
@@ -155,9 +166,7 @@ local function parseSuiteAfterColon(state: any): { Stmt }
 		do
 			local stmt = statements.parse(state)
 			table.insert(body, stmt)
-			while state.current and state.current.type == "NEWLINE" do
-				state:advance()
-			end
+			skipEmptyLines()
 		end
 
 		if state.current and state.current.type == "DEDENT" then
@@ -167,6 +176,7 @@ local function parseSuiteAfterColon(state: any): { Stmt }
 		-- Single-line suite: parse only one statement
 		local stmt = statements.parse(state)
 		table.insert(body, stmt)
+		skipEmptyLines()
 	end
 
 	return body

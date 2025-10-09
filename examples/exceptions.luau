@@ -32,7 +32,7 @@ finally:
 try:
     # This might raise ValueError or TypeError
     result = int("abc")
-    # result = "string" + 123
+    # result = "string" + 123 # This would raise TypeError
 except (ValueError, TypeError) as e:
     print("Caught multiple types error:", e)
 
