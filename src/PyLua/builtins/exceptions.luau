@@ -156,18 +156,34 @@ function Exceptions.toLuauMessage(exc: PyObject): string
 	return exceptionMessage(exc)
 end
 
-function Exceptions.matchException(exc: PyObject, typeObj: PyObject?): PyObject
-	if typeObj == nil then
-		return builtins.False()
+local function matchesTypeSpec(exc: PyObject, spec: PyObject?): boolean
+	if spec == nil then
+		return false
 	end
-	if typeObj.__type ~= "type" then
+	if type(spec) ~= "table" or spec.__type == nil then
 		error("TypeError: except clause must reference an exception type", 2)
 	end
-	local expected = if type(typeObj.__value) == "table" then (typeObj.__value :: any).name else nil
+	if spec.__type == "tuple" then
+		local values = spec.__value
+		for _, entry in ipairs(values) do
+			if matchesTypeSpec(exc, entry) then
+				return true
+			end
+		end
+		return false
+	end
+	if spec.__type ~= "type" then
+		error("TypeError: except clause must reference an exception type", 2)
+	end
+	local expected = if type(spec.__value) == "table" then (spec.__value :: any).name else nil
 	if expected == nil then
 		error("TypeError: malformed exception type", 2)
 	end
-	local matches = exc.__type == expected
+	return exc.__type == expected
+end
+
+function Exceptions.matchException(exc: PyObject, typeObj: PyObject?): PyObject
+	local matches = matchesTypeSpec(exc, typeObj)
 	return if matches then builtins.True() else builtins.False()
 end
 

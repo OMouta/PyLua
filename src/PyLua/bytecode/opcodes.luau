@@ -47,9 +47,12 @@ export type Opcode =
 	| "POP_JUMP_IF_FALSE"
 	| "SETUP_LOOP"
 	| "SETUP_EXCEPT"
+	| "SETUP_FINALLY"
 	| "POP_BLOCK"
 	| "BREAK_LOOP"
 	| "CONTINUE_LOOP"
+	| "BEGIN_FINALLY"
+	| "END_FINALLY"
 	-- Iteration
 	| "GET_ITER"
 	| "FOR_ITER"
@@ -132,9 +135,12 @@ local OPCODE_INFO: { [Opcode]: OpcodeInfo } = {
 	POP_JUMP_IF_FALSE = { name = "POP_JUMP_IF_FALSE", arg = true, doc = "Pop and jump if false" },
 	SETUP_LOOP = { name = "SETUP_LOOP", arg = true, doc = "Setup loop with end offset" },
 	SETUP_EXCEPT = { name = "SETUP_EXCEPT", arg = true, doc = "Setup exception handler" },
+	SETUP_FINALLY = { name = "SETUP_FINALLY", arg = true, doc = "Setup finally handler" },
 	POP_BLOCK = { name = "POP_BLOCK", arg = false, doc = "Pop a block from block stack" },
 	BREAK_LOOP = { name = "BREAK_LOOP", arg = false, doc = "Break out of current loop" },
 	CONTINUE_LOOP = { name = "CONTINUE_LOOP", arg = true, doc = "Continue to loop start" },
+	BEGIN_FINALLY = { name = "BEGIN_FINALLY", arg = false, doc = "Enter finally block (normal exit)" },
+	END_FINALLY = { name = "END_FINALLY", arg = false, doc = "Complete finally block action" },
 
 	-- Iteration
 	GET_ITER = { name = "GET_ITER", arg = false, doc = "Get iterator from iterable" },

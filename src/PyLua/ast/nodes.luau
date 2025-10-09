@@ -111,7 +111,6 @@ export type ExceptHandler = {
 	end_col_offset: number?,
 	body: { Stmt },
 	expr: Expr?,
-	typeName: string?,
 	name: string?,
 }
 

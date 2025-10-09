@@ -139,12 +139,23 @@ end
 local function parseSuiteAfterColon(state: any): { Stmt }
 	local body: { Stmt } = {}
 
+	local function skipEmptyLines()
+		while
+			state.current
+			and (state.current.type == "NEWLINE" or state.current.type == "COMMENT")
+		do
+			state:advance()
+		end
+	end
+
 	if state.current and state.current.type == "NEWLINE" then
 		-- Multi-line suite
 		state:advance()
 		if state.current and state.current.type == "INDENT" then
 			state:advance()
 		end
+
+		skipEmptyLines()
 
 		while
 			state.current
@@ -155,9 +166,7 @@ local function parseSuiteAfterColon(state: any): { Stmt }
 		do
 			local stmt = statements.parse(state)
 			table.insert(body, stmt)
-			while state.current and state.current.type == "NEWLINE" do
-				state:advance()
-			end
+			skipEmptyLines()
 		end
 
 		if state.current and state.current.type == "DEDENT" then
@@ -167,6 +176,7 @@ local function parseSuiteAfterColon(state: any): { Stmt }
 		-- Single-line suite: parse only one statement
 		local stmt = statements.parse(state)
 		table.insert(body, stmt)
+		skipEmptyLines()
 	end
 
 	return body
@@ -290,19 +300,15 @@ function statements.parseCompound(state: any): Stmt
 		local body = parseSuiteAfterColon(state)
 
 		local handlers = {}
+		local sawExcept = false
 		while state.current and state.current.type == "EXCEPT" do
 			local exceptToken = state.current
 			state:advance()
 			local handlerExpr: Expr? = nil
-			local handlerTypeName: string? = nil
 			if state.current and state.current.type ~= "COLON" then
 				handlerExpr = expressions.parse(state)
-				if handlerExpr and handlerExpr.type == "Name" then
-					handlerTypeName = (handlerExpr :: any).id
-				else
-					state:raise("Only simple names are supported in except type clauses")
-				end
 			end
+			sawExcept = true
 
 			local aliasName: string? = nil
 			if state.current and state.current.type == "AS" then
@@ -322,14 +328,16 @@ function statements.parseCompound(state: any): Stmt
 				end_col_offset = nil,
 				body = handlerBody,
 				expr = handlerExpr,
-				typeName = handlerTypeName,
 				name = aliasName,
 			})
 		end
 
-		if #handlers == 0 then
-			state:raise("Expected at least one except clause for try statement")
+		local finalbody: { Stmt } = {}
+		local nextToken = state.current and state.current.type or nil
+		if not sawExcept and nextToken ~= "FINALLY" then
+			state:raise("Expected at least one except or finally clause for try statement")
 		end
+
 		for i, handler in ipairs(handlers) do
 			if (handler :: any).expr == nil and i < #handlers then
 				state:raise("Bare 'except' must be the final handler")
@@ -340,7 +348,20 @@ function statements.parseCompound(state: any): Stmt
 		if state.current and state.current.type == "ELSE" then
 			state:advance()
 			state:consume("COLON", "Expected ':' after else")
+			if not sawExcept then
+				state:raise("'else' clause is only allowed when at least one except handler is present")
+			end
 			orelse = parseSuiteAfterColon(state)
+		end
+
+		if state.current and state.current.type == "FINALLY" then
+			state:advance()
+			state:consume("COLON", "Expected ':' after finally")
+			finalbody = parseSuiteAfterColon(state)
+		end
+
+		if not sawExcept and #finalbody == 0 then
+			state:raise("try statement requires except or finally clause")
 		end
 
 		return {
@@ -348,7 +369,7 @@ function statements.parseCompound(state: any): Stmt
 			body = body,
 			handlers = handlers,
 			orelse = orelse,
-			finalbody = {},
+			finalbody = finalbody,
 			lineno = tryToken.line,
 			col_offset = tryToken.column,
 		}
