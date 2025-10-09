@@ -69,6 +69,92 @@ compareOperations = {
 	end,
 }
 
+local function truncateToBlock(frame: Frame, block: Frame.Block)
+	local target = block.stackSize
+	local current = Frame.stackSize(frame)
+	if target == nil or target > current then
+		target = current
+	end
+	Frame.truncateStack(frame, target)
+end
+
+local function handleReturn(vm: VMState, frame: Frame, value: any): boolean
+	while true do
+		local block = Frame.getCurrentBlock(frame)
+		if not block then
+			vm.return_value = value
+			return false
+		end
+		local popped = Frame.popBlock(frame)
+		if popped then
+			truncateToBlock(frame, popped)
+			if popped.type == "finally" then
+				assert(popped.handler ~= nil, "finally block missing handler")
+				Frame.pushFinally(frame, { reason = "return", value = value })
+				Frame.jump(frame, popped.handler :: number)
+				frame.skip_advance = true
+				return true
+			end
+		end
+	end
+end
+
+local function handleBreak(frame: Frame, target: number?)
+	while true do
+		local block = Frame.popBlock(frame)
+		if not block then
+			error("'break' outside loop", 2)
+		end
+		truncateToBlock(frame, block)
+		if block.type == "finally" then
+			assert(block.handler ~= nil, "finally block missing handler")
+			Frame.pushFinally(frame, { reason = "break", target = target })
+			Frame.jump(frame, block.handler :: number)
+			frame.skip_advance = true
+			return
+		elseif block.type == "loop" then
+			local exitTarget = target or block.endPos
+			assert(exitTarget ~= nil, "Loop block missing end position")
+			Frame.jump(frame, exitTarget :: number)
+			frame.skip_advance = true
+			return
+		end
+	end
+end
+
+local function handleContinue(frame: Frame, target: number?)
+	while true do
+		local block = Frame.getCurrentBlock(frame)
+		if not block then
+			error("'continue' not properly in loop", 2)
+		end
+		if block.type == "finally" then
+			local popped = Frame.popBlock(frame)
+			if popped then
+				truncateToBlock(frame, popped)
+				assert(popped.handler ~= nil, "finally block missing handler")
+				Frame.pushFinally(frame, { reason = "continue", target = target })
+				Frame.jump(frame, popped.handler :: number)
+				frame.skip_advance = true
+				return
+			end
+		elseif block.type == "loop" then
+			local nextTarget = target or block.start
+			if nextTarget == nil then
+				error("Loop block missing start label for continue", 2)
+			end
+			Frame.jump(frame, nextTarget :: number)
+			frame.skip_advance = true
+			return
+		else
+			local popped = Frame.popBlock(frame)
+			if popped then
+				truncateToBlock(frame, popped)
+			end
+		end
+	end
+end
+
 -- Iterator helper functions
 local function createIterator(iterable: any): any
 	-- Create an iterator from an iterable object
@@ -527,13 +613,29 @@ local function dispatchInstruction(
 			endPos = nil,
 			stackSize = Frame.stackSize(frame),
 		})
+	elseif opcode == "SETUP_FINALLY" then
+		assert(arg ~= nil, "SETUP_FINALLY requires argument")
+		Frame.pushBlock(frame, {
+			type = "finally",
+			handler = arg,
+			start = nil,
+			endPos = nil,
+			stackSize = Frame.stackSize(frame),
+		})
 	elseif opcode == "POP_BLOCK" then
 		-- Pop block from block stack
 		Frame.popBlock(frame)
 	elseif opcode == "BREAK_LOOP" then
-		-- Break out of current loop
-		local block = Frame.getCurrentBlock(frame)
-		if not block or block.type ~= "loop" then
+		-- Determine target loop exit
+		local loopTarget: number? = nil
+		for i = #frame.block_stack, 1, -1 do
+			local blk = frame.block_stack[i]
+			if blk.type == "loop" then
+				loopTarget = blk.endPos
+				break
+			end
+		end
+		if loopTarget == nil then
 			error("'break' outside loop", 2)
 		end
 		-- If we're inside a for-loop, the iterator is typically on the TOS.
@@ -548,25 +650,56 @@ local function dispatchInstruction(
 				end
 			end
 		end
-		-- Jump to end of loop; POP_BLOCK at target will remove the loop block
-		assert(block.endPos ~= nil, "Loop block missing end position")
-		Frame.jump(frame, block.endPos :: number)
-		frame.skip_advance = true
+		handleBreak(frame, loopTarget)
+		return true
 	elseif opcode == "CONTINUE_LOOP" then
-		local block = Frame.getCurrentBlock(frame)
-		if not block or block.type ~= "loop" then
+		local continueTarget: number? = nil
+		for i = #frame.block_stack, 1, -1 do
+			local blk = frame.block_stack[i]
+			if blk.type == "loop" then
+				continueTarget = blk.start or arg
+				break
+			end
+		end
+		if continueTarget == nil then
 			error("'continue' not properly in loop", 2)
 		end
-		local target = block.start
-		if target == nil then
-			assert(arg ~= nil, "CONTINUE_LOOP requires argument")
-			target = arg
+		handleContinue(frame, continueTarget)
+		return true
+	elseif opcode == "BEGIN_FINALLY" then
+		Frame.pushFinally(frame, { reason = "normal" })
+	elseif opcode == "END_FINALLY" then
+		local record = Frame.popFinally(frame)
+		if record then
+			local reason = record.reason
+			if reason == "normal" or reason == nil then
+				-- Nothing to do
+			elseif reason == "return" then
+				local continue = handleReturn(vm, frame, record.value)
+				if not continue then
+					return false
+				end
+				return true
+			elseif reason == "break" then
+				assert(record.target ~= nil, "break continuation missing target")
+				handleBreak(frame, record.target :: number)
+				return true
+			elseif reason == "continue" then
+				assert(record.target ~= nil, "continue continuation missing target")
+				handleContinue(frame, record.target :: number)
+				return true
+			elseif reason == "exception" then
+				local exc = record.value
+				Exceptions.reraise(exc :: PyObject)
+			end
 		end
-		Frame.jump(frame, target :: number)
-		frame.skip_advance = true
 	elseif opcode == "RETURN_VALUE" then
-		vm.return_value = Frame.pop(frame)
-		return false -- Signal end of execution
+		local value = Frame.pop(frame)
+		local continue = handleReturn(vm, frame, value)
+		if not continue then
+			return false
+		end
+		return true
 
 	-- Iteration
 	elseif opcode == "GET_ITER" then
@@ -818,8 +951,16 @@ local function handleException(vm: VMState, frame: Frame, err: any): (boolean, P
 			return false, excObj
 		end
 		assert(block.stackSize ~= nil, "Block is missing required stackSize")
-		Frame.truncateStack(frame, block.stackSize)
-		if block.type == "except" then
+		truncateToBlock(frame, block)
+		if block.type == "finally" then
+			if not block.handler then
+				return false, excObj
+			end
+			Frame.pushFinally(frame, { reason = "exception", value = excObj })
+			Frame.jump(frame, block.handler)
+			frame.skip_advance = true
+			return true, nil
+		elseif block.type == "except" then
 			if not block.handler then
 				return false, excObj
 			end

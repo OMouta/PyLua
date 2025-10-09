@@ -20,6 +20,7 @@ export type Frame = {
 	previous: Frame?, -- Previous frame (call stack)
 	block_stack: { Block }, -- Block stack for structured control flow
 	skip_advance: boolean?, -- Flag to skip PC advance (for jumps)
+	finally_stack: { { reason: string, value: any?, target: number? } },
 }
 
 export type Block = {
@@ -51,6 +52,7 @@ function Frame.new(
 		previous = nil,
 		block_stack = {},
 		skip_advance = false,
+		finally_stack = {},
 	}
 end
 
@@ -200,6 +202,14 @@ end
 
 function Frame.getCurrentBlock(frame: Frame): Block?
 	return frame.block_stack[#frame.block_stack]
+end
+
+function Frame.pushFinally(frame: Frame, record: { reason: string, value: any?, target: number? })
+	frame.finally_stack[#frame.finally_stack + 1] = record
+end
+
+function Frame.popFinally(frame: Frame): { reason: string, value: any?, target: number? }?
+	return table.remove(frame.finally_stack)
 end
 
 return Frame

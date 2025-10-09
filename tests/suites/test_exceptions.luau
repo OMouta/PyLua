@@ -98,6 +98,85 @@ except TypeError:
 				end, "Unhandled exceptions should propagate out of try")
 			end,
 		},
+		{
+			name = "Tuple handler captures ValueError",
+			test = function()
+				local globals = executeCode([[ 
+result = "unset"
+try:
+	int("abc")
+except (TypeError, ValueError) as err:
+	result = str(err)
+]])
+				local expected = "ValueError: invalid literal for int() with base 10"
+				TestFramework.assertEqual(globals.result, expected, "Tuple except should match any provided type")
+			end,
+		},
+		{
+			name = "Finally executes on success",
+			test = function()
+				local globals = executeCode([[ 
+log = ""
+try:
+	log += "body"
+finally:
+	log += "finally"
+]])
+				TestFramework.assertEqual(globals.log, "bodyfinally", "Finally block should run after successful try")
+			end,
+		},
+		{
+			name = "Finally executes before exception handler",
+			test = function()
+				local globals = executeCode([[ 
+log = ""
+try:
+	try:
+		int("abc")
+	finally:
+		log += "F"
+except ValueError:
+	log += "E"
+]])
+				TestFramework.assertEqual(globals.log, "FE", "Finally should run before matching except handler")
+			end,
+		},
+		{
+			name = "Finally executes before return",
+			test = function()
+				local globals = executeCode([[ 
+log = []
+def run():
+	try:
+		log.append("body")
+		return "done"
+	finally:
+		log.append("finally")
+result = run()
+]])
+				TestFramework.assertEqual(globals.result, "done", "Function should return original value")
+				local logObj = globals.log
+				TestFramework.assertType(logObj, "table", "log should be a PyObject list")
+				local entries = logObj.__value
+				TestFramework.assertEqual(#entries, 2, "Finally should record entry even on return")
+				TestFramework.assertEqual(entries[2].__value, "finally", "Finally entry should be appended after body entry")
+			end,
+		},
+		{
+			name = "Finally executes on break",
+			test = function()
+				local globals = executeCode([[ 
+log = ""
+for item in [1, 2, 3]:
+	try:
+		log += "L"
+		break
+	finally:
+		log += "F"
+]])
+				TestFramework.assertEqual(globals.log, "LF", "Finally should execute even when breaking out of loop")
+			end,
+		},
 	},
 }
 

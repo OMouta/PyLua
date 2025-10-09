@@ -26,6 +26,15 @@ try:
     value = int("not_a_number")
 except:
     print("Error: Could not convert string to int")
+finally:
+    print("Execution completed.")
+
+try:
+    # This might raise ValueError or TypeError
+    result = int("abc")
+    # result = "string" + 123
+except (ValueError, TypeError) as e:
+    print("Caught multiple types error:", e)
 
 # Unhandled exception example
 print("This will raise an unhandled exception:")
