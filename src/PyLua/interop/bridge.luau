@@ -81,7 +81,7 @@ local function ensureLuauFunctionType(): PyType
 			end
 			local okCall, result = pcall(record.func, table.unpack(converted))
 			if not okCall then
-				error(result, 2)
+				error(result, 0)
 			end
 			return Bridge.luauToPy(result)
 		end
