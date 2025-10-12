@@ -6,6 +6,7 @@ local Lexer = require("../../src/PyLua/lexer")
 local Parser = require("../../src/PyLua/parser")
 local Compiler = require("../../src/PyLua/compiler")
 local Interpreter = require("../../src/PyLua/vm/interpreter")
+local Builtins = require("../../src/PyLua/builtins/functions")
 
 -- Helper function to compile and execute Python code
 local function executeCode(code: string): { [string]: any }
@@ -13,7 +14,8 @@ local function executeCode(code: string): { [string]: any }
 	local ast = Parser.parse(tokens)
 	local bytecode = Compiler.compile(ast)
 	local globals = {}
-	Interpreter.execute(bytecode.bytecode, globals, {}, bytecode.constants, bytecode.names)
+	local builtins = Builtins.createBuiltins()
+	Interpreter.execute(bytecode.bytecode, globals, builtins, bytecode.constants, bytecode.names)
 	return globals
 end
 
@@ -170,6 +172,39 @@ result2 = get_value(100)
 ]])
 				TestFramework.assertEqual(globals.result1, 42, "Should use default when no argument provided")
 				TestFramework.assertEqual(globals.result2, 100, "Should use provided argument")
+			end,
+		},
+
+		{
+			name = "F-string basic interpolation",
+			test = function()
+				local globals = executeCode([[
+name = "World"
+message = f"Hello, {name}!"
+]])
+				TestFramework.assertEqual(globals.message, "Hello, World!", "F-string should interpolate expressions")
+			end,
+		},
+
+		{
+			name = "F-string conversions and format spec",
+			test = function()
+				local globals = executeCode([[
+value = 3.14159
+converted = f"{value!r} -> {value:.2f}"
+]])
+				TestFramework.assertEqual(globals.converted, "3.14159 -> 3.14", "F-string should honor conversions and format specs")
+			end,
+		},
+
+		{
+			name = "F-string escaped braces",
+			test = function()
+				local globals = executeCode([[
+count = 5
+text = f"{{count}} = {count}"
+]])
+				TestFramework.assertEqual(globals.text, "{count} = 5", "Double braces should escape braces in f-strings")
 			end,
 		},
 	},

@@ -2,7 +2,6 @@
 
 A practical subset is implemented; some features are deferred or partial:
 
-- f-strings: prefixes tokenized; full runtime interpolation/formatting still in progress
 - Interop: calling Luau from Python is minimal; broader object conversion and error translation planned
 
 Track progress in [REWRITE_PLAN.md](../internalDocs/REWRITE_PLAN.md).
