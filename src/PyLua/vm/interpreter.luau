@@ -80,10 +80,15 @@ local function identityCompare(left: any, right: any): boolean
 	end
 	local coercedLeft = coerceSingletonCandidate(left)
 	local coercedRight = coerceSingletonCandidate(right)
-	if isPyObject(coercedLeft) and isPyObject(coercedRight) then
+	local leftIsPy = isPyObject(coercedLeft)
+	local rightIsPy = isPyObject(coercedRight)
+	if leftIsPy and rightIsPy then
 		return coercedLeft == coercedRight
 	end
-	return false
+	if leftIsPy or rightIsPy then
+		return false
+	end
+	return coercedLeft == coercedRight
 end
 
 local function iterMembershipContains(container: PyObject, needle: PyObject): boolean
