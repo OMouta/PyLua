@@ -8,6 +8,7 @@ local Base = require("../objects/base")
 local Collections = require("../objects/collections")
 local ObjBuiltins = require("../objects/builtins")
 local Exceptions = require("../builtins/exceptions")
+local interop = require("../interop/bridge")
 
 type Frame = Frame.Frame
 type Stack = Stack.Stack
@@ -82,6 +83,7 @@ local function identityCompare(left: any, right: any): boolean
 	if isPyObject(coercedLeft) and isPyObject(coercedRight) then
 		return coercedLeft == coercedRight
 	end
+	return false
 end
 
 local function iterMembershipContains(container: PyObject, needle: PyObject): boolean
@@ -1022,6 +1024,15 @@ local function dispatchInstruction(
 		-- Call the function
 		if type(func) == "table" and func.__type == "builtin_function_or_method" then
 			local result = Base.call(func, orderedArgs)
+			Frame.push(frame, Base.ensurePyObject(result))
+		elseif type(func) == "table" and func.__type == "luau_function" then
+			local callMethod = Base.getattr(func, "__call__")
+			local result = Base.call(callMethod, orderedArgs)
+			Frame.push(frame, Base.ensurePyObject(result))
+		elseif type(func) == "function" then
+			local wrapped = interop.wrapLuauFunction(func)
+			local callMethod = Base.getattr(wrapped, "__call__")
+			local result = Base.call(callMethod, orderedArgs)
 			Frame.push(frame, Base.ensurePyObject(result))
 		else
 			local result = callPyFunction(vm, func, orderedArgs, {})

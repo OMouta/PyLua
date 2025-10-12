@@ -156,7 +156,7 @@ local function matrixMultiply(left: PyObject, right: PyObject): PyObject
 	return Collections.newList(resultRows)
 end
 
-local getTypeObject = (base :: any).getTypeObject
+local getTypeObject = base.getTypeObject
 local function ensureType(name: string)
 	local ok = pcall(function()
 		getTypeObject(name)

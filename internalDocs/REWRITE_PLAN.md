@@ -246,8 +246,8 @@ Completion Criteria: Original `parser.luau` shrinks to thin façade (<150 lines)
 
 #### 5.3 Python-Luau Interop
 
-- [ ] **Luau function calls**: Call Luau from Python
-- [ ] **Object conversion**: Python ↔ Luau type mapping
+- [x] **Luau function calls**: Call Luau from Python
+- [x] **Object conversion**: Python ↔ Luau type mapping
 - [x] **Error translation**: Python exceptions ↔ Luau errors
 
 **Key Files**: `builtins/functions.luau`, `builtins/exceptions.luau`

@@ -34,7 +34,7 @@ local function ensureExceptionType(name: string): PyType
 
 	local typeObj: PyType
 	local ok, existing = pcall(function(): PyType
-		return (base :: any).getTypeObject(name)
+		return base.getTypeObject(name)
 	end)
 
 	if ok and existing then

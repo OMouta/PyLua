@@ -10,6 +10,7 @@ local parser = require("@self/parser")
 local compiler = require("@self/compiler")
 local vm = require("@self/vm/interpreter")
 local builtinFunctions = require("@self/builtins/functions")
+local interop = require("@self/interop/bridge")
 
 -- Type definitions for the API
 export type RuntimeOptions = {
@@ -30,10 +31,12 @@ export type Runtime = {
 	globals: (self: Runtime) -> { [string]: any },
 	setGlobal: (self: Runtime, name: string, value: any) -> (),
 	getGlobal: (self: Runtime, name: string) -> any,
+	getGlobalPy: (self: Runtime, name: string) -> any,
 
 	-- Internal state (private)
 	_options: RuntimeOptions,
 	_globals: { [string]: any },
+	_globalsProxy: { [string]: any },
 	_builtins: { [string]: any },
 	_debug: boolean,
 }
@@ -46,22 +49,58 @@ Runtime.__index = Runtime
 function PyLua.new(options: RuntimeOptions?): Runtime
 	local opts: RuntimeOptions = options or {}
 
+	local globalsStore: { [string]: any } = {}
+	local globalsProxy: { [string]: any } = {}
+
+	local proxyMeta = {}
+
+	function proxyMeta.__index(_: any, key: string)
+		local stored = globalsStore[key]
+		if stored == nil then
+			return nil
+		end
+		return interop.pyToLuau(stored)
+	end
+
+	function proxyMeta.__newindex(_: any, key: string, value: any)
+		if value == nil then
+			globalsStore[key] = nil
+			return
+		end
+		globalsStore[key] = interop.luauToPy(value)
+	end
+
+	function proxyMeta.__pairs()
+		local function iterator(state, lastKey)
+			local nextKey, stored = next(state, lastKey)
+			if nextKey == nil then
+				return nil
+			end
+			return nextKey, interop.pyToLuau(stored)
+		end
+		return iterator, globalsStore, nil
+	end
+
+	setmetatable(globalsProxy, proxyMeta)
+
 	local runtime = {
 		_options = opts,
-		_globals = {},
+		_globals = globalsStore,
+		_globalsProxy = globalsProxy,
 		_builtins = opts.builtins or builtinFunctions.createBuiltins(),
 		_debug = if opts.debug ~= nil then opts.debug else false,
 	}
 
-	-- Add PyLua version to globals
-	runtime._globals["__pylua_version__"] = PyLua.version
+	local function initGlobal(name: string, value: any)
+		runtime._globals[name] = interop.luauToPy(value)
+	end
 
-	-- Initialize other global variables
-	runtime._globals["__name__"] = "__main__"
-	runtime._globals["__doc__"] = nil
-	runtime._globals["__package__"] = nil
-	runtime._globals["__loader__"] = nil
-	runtime._globals["__spec__"] = nil
+	initGlobal("__pylua_version__", PyLua.version)
+	initGlobal("__name__", "__main__")
+	initGlobal("__doc__", nil)
+	initGlobal("__package__", nil)
+	initGlobal("__loader__", nil)
+	initGlobal("__spec__", nil)
 
 	-- Set metatable for method access
 	setmetatable(runtime, Runtime)
@@ -137,7 +176,7 @@ end
 
 -- Access the global environment
 function Runtime:globals(): { [string]: any }
-	return self._globals
+	return self._globalsProxy
 end
 
 -- Set a global variable
@@ -146,7 +185,12 @@ function Runtime:setGlobal(name: string, value: any)
 		error("Runtime.setGlobal() requires a string name", 2)
 	end
 
-	self._globals[name] = value
+	if value == nil then
+		self._globals[name] = nil
+		return
+	end
+
+	self._globals[name] = interop.luauToPy(value)
 end
 
 -- Get a global variable
@@ -155,7 +199,26 @@ function Runtime:getGlobal(name: string): any
 		error("Runtime.getGlobal() requires a string name", 2)
 	end
 
-	return self._globals[name]
+	local stored = self._globals[name]
+	if stored == nil then
+		return nil
+	end
+	return interop.pyToLuau(stored)
+end
+
+function Runtime:getGlobalPy(name: string): any
+	if type(name) ~= "string" then
+		error("Runtime.getGlobalPy() requires a string name", 2)
+	end
+
+	local stored = self._globals[name]
+	if stored == nil then
+		return nil
+	end
+	if typeof(stored) == "table" and stored.__nil then
+		return nil
+	end
+	return stored
 end
 
 -- Backward compatibility functions (deprecated)

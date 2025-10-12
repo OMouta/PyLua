@@ -1032,18 +1032,33 @@ end
 function Compiler.compile(ast: any): CodeObject
 	if ast.type == "Module" then
 		return compileModule(ast)
-	elseif ast.type == "Expr" or ast.type == "BinOp" or ast.type == "Constant" or ast.type == "ListComp" then
-		-- Wrap expression into fake module returning value
+	end
+
+	local exprNode = ast
+	if ast.type == "Expr" and ast.value then
+		exprNode = ast.value
+	end
+
+	if exprNode and exprNode.type then
+		local lineno = exprNode.lineno or 1
+		local col = exprNode.col_offset or 0
 		local fakeModule = {
 			type = "Module",
-			body = { { type = "Return", value = ast, lineno = ast.lineno, col_offset = ast.col_offset } },
-			lineno = ast.lineno,
-			col_offset = ast.col_offset,
+			body = {
+				{
+					type = "Return",
+					value = exprNode,
+					lineno = lineno,
+					col_offset = col,
+				},
+			},
+			lineno = lineno,
+			col_offset = col,
 		}
 		return compileModule(fakeModule)
-	else
-		error("Unsupported root AST for compile: " .. tostring(ast.type))
 	end
+
+	error("Unsupported root AST for compile: " .. tostring(ast.type))
 end
 
 return Compiler
