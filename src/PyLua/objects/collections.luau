@@ -75,7 +75,7 @@ local function sequenceContains(seq: { PyObject }, needle: PyObject): boolean
 end
 
 local function boolResult(value: boolean): PyObject
-	return base.newPyObject("bool", value)
+	return base.newBool(value)
 end
 
 local function extractNumber(cell: PyObject, context: string): (number, boolean)

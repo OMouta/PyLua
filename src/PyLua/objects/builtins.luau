@@ -7,21 +7,19 @@ type PyObject = base.PyObject
 
 -- None
 export type PyNone = PyObject & { __type: "NoneType", __value: nil }
-local NONE_SINGLETON: PyNone = base.newPyObject("NoneType", nil) :: PyNone
-
 function Builtins.None(): PyNone
-	return NONE_SINGLETON
+	return base.newNone() :: PyNone
 end
 
 -- Booleans
 export type PyBool = PyObject & { __type: "bool", __value: boolean }
 
 function Builtins.True(): PyBool
-	return base.newPyObject("bool", true) :: PyBool
+	return base.newBool(true) :: PyBool
 end
 
 function Builtins.False(): PyBool
-	return base.newPyObject("bool", false) :: PyBool
+	return base.newBool(false) :: PyBool
 end
 
 -- Numbers
@@ -81,9 +79,9 @@ end
 bytesType.methods["__eq__"] = function(selfObj: PyObject, args: { PyObject }?)
 	local other = args and args[1]
 	if not other or other.__type ~= "bytes" then
-		return base.newPyObject("bool", false)
+		return base.newBool(false)
 	end
-	return base.newPyObject("bool", selfObj.__value == other.__value)
+	return base.newBool(selfObj.__value == other.__value)
 end
 
 -- __len__
