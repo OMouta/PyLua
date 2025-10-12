@@ -51,7 +51,7 @@ function Builtins.Bytes(val: any): PyBytes
 end
 
 -- Minimal bytes operations (repr, eq, len, getitem)
-local getTypeObject = (base :: any).getTypeObject
+local getTypeObject = base.getTypeObject
 local bytesType = getTypeObject("bytes")
 bytesType.methods = bytesType.methods or {}
 
@@ -159,7 +159,7 @@ local function attachPrimitiveMethods()
 	if registry.int then
 		-- We can't mutate type tables directly from snapshot; fetch actual via internal API.
 		-- Using protected access: base.getTypeObject (not exported earlier, but present).
-		local getTypeObject = (base :: any).getTypeObject
+		local getTypeObject = base.getTypeObject
 		local intType = getTypeObject("int")
 		local floatType = getTypeObject("float")
 		local strType = getTypeObject("str")

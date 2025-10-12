@@ -286,7 +286,7 @@ local function ensureRangeType()
 		return rangeTypeCached
 	end
 	local ok, existing = pcall(function()
-		return (base :: any).getTypeObject("range")
+		return base.getTypeObject("range")
 	end)
 	local rangeType
 	if ok then
@@ -368,7 +368,7 @@ local function collectIterable(obj: PyObject, caller: string): { PyObject }
 end
 
 local function wrapBuiltin(name: string, handler: (args: { PyObject }) -> PyObject)
-	local builtinType = (base :: any).getTypeObject("builtin_function_or_method")
+	local builtinType = base.getTypeObject("builtin_function_or_method")
 	local builtin: PyObject = {
 		__type = "builtin_function_or_method",
 		__value = {

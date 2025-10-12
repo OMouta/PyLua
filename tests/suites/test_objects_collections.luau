@@ -200,8 +200,7 @@ d1 = {}
 d2 = {**d1}
 result = d2
 ]])
-				local globals = python:globals()
-				local result = globals.result
+				local result = python:getGlobalPy("result")
 				TestFramework.assert(result ~= nil, "result should exist")
 				TestFramework.assert(result.__type == "dict", "result should be a dict")
 				-- Check it's empty
@@ -223,8 +222,7 @@ d1 = {'a': 1, 'b': 2}
 d2 = {**d1}
 result = d2
 ]])
-				local globals = python:globals()
-				local result = globals.result
+				local result = python:getGlobalPy("result")
 				TestFramework.assert(result ~= nil, "result should exist")
 				TestFramework.assert(result.__type == "dict", "result should be a dict")
 
@@ -248,8 +246,7 @@ d2 = {'c': 3, 'd': 4}
 d3 = {**d1, **d2}
 result = d3
 ]])
-				local globals = python:globals()
-				local result = globals.result
+				local result = python:getGlobalPy("result")
 				TestFramework.assert(result ~= nil, "result should exist")
 				TestFramework.assert(result.__type == "dict", "result should be a dict")
 
@@ -271,8 +268,7 @@ d1 = {'a': 1, 'b': 2}
 d2 = {'x': 10, **d1, 'y': 20}
 result = d2
 ]])
-				local globals = python:globals()
-				local result = globals.result
+				local result = python:getGlobalPy("result")
 				TestFramework.assert(result ~= nil, "result should exist")
 				TestFramework.assert(result.__type == "dict", "result should be a dict")
 
@@ -295,8 +291,7 @@ d2 = {'a': 10, 'c': 3}
 d3 = {**d1, **d2}
 result = d3
 ]])
-				local globals = python:globals()
-				local result = globals.result
+				local result = python:getGlobalPy("result")
 				TestFramework.assert(result ~= nil, "result should exist")
 				TestFramework.assert(result.__type == "dict", "result should be a dict")
 
@@ -334,8 +329,7 @@ d2 = {'b': 2}
 d3 = {'x': 10, **d1, 'y': 20, **d2, 'z': 30}
 result = d3
 ]])
-				local globals = python:globals()
-				local result = globals.result
+				local result = python:getGlobalPy("result")
 				TestFramework.assert(result ~= nil, "result should exist")
 				TestFramework.assert(result.__type == "dict", "result should be a dict")
 

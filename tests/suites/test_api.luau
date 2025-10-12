@@ -53,6 +53,18 @@ local apiTests: TestFramework.TestSuite = {
 		},
 
 		{
+			name = "Eval Handles Function Calls",
+			test = function()
+				local python = PyLua.new()
+				python:execute([[def add(a, b):
+	return a + b
+]])
+				local result = python:eval("add(10, 32)")
+				TestFramework.assertEqual(result, 42, "eval should compile and execute arbitrary expressions")
+			end,
+		},
+
+		{
 			name = "Version Information",
 			test = function()
 				TestFramework.assertType(PyLua.version, "string", "Version should be a string")

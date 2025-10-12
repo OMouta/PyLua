@@ -2,6 +2,6 @@
 
 A practical subset is implemented; some features are deferred or partial:
 
-- Interop: calling Luau from Python is minimal; broader object conversion and error translation planned
+- Interop: Luau callables and core table/primitive conversions work; richer type mapping (custom userdata, class binding) still pending
 
 Track progress in [REWRITE_PLAN.md](../internalDocs/REWRITE_PLAN.md).
