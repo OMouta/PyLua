@@ -81,7 +81,7 @@ local function ensureLuauFunctionType(): PyType
 			end
 			local okCall, result = pcall(record.func, table.unpack(converted))
 			if not okCall then
-				error(result, 2)
+				error(result, 0)
 			end
 			return Bridge.luauToPy(result)
 		end
@@ -184,7 +184,7 @@ local function pyToLuauInternal(obj: PyObject, visited: VisitedPy): any
 			local keyValue = pyToLuauInternal(entry.key, visited)
 			local keyType = type(keyValue)
 			if keyType ~= "string" and keyType ~= "number" and keyType ~= "boolean" then
-				error("TypeError: cannot convert dict key of type '" .. entry.key.__type .. "' to Luau", 2)
+				error("TypeError: unhashable type: '" .. entry.key.__type .. "'", 2)
 			end
 			tbl[keyValue] = pyToLuauInternal(entry.value, visited)
 		end
