@@ -145,10 +145,6 @@ py:execute("result = luau_value * 2")
 print(py:getGlobal("result"))  -- 84
 ```
 
-**Current limitations** (v0.3.0-dev):
-- Passing Luau functions to Python is partially implemented
-- Two-way callable binding is planned but not fully functional
-
 See `docs/INTEROP.md` for planned full two-way binding features.
 
 ## Common Gotchas

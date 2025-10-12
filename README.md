@@ -33,7 +33,7 @@ Key modules (see `src/PyLua/`):
 
 ## Status
 
-- Version: `0.3.0-dev`
+- Version: `0.3.0-dev2`
 - Target: Python 3.12 syntax and below (3.13+ out of scope)
 - Roadmap: `internalDocs/REWRITE_PLAN.md`
 
