@@ -47,11 +47,11 @@ See docs and examples for usage and API details:
 You can also quickly try an example with Lute from the repo root:
 
 ```bash
-lute docs/examples/hello_world.luau
+lute examples/hello_world.luau
 ```
 
 ## License
 
-MIT — see [`LICENSE`](./LICENSE).
+MIT - see [`LICENSE`](./LICENSE).
 
 [Lute]: https://github.com/luau-lang/lute
