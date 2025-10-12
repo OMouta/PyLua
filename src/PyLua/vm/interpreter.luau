@@ -82,7 +82,6 @@ local function identityCompare(left: any, right: any): boolean
 	if isPyObject(coercedLeft) and isPyObject(coercedRight) then
 		return coercedLeft == coercedRight
 	end
-	return coercedLeft == coercedRight
 end
 
 local function iterMembershipContains(container: PyObject, needle: PyObject): boolean
