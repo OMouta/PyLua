@@ -28,6 +28,22 @@ export type PyBoundMethod = PyObject & {
 -- Internal registry of types
 local typeRegistry: { [string]: PyType } = {}
 
+-- Primitive singletons (mirrors CPython behavior for None/bool)
+local noneSingleton: PyObject?
+local boolSingletons: { [boolean]: PyObject } = {}
+
+local function ensurePrimitiveSingletons()
+	if not noneSingleton then
+		noneSingleton = Base.newPyObject("NoneType", nil)
+	end
+	if not boolSingletons[true] then
+		boolSingletons[true] = Base.newPyObject("bool", true)
+	end
+	if not boolSingletons[false] then
+		boolSingletons[false] = Base.newPyObject("bool", false)
+	end
+end
+
 -- Utility helpers
 
 local function isPyObject(v: any): boolean
@@ -51,9 +67,11 @@ function Base.ensurePyObject(value: any): PyObject
 	elseif luauType == "string" then
 		inferred = "str"
 	elseif luauType == "boolean" then
-		inferred = "bool"
+		ensurePrimitiveSingletons()
+		return boolSingletons[value]
 	elseif luauType == "nil" then
-		inferred = "NoneType"
+		ensurePrimitiveSingletons()
+		return noneSingleton :: PyObject
 	else
 		inferred = "object"
 	end
@@ -112,6 +130,16 @@ end
 
 function Base.newFloat(n: number): PyObject
 	return Base.newPyObject("float", n)
+end
+
+function Base.newBool(value: boolean): PyObject
+	ensurePrimitiveSingletons()
+	return boolSingletons[value]
+end
+
+function Base.newNone(): PyObject
+	ensurePrimitiveSingletons()
+	return noneSingleton :: PyObject
 end
 
 -- Bytes constructor: accepts string or table of numbers (0-255)

@@ -188,6 +188,119 @@ local vmTests: TestFramework.TestSuite = {
 					Instructions.make("RETURN_VALUE"),
 				}
 				TestFramework.assertEqual(Interpreter.execute(eqCode), true, "5 == 5 should be true")
+
+				-- Identity should detect identical objects
+				local identityConstants = { Collections.newList({}) }
+				local identitySameCode = {
+					Instructions.make("LOAD_CONST", 0),
+					Instructions.make("DUP_TOP"),
+					Instructions.make("COMPARE_OP", 6),
+					Instructions.make("RETURN_VALUE"),
+				}
+				TestFramework.assertTrue(
+					Interpreter.execute(identitySameCode, {}, {}, identityConstants),
+					"Object should be identical to itself"
+				)
+
+				local identityDifferentConstants = {
+					Collections.newList({}),
+					Collections.newList({}),
+				}
+				local identityDifferentCode = {
+					Instructions.make("LOAD_CONST", 0),
+					Instructions.make("LOAD_CONST", 1),
+					Instructions.make("COMPARE_OP", 6),
+					Instructions.make("RETURN_VALUE"),
+				}
+				TestFramework.assertFalse(
+					Interpreter.execute(identityDifferentCode, {}, {}, identityDifferentConstants),
+					"Distinct objects should not be identical"
+				)
+
+				local identityNotCode = {
+					Instructions.make("LOAD_CONST", 0),
+					Instructions.make("LOAD_CONST", 1),
+					Instructions.make("COMPARE_OP", 7),
+					Instructions.make("RETURN_VALUE"),
+				}
+				TestFramework.assertTrue(
+					Interpreter.execute(identityNotCode, {}, {}, identityDifferentConstants),
+					"Distinct objects should satisfy is not"
+				)
+
+				-- Membership should fall back to iterator protocol when __contains__ is missing
+				local baseAny = Base :: any
+				local typeOk, iterOnlyType = pcall(function()
+					return baseAny.getTypeObject("iter_only")
+				end)
+				if not typeOk then
+					iterOnlyType = Base.registerType("iter_only", {})
+				end
+				iterOnlyType.methods = iterOnlyType.methods or {}
+				iterOnlyType.methods["__iter__"] = function(selfObj: Base.PyObject)
+					local listVersion = Collections.newList(selfObj.__value :: { Base.PyObject })
+					local iterMethod = Base.getattr(listVersion, "__iter__")
+					return Base.call(iterMethod, {})
+				end
+
+				local iterContainer = Base.newPyObject(
+					"iter_only",
+					{
+						Base.newInt(1),
+						Base.newInt(2),
+						Base.newInt(3),
+					}
+				)
+
+				local containsConstants = { Base.newInt(2), iterContainer }
+				local containsCode = {
+					Instructions.make("LOAD_CONST", 0),
+					Instructions.make("LOAD_CONST", 1),
+					Instructions.make("COMPARE_OP", 8),
+					Instructions.make("RETURN_VALUE"),
+				}
+				TestFramework.assertTrue(
+					Interpreter.execute(containsCode, {}, {}, containsConstants),
+					"Iterator fallback should find element"
+				)
+
+				local missingConstants = { Base.newInt(9), iterContainer }
+				local missingCode = {
+					Instructions.make("LOAD_CONST", 0),
+					Instructions.make("LOAD_CONST", 1),
+					Instructions.make("COMPARE_OP", 8),
+					Instructions.make("RETURN_VALUE"),
+				}
+				TestFramework.assertFalse(
+					Interpreter.execute(missingCode, {}, {}, missingConstants),
+					"Iterator fallback should report missing elements"
+				)
+
+				local notInCode = {
+					Instructions.make("LOAD_CONST", 0),
+					Instructions.make("LOAD_CONST", 1),
+					Instructions.make("COMPARE_OP", 9),
+					Instructions.make("RETURN_VALUE"),
+				}
+				TestFramework.assertTrue(
+					Interpreter.execute(notInCode, {}, {}, missingConstants),
+					"not in should negate iterator membership"
+				)
+
+				local type2Ok, opaqueType = pcall(function()
+					return baseAny.getTypeObject("opaque_no_iter")
+				end)
+				if not type2Ok then
+					opaqueType = Base.registerType("opaque_no_iter", {})
+				end
+				opaqueType.methods = opaqueType.methods or {}
+
+				local opaqueInstance = Base.newPyObject("opaque_no_iter", {})
+				local opaqueConstants = { Base.newInt(1), opaqueInstance }
+				TestFramework.assertError(function()
+					Interpreter.execute(containsCode, {}, {}, opaqueConstants)
+					return nil
+				end, "Membership on non-iterable should raise TypeError")
 			end,
 		},
 

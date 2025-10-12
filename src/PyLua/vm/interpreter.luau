@@ -27,6 +27,108 @@ export type VMState = {
 -- Comparison operations mapping (forward declaration)
 local compareOperations: { [number]: (a: any, b: any) -> boolean }
 
+local function isPyObject(value: any): boolean
+	return type(value) == "table" and value.__type ~= nil and value.__typeobj ~= nil
+end
+
+local function coercePyObject(value: any): PyObject
+	if isPyObject(value) then
+		return value :: PyObject
+	end
+	return Base.ensurePyObject(value)
+end
+
+local function coerceSingletonCandidate(value: any): any
+	if isPyObject(value) then
+		return value
+	end
+	local valueType = typeof(value)
+	if valueType == "boolean" then
+		return Base.newBool(value)
+	elseif value == nil then
+		return Base.newNone()
+	end
+	return value
+end
+
+local function pyEquals(lhs: PyObject, rhs: PyObject): boolean
+	if lhs == rhs then
+		return true
+	end
+	local ok, method = pcall(function()
+		return Base.getattr(lhs, "__eq__")
+	end)
+	if ok and method then
+		local result = Base.call(method, { rhs })
+		local resultObj = coercePyObject(result)
+		return Base.truthy(resultObj)
+	end
+	if lhs.__type == rhs.__type then
+		local lval = lhs.__value
+		local rval = rhs.__value
+		if lval ~= nil and rval ~= nil then
+			return lval == rval
+		end
+	end
+	return false
+end
+
+local function identityCompare(left: any, right: any): boolean
+	if left == right then
+		return true
+	end
+	local coercedLeft = coerceSingletonCandidate(left)
+	local coercedRight = coerceSingletonCandidate(right)
+	if isPyObject(coercedLeft) and isPyObject(coercedRight) then
+		return coercedLeft == coercedRight
+	end
+end
+
+local function iterMembershipContains(container: PyObject, needle: PyObject): boolean
+	local okIter, iterMethod = pcall(function()
+		return Base.getattr(container, "__iter__")
+	end)
+	if not okIter or not iterMethod then
+		error("TypeError: argument of type '" .. tostring(container.__type) .. "' is not iterable", 2)
+	end
+	local iterator = Base.call(iterMethod, {})
+	local okNext, nextMethod = pcall(function()
+		return Base.getattr(iterator, "__next__")
+	end)
+	if not okNext or not nextMethod then
+		error("TypeError: argument of type '" .. tostring(container.__type) .. "' is not iterable", 2)
+	end
+	while true do
+		local okItem, itemOrErr = pcall(function()
+			return Base.call(nextMethod, {})
+		end)
+		if okItem then
+			local itemObj = coercePyObject(itemOrErr)
+			if pyEquals(itemObj, needle) then
+				return true
+			end
+		else
+			local errMessage = tostring(itemOrErr)
+			if string.find(errMessage, "StopIteration", 1, true) ~= nil then
+				return false
+			end
+			error(itemOrErr, 0)
+		end
+	end
+end
+
+local function membershipContains(needle: PyObject, container: PyObject): boolean
+	local okContains, containsMethod = pcall(function()
+		return Base.getattr(container, "__contains__")
+	end)
+	if okContains and containsMethod then
+		local result = Base.call(containsMethod, { needle })
+		local resultObj = coercePyObject(result)
+		return Base.truthy(resultObj)
+	end
+	return iterMembershipContains(container, needle)
+end
+
 compareOperations = {
 	[0] = function(a: any, b: any): boolean
 		return a < b
@@ -47,25 +149,20 @@ compareOperations = {
 		return a >= b
 	end, -- >=
 	[6] = function(a: any, b: any): boolean
-		return a == b
-	end, -- is (simplified)
+		return identityCompare(a, b)
+	end, -- is
 	[7] = function(a: any, b: any): boolean
-		return a ~= b
-	end, -- is not (simplified)
+		return not identityCompare(a, b)
+	end, -- is not
 	[8] = function(a: any, b: any): boolean -- in
-		local container = if type(b) == "table" and (b :: any).__type ~= nil then b else Base.ensurePyObject(b)
-		local needle = if type(a) == "table" and (a :: any).__type ~= nil then a else Base.ensurePyObject(a)
-		local ok, containsMethod = pcall(function()
-			return Base.getattr(container, "__contains__")
-		end)
-		if ok and containsMethod then
-			local result = Base.call(containsMethod, { needle })
-			return Base.truthy(result)
-		end
-		error("TypeError: argument of type '" .. tostring(container.__type or type(b)) .. "' is not iterable", 2)
+		local needle = coercePyObject(a)
+		local container = coercePyObject(b)
+		return membershipContains(needle, container)
 	end,
 	[9] = function(a: any, b: any): boolean -- not in
-		return not compareOperations[8](a, b)
+		local needle = coercePyObject(a)
+		local container = coercePyObject(b)
+		return not membershipContains(needle, container)
 	end,
 }
 
@@ -517,16 +614,10 @@ local function dispatchInstruction(
 		end
 
 		local result
-		if arg == 8 or arg == 9 then
-			local leftObj = if type(rawLeft) == "table" and (rawLeft :: any).__type ~= nil
-				then rawLeft
-				else Base.ensurePyObject(rawLeft)
-			local rightObj = if type(rawRight) == "table" and (rawRight :: any).__type ~= nil
-				then rawRight
-				else Base.ensurePyObject(rawRight)
-			result = op(leftObj, rightObj)
-		elseif arg == 6 or arg == 7 then
+		if arg == 6 or arg == 7 then
 			-- Identity comparisons should operate on original operands
+			result = op(rawLeft, rawRight)
+		elseif arg == 8 or arg == 9 then
 			result = op(rawLeft, rawRight)
 		else
 			local leftVal = (type(rawLeft) == "table" and (rawLeft :: any).__value ~= nil) and (rawLeft :: any).__value
@@ -1137,7 +1228,7 @@ callPyFunction = function(vm: VMState, func: any, args: { any }?, kwargs: { [str
 	-- Return the result or None if no explicit return
 	local result = vm.return_value
 	if result == nil then
-		result = Base.newPyObject("NoneType", nil)
+		result = Base.newNone()
 	end
 
 	-- Clear return value for next function call

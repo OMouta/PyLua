@@ -556,19 +556,19 @@ function Functions.isinstance_(args: { PyObject }): PyObject
 	local targets: { string } = {}
 	collectTypeNames(typeSpec, targets)
 	if #targets == 0 then
-		return base.newPyObject("bool", false)
+		return base.newBool(false)
 	end
 	local instanceType = instance.__type
 	local subtype = subclassMap[instanceType]
 	for _, expected in ipairs(targets) do
 		if instanceType == expected then
-			return base.newPyObject("bool", true)
+			return base.newBool(true)
 		end
 		if subtype and subtype[expected] then
-			return base.newPyObject("bool", true)
+			return base.newBool(true)
 		end
 	end
-	return base.newPyObject("bool", false)
+	return base.newBool(false)
 end
 
 local function coerceFormatArg(obj: PyObject): (any, string)
