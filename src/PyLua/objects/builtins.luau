@@ -168,6 +168,32 @@ local function attachPrimitiveMethods()
 		floatType.methods = floatType.methods or {}
 		strType.methods = strType.methods or {}
 
+		local intMethods = intType.methods :: { [string]: (PyObject, { PyObject }?) -> PyObject }
+		local floatMethods = floatType.methods :: { [string]: (PyObject, { PyObject }?) -> PyObject }
+		local strMethods = strType.methods :: { [string]: (PyObject, { PyObject }?) -> PyObject }
+
+		strMethods["__getitem__"] = function(selfObj: PyObject, args: { PyObject }?)
+			if not args or not args[1] then
+				error("TypeError: string indices must be integers", 2)
+			end
+			local indexObj = base.ensurePyObject(args[1])
+			if indexObj.__type ~= "int" then
+				error("TypeError: string indices must be integers", 2)
+			end
+			local s = selfObj.__value :: string
+			local length = #s
+			local idx = indexObj.__value :: number
+			if idx < 0 then
+				idx += length
+			end
+			if idx < 0 or idx >= length then
+				error("IndexError: string index out of range", 2)
+			end
+			local pos = idx + 1
+			local char = string.sub(s, pos, pos)
+			return base.newPyObject("str", char)
+		end
+
 		local numAdd = function(selfObj: PyObject, args: { PyObject }?)
 			local other = args and args[1] or base.ensurePyObject(0)
 			if other.__type ~= "int" and other.__type ~= "float" then
@@ -216,26 +242,26 @@ local function attachPrimitiveMethods()
 			return base.newInt(floored)
 		end
 
-		intType.methods["__add__"] = numAdd
-		intType.methods["__sub__"] = numSub
-		intType.methods["__mul__"] = numMul
-		intType.methods["__truediv__"] = numTrueDiv
-		intType.methods["__floordiv__"] = numFloorDiv
-		floatType.methods["__add__"] = numAdd
-		floatType.methods["__sub__"] = numSub
-		floatType.methods["__mul__"] = numMul
-		floatType.methods["__truediv__"] = numTrueDiv
-		floatType.methods["__floordiv__"] = numFloorDiv
+		intMethods["__add__"] = numAdd
+		intMethods["__sub__"] = numSub
+		intMethods["__mul__"] = numMul
+		intMethods["__truediv__"] = numTrueDiv
+		intMethods["__floordiv__"] = numFloorDiv
+		floatMethods["__add__"] = numAdd
+		floatMethods["__sub__"] = numSub
+		floatMethods["__mul__"] = numMul
+		floatMethods["__truediv__"] = numTrueDiv
+		floatMethods["__floordiv__"] = numFloorDiv
 
 		-- String concatenation & repetition minimal subset
-		strType.methods["__add__"] = function(selfObj: PyObject, args: { PyObject }?)
+		strMethods["__add__"] = function(selfObj: PyObject, args: { PyObject }?)
 			local other = args and args[1] or base.ensurePyObject("")
 			if other.__type ~= "str" then
 				error("TypeError: can only concatenate str (not '" .. other.__type .. "') to str", 2)
 			end
 			return base.newPyObject("str", (selfObj.__value :: any) .. (other.__value :: any))
 		end
-		strType.methods["__mul__"] = function(selfObj: PyObject, args: { PyObject }?)
+		strMethods["__mul__"] = function(selfObj: PyObject, args: { PyObject }?)
 			local other = args and args[1] or base.ensurePyObject(0)
 			if other.__type ~= "int" then
 				error("TypeError: can't multiply sequence by non-int", 2)

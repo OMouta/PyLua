@@ -72,6 +72,22 @@ local suite: TestFramework.TestSuite = {
 				TestFramework.assertEqual(times.__value, "ababab", "Repeat 3x")
 			end,
 		},
+		{
+			name = "String indexing",
+			test = function()
+				local s = builtins.Str("hi")
+				local getter = base.getattr(s, "__getitem__")
+				local first = base.call(getter, { builtins.Int(0) })
+				TestFramework.assertEqual(first.__type, "str", "Indexing should return str")
+				TestFramework.assertEqual(first.__value, "h", "First character should be 'h'")
+				local last = base.call(getter, { builtins.Int(-1) })
+				TestFramework.assertEqual(last.__value, "i", "Negative index should wrap from end")
+				TestFramework.assertError(function(): any
+					base.call(getter, { builtins.Int(2) })
+					return nil
+				end, "Out of range index should error")
+			end,
+		},
 
 		{
 			name = "builtins.bytes basic construction",
