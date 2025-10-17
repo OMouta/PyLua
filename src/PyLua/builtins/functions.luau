@@ -295,15 +295,16 @@ local function ensureRangeType()
 		rangeType = base.registerType("range", {})
 	end
 	rangeType.methods = rangeType.methods or {}
-	if not rangeType.methods["__len__"] then
-		rangeType.methods["__len__"] = function(selfObj: PyObject)
+	local rangeMethods = rangeType.methods :: { [string]: (PyObject, { PyObject }?) -> PyObject }
+	if not rangeMethods["__len__"] then
+		rangeMethods["__len__"] = function(selfObj: PyObject)
 			local data = selfObj.__value
 			local length = computeRangeLength(data.start, data.stop, data.step)
 			return base.newInt(length)
 		end
 	end
-	if not rangeType.methods["__repr__"] then
-		rangeType.methods["__repr__"] = function(selfObj: PyObject)
+	if not rangeMethods["__repr__"] then
+		rangeMethods["__repr__"] = function(selfObj: PyObject)
 			local data = selfObj.__value
 			local pieces = { "range(" .. tostring(data.start), tostring(data.stop) }
 			if data.step ~= 1 then

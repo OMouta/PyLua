@@ -54,9 +54,10 @@ end
 local getTypeObject = base.getTypeObject
 local bytesType = getTypeObject("bytes")
 bytesType.methods = bytesType.methods or {}
+local bytesMethods = bytesType.methods :: { [string]: (PyObject, { PyObject }?) -> PyObject }
 
 -- __repr__
-bytesType.methods["__repr__"] = function(selfObj: PyObject)
+bytesMethods["__repr__"] = function(selfObj: PyObject)
 	local s = selfObj.__value :: string
 	local out = { "b'" }
 	for i = 1, #s do
@@ -76,7 +77,7 @@ bytesType.methods["__repr__"] = function(selfObj: PyObject)
 end
 
 -- __eq__
-bytesType.methods["__eq__"] = function(selfObj: PyObject, args: { PyObject }?)
+bytesMethods["__eq__"] = function(selfObj: PyObject, args: { PyObject }?)
 	local other = args and args[1]
 	if not other or other.__type ~= "bytes" then
 		return base.newBool(false)
@@ -85,12 +86,12 @@ bytesType.methods["__eq__"] = function(selfObj: PyObject, args: { PyObject }?)
 end
 
 -- __len__
-bytesType.methods["__len__"] = function(selfObj: PyObject)
+bytesMethods["__len__"] = function(selfObj: PyObject)
 	return base.newPyObject("int", #(selfObj.__value :: string))
 end
 
 -- __getitem__ (indexing)
-bytesType.methods["__getitem__"] = function(selfObj: PyObject, args: { PyObject }?)
+bytesMethods["__getitem__"] = function(selfObj: PyObject, args: { PyObject }?)
 	local idx = args and args[1]
 	if not idx or (idx.__type ~= "int" and idx.__type ~= "float") then
 		error("TypeError: bytes indices must be integers", 2)
@@ -109,7 +110,7 @@ bytesType.methods["__getitem__"] = function(selfObj: PyObject, args: { PyObject 
 end
 
 -- __add__ (concatenate)
-bytesType.methods["__add__"] = function(selfObj: PyObject, args: { PyObject }?)
+bytesMethods["__add__"] = function(selfObj: PyObject, args: { PyObject }?)
 	local other = args and args[1]
 	if not other or other.__type ~= "bytes" then
 		error("TypeError: can't concat bytes to non-bytes", 2)
@@ -118,7 +119,7 @@ bytesType.methods["__add__"] = function(selfObj: PyObject, args: { PyObject }?)
 end
 
 -- __mul__ (repeat)
-bytesType.methods["__mul__"] = function(selfObj: PyObject, args: { PyObject }?)
+bytesMethods["__mul__"] = function(selfObj: PyObject, args: { PyObject }?)
 	local nObj = args and args[1]
 	if not nObj or nObj.__type ~= "int" then
 		error("TypeError: can't multiply sequence by non-int", 2)
