@@ -1,166 +1,153 @@
 name: "Feature Request"
-description: "Suggest an idea or improvement for PyLua v0.3 (Python-in-Luau for Roblox)."
+description: "Suggest an idea or improvement for PyLua v0.3."
 title: "[FEATURE] "
 labels: ["enhancement", "needs-triage"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thank you for suggesting a feature for **PyLua v0.3**!
-        
-        **Important**: We are currently in a major rewrite phase following a specific [development plan](https://github.com/OMouta/PyLua/blob/master/InternalDocs/REWRITE_PLAN.md). Please check if your feature aligns with our current development phase and Python 3.12 compliance goals.
-        
-        Please provide as much detail as possible to help us understand your idea and how it fits into the project.
-  
+        Thanks for proposing a feature for **PyLua v0.3**.
+
+        Please check the docs/roadmap to ensure fit with Python 3.12 compliance and current phases.
+        Docs: https://github.com/OMouta/PyLua/blob/master/docs/README.md • Roadmap: https://github.com/OMouta/PyLua/blob/master/internalDocs/REWRITE_PLAN.md
+
   - type: dropdown
     id: feature-type
     attributes:
       label: "Feature Type"
-      description: "What type of feature are you requesting?"
       options:
-        - "New Python language feature/syntax support"
-        - "New built-in function or method"
+        - "Python syntax/semantics support"
+        - "Built-in function or method"
         - "Performance improvement"
-        - "API enhancement"
-        - "Developer tooling/debugging"
-        - "Documentation improvement"
-        - "Roblox-specific integration"
+        - "Public API enhancement"
+        - "Developer tooling / debugging"
+        - "Documentation"
+        - "Roblox/Luau interop"
         - "Other"
     validations:
       required: true
-  
+
   - type: dropdown
     id: development-phase
     attributes:
-      label: "Development Phase Alignment"
-      description: "Which development phase does this feature align with? (See REWRITE_PLAN.md)"
+      label: "Phase Alignment (from REWRITE_PLAN)"
       options:
-        - "Phase 1: Foundation (lexer, parser, AST)"
-        - "Phase 2: Core Parser (expressions, statements)"
-        - "Phase 3: Object System (Python objects, types)"
-        - "Phase 4: Bytecode & VM (compilation, execution)"
-        - "Phase 5: Built-ins & Advanced Features"
-        - "Future phases (v3.1+)"
-        - "Not sure / General improvement"
+        - "Phase 1: Foundation (lexer, tokens, AST)"
+        - "Phase 2: Parser (expressions, statements, postfix)"
+        - "Phase 3: Object System (types, collections)"
+        - "Phase 4: Bytecode & VM"
+        - "Phase 5: Builtins & Advanced"
+        - "Later roadmap (v3.1+ classes/modules)"
+        - "Not sure / cross-cutting"
     validations:
       required: true
-  
+
   - type: textarea
     id: feature-description
     attributes:
       label: "Feature Description"
-      description: "Describe the feature or enhancement you'd like to see in PyLua. Be specific about the Python or Luau functionality, API, or user experience."
-      placeholder: "I would like PyLua to support Python's [feature] so that users can..."
+      description: "What should be added and why?"
+      placeholder: "Support Python [feature] so users can ..."
     validations:
       required: true
-  
+
   - type: textarea
     id: python-example
     attributes:
       label: "Python Example"
-      description: "Show how this feature would work in Python 3.12 (if applicable)"
+      description: "Show example Python 3.12 code if relevant"
       render: python
       placeholder: |
-        # Example Python code that should work
+        # Example demonstrating the desired capability
         def example():
-            # Your feature demonstration here
             pass
     validations:
       required: false
-  
+
   - type: textarea
     id: proposed-api
     attributes:
-      label: "Proposed PyLua API"
-      description: "How would users interact with this feature in PyLua? Show the Luau code."
+      label: "Proposed PyLua Usage/API"
+      description: "How would end users interact with this?"
       render: lua
       placeholder: |
-        local PyLua = require('src.PyLua')
-        local python = PyLua.new()
-        
-        -- How would this feature be used?
-        python:execute([[
-          # Your Python example here
-        ]])
+        local PyLua = require("../src/PyLua")
+        local py = PyLua.new()
+        py:execute([[\n          # Your Python example here\n        ]])
+        -- or: local PyLua = require("@self/PyLua")
     validations:
       required: false
-  
+
   - type: textarea
     id: motivation
     attributes:
       label: "Motivation / Use Case"
-      description: "Why is this feature important? What problem does it solve? What new capabilities does it enable for PyLua users?"
-      placeholder: "This feature would solve the problem of... and enable users to..."
+      placeholder: "This enables ... because ..."
     validations:
       required: true
-  
+
   - type: checkboxes
     id: python-compliance
     attributes:
-      label: "Python 3.12 Compliance"
-      description: "How does this relate to Python 3.12 compliance?"
+      label: "Python 3.12 Compliance Context"
       options:
-        - label: "This is a standard Python 3.12 feature that should be supported"
-        - label: "This is a Python feature from an earlier version (3.11 and below)"
-        - label: "This is a PyLua-specific enhancement (not in standard Python)"
-        - label: "This is a Roblox/Luau integration feature"
+        - label: "Standard Python 3.12 feature"
+        - label: "Earlier Python feature (<=3.11)"
+        - label: "PyLua-specific (not in CPython)"
+        - label: "Roblox/Luau interop"
         - label: "Not applicable"
-  
+
   - type: checkboxes
     id: affected-components
     attributes:
       label: "Affected Components"
-      description: "Which parts of PyLua would this feature affect? (Check all that apply)"
       options:
-        - label: "Lexer/Tokenizer (`lexer.luau`)"
-        - label: "Parser (`parser.luau`)"
-        - label: "AST System (`ast/`)"
-        - label: "Compiler (`compiler.luau`)"
-        - label: "Virtual Machine (`vm/`)"
-        - label: "Object System (`objects/`)"
-        - label: "Built-in Functions (`builtins/`)"
-        - label: "API/Interface (`init.luau`)"
+        - label: "Lexer / tokens (`src/PyLua/lexer.luau`, `tokens.luau`)"
+        - label: "Parser (`src/PyLua/parser/*`)"
+        - label: "AST (`src/PyLua/ast/*`)"
+        - label: "Compiler (`src/PyLua/compiler.luau`)"
+        - label: "Bytecode (`src/PyLua/bytecode/*`)"
+        - label: "VM (`src/PyLua/vm/*`)"
+        - label: "Objects (`src/PyLua/objects/*`)"
+        - label: "Builtins (`src/PyLua/builtins/*`)"
+        - label: "Interop (`src/PyLua/interop/*`)"
+        - label: "Public API (`src/PyLua/init.luau`)"
         - label: "Documentation"
-        - label: "Testing framework"
+        - label: "Tests"
         - label: "Not sure"
-  
+
   - type: textarea
     id: alternatives
     attributes:
       label: "Alternatives Considered"
-      description: "Have you considered any alternative approaches or workarounds? How do other Python interpreters handle this?"
-      placeholder: "I considered... but this approach would be better because..."
+      placeholder: "Other approaches and tradeoffs"
     validations:
       required: false
-  
+
   - type: textarea
     id: implementation-notes
     attributes:
-      label: "Implementation Notes"
-      description: "Do you have any ideas about how this could be implemented? Any technical considerations?"
-      placeholder: "This could potentially be implemented by... Some challenges might include..."
+      label: "Implementation Notes (optional)"
+      placeholder: "Rough approach, affected files, risks"
     validations:
       required: false
-  
+
   - type: checkboxes
     id: checklist
     attributes:
       label: "Checklist"
-      description: "Please confirm you have done the following:"
       options:
-        - label: "I have searched existing issues to make sure this isn't a duplicate"
+        - label: "Searched existing issues"
           required: true
-        - label: "I have reviewed the REWRITE_PLAN.md to understand current development priorities"
+        - label: "Reviewed REWRITE_PLAN.md for phase fit"
           required: true
-        - label: "I have considered how this fits with Python 3.12 compliance goals"
-          required: false
-        - label: "I have provided a clear use case and motivation"
+        - label: "Provided motivation and (if possible) example"
           required: true
-  
+
   - type: textarea
     id: additional-context
     attributes:
       label: "Additional Context"
-      description: "Any other information that might be helpful (links to Python documentation, similar implementations, etc.)"
+      description: "Links to Python docs, similar projects, etc."
     validations:
       required: false

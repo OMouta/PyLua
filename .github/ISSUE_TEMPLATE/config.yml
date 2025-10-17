@@ -1,10 +1,10 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Documentation
-    url: https://github.com/OMouta/PyLua/blob/master/InternalDocs/README.md
-    about: Read the internal documentation for development information
+  - name: Documentation (public)
+    url: https://github.com/OMouta/PyLua/blob/master/docs/README.md
+    about: Read the docs for usage, architecture, and examples
   - name: Development Plan
-    url: https://github.com/OMouta/PyLua/blob/master/InternalDocs/REWRITE_PLAN.md
+    url: https://github.com/OMouta/PyLua/blob/master/internalDocs/REWRITE_PLAN.md
     about: Check the current development phase and roadmap
   - name: Contributing Guide
     url: https://github.com/OMouta/PyLua/blob/master/CONTRIBUTING.md

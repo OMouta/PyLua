@@ -9,8 +9,9 @@ body:
         Thank you for asking a question about **PyLua v0.3**!
         
         **Before asking**: Please check the documentation first:
-        - [InternalDocs/README.md](https://github.com/OMouta/PyLua/blob/master/InternalDocs/README.md) - Documentation overview
-        - [InternalDocs/REWRITE_PLAN.md](https://github.com/OMouta/PyLua/blob/master/InternalDocs/REWRITE_PLAN.md) - Current development status
+        - [docs/README.md](https://github.com/OMouta/PyLua/blob/master/docs/README.md) - Documentation index
+        - [internalDocs/README.md](https://github.com/OMouta/PyLua/blob/master/internalDocs/README.md) - Internal docs overview
+        - [internalDocs/REWRITE_PLAN.md](https://github.com/OMouta/PyLua/blob/master/internalDocs/REWRITE_PLAN.md) - Current development status
         - [CONTRIBUTING.md](https://github.com/OMouta/PyLua/blob/master/CONTRIBUTING.md) - Development guidelines
         
         We're here to help! Please provide as much context as possible.
@@ -87,7 +88,8 @@ body:
       description: "Show how you're using PyLua in your Luau/Roblox code"
       render: lua
       placeholder: |
-        local PyLua = require('src.PyLua')
+        local PyLua = require("../src/PyLua")
+        -- or: local PyLua = require("@self/PyLua")
         local python = PyLua.new()
         -- Your Luau code here
     validations:

@@ -1,53 +1,74 @@
 name: "Bug Report"
-description: "Report a bug in PyLua v0.3 (Python-in-Luau for Roblox) to help us improve."
+description: "Report a reproducible bug in PyLua v0.3 (Python-in-Luau) so we can fix it fast."
 title: "[BUG] "
 labels: ["bug", "needs-triage"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thank you for taking the time to report a bug in **PyLua v0.3**!
-        
-        **Important**: We are currently in a major rewrite phase (v0.3). Please specify which version you're using.
-        
-        Please provide as much detail as possible so we can reproduce and fix the issue.
-  
+        Thanks for reporting a bug in **PyLua v0.3**.
+
+        Please include a minimal repro and exact environment so we can reproduce. PyLua targets Python 3.12 and below.
+        Docs: https://github.com/OMouta/PyLua/blob/master/docs/README.md • Roadmap: https://github.com/OMouta/PyLua/blob/master/internalDocs/REWRITE_PLAN.md
+
   - type: dropdown
     id: version
     attributes:
       label: "PyLua Version"
-      description: "Which version of PyLua are you using?"
+      description: "Which version/build are you on?"
       options:
-        - "v0.3 (current rewrite - src/PyLua/)"
-        - "v0.2 (legacy - old/PyLua/)"
+        - "v0.3.x (current rewrite in src/PyLua)"
+        - "v0.2 (legacy; see docs/0.2)"
         - "Custom build/fork"
         - "Not sure"
     validations:
       required: true
-  
+
+  - type: dropdown
+    id: runtime
+    attributes:
+      label: "Where are you running PyLua?"
+      options:
+        - "Lute (CLI)"
+        - "Roblox Studio"
+        - "Other Luau runtime"
+        - "Other / Not sure"
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: "Steps to Reproduce"
+      description: "List clear steps. Include exact inputs."
+      placeholder: |
+        1. Run this Luau snippet with Lute/Studio
+        2. It executes this Python code
+        3. Observe error X
+    validations:
+      required: true
+
   - type: textarea
     id: what-happened
     attributes:
-      label: "What happened?"
-      description: "Describe the bug in detail. Include any error messages, stack traces, or unexpected behavior."
-      placeholder: "PyLua threw an error when I tried to parse Python code with..."
+      label: "Actual Result"
+      description: "Describe the behavior, errors, or incorrect output. Include messages and line/column if present."
     validations:
       required: true
-  
+
   - type: textarea
     id: expected-behavior
     attributes:
-      label: "Expected behavior"
-      description: "What did you expect PyLua to do? How should this work according to Python 3.12?"
-      placeholder: "I expected PyLua to parse/execute the code successfully because in Python 3.12..."
+      label: "Expected Result"
+      description: "What should happen instead (per Python 3.12 semantics)?"
     validations:
       required: true
-  
+
   - type: textarea
     id: python-code
     attributes:
-      label: "Python Code"
-      description: "The Python code that causes the issue (minimal reproduction case)"
+      label: "Minimal Python Code"
+      description: "Smallest Python snippet that reproduces the issue"
       render: python
       placeholder: |
         # Python code that triggers the bug
@@ -55,115 +76,108 @@ body:
         print(f"List: {x}")
     validations:
       required: true
-  
+
   - type: textarea
     id: luau-code
     attributes:
-      label: "Luau Code"
-      description: "The Luau code used to run PyLua (how you called the interpreter)"
+      label: "Luau Harness"
+      description: "How you invoked PyLua. Prefer a tiny standalone snippet."
       render: lua
       placeholder: |
-        local PyLua = require('src.PyLua')
-        local python = PyLua.new()
-        python:execute([[
-          # Your Python code here
+        -- Option A: running inside this repo with Lute
+        local PyLua = require("../src/PyLua")
+        local py = PyLua.new()
+        py:execute([[
+          # Your minimal Python here
         ]])
+
+        -- Option B: if using package aliasing
+        -- local PyLua = require("@self/PyLua")
     validations:
       required: true
-  
+
   - type: textarea
     id: error-output
     attributes:
-      label: "Error Output"
-      description: "Full error message, stack trace, or unexpected output"
+      label: "Error Output / Traceback"
+      description: "Paste full output if available"
       render: text
-      placeholder: "Copy and paste the complete error message or unexpected output here"
     validations:
       required: false
-  
+
+  - type: input
+    id: commit
+    attributes:
+      label: "PyLua Commit or Version"
+      description: "Example: 0.3.0-dev2 or commit SHA"
+      placeholder: "0.3.0-dev2 / a1b2c3d"
+    validations:
+      required: false
+
   - type: textarea
     id: environment
     attributes:
       label: "Environment"
-      description: "Your development environment details"
+      description: "Fill what is relevant."
       placeholder: |
         - OS: Windows 11 / macOS 14 / Ubuntu 22.04
-        - Roblox Studio Version: 
-        - Luau Version (if applicable): 
-        - PyLua Commit/Version: 
-      value: |
-        - OS: 
-        - Roblox Studio Version: 
-        - Luau Version (if applicable): 
-        - PyLua Commit/Version: 
+        - Roblox Studio: 0.######
+        - Lute: vX.Y.Z
+        - Luau version (if applicable):
+        - How you ran: Lute / Roblox Studio / Other
     validations:
       required: false
-  
+
   - type: checkboxes
     id: affected-components
     attributes:
-      label: "Affected Components"
-      description: "Which part of PyLua seems to be affected? (Check all that apply)"
+      label: "Likely Affected Components"
+      description: "Check all that seem relevant"
       options:
-        - label: "Lexer/Tokenizer (`lexer.luau`)"
-        - label: "Parser (`parser.luau`)"
-        - label: "AST System (`ast/`)"
-        - label: "Compiler (`compiler.luau`)"
-        - label: "Virtual Machine (`vm/`)"
-        - label: "Object System (`objects/`)"
-        - label: "Built-in Functions (`builtins/`)"
-        - label: "API/Interface (`init.luau`)"
+        - label: "Lexer / tokens (`src/PyLua/lexer.luau`, `tokens.luau`)"
+        - label: "Parser (`src/PyLua/parser/*`)"
+        - label: "AST (`src/PyLua/ast/*`)"
+        - label: "Compiler (`src/PyLua/compiler.luau`)"
+        - label: "Bytecode (`src/PyLua/bytecode/*`)"
+        - label: "VM (`src/PyLua/vm/*`)"
+        - label: "Objects (`src/PyLua/objects/*`)"
+        - label: "Builtins (`src/PyLua/builtins/*`)"
+        - label: "Interop (`src/PyLua/interop/*`)"
+        - label: "Public API (`src/PyLua/init.luau`)"
+        - label: "Tests (`tests/*`)"
         - label: "Not sure"
-  
+
   - type: checkboxes
     id: python-feature
     attributes:
-      label: "Python Feature"
-      description: "What Python feature is involved? (Check all that apply)"
+      label: "Python Feature Area"
       options:
-        - label: "Basic syntax (variables, operators)"
-        - label: "Data structures (lists, dicts, tuples)"
-        - label: "Control flow (if/else, loops)"
-        - label: "Functions and calls"
-        - label: "String operations/f-strings"
-        - label: "Built-in functions (print, len, etc.)"
-        - label: "Python 3.12 specific features"
-        - label: "Error handling/exceptions"
+        - label: "Basics (names, ops)"
+        - label: "Collections (list/dict/tuple/set)"
+        - label: "Control flow (if/while/for)"
+        - label: "Functions / calls"
+        - label: "Strings / f-strings"
+        - label: "Builtins (print, len, …)"
+        - label: "Exceptions"
+        - label: "3.12-specific behavior"
         - label: "Other"
-  
+
   - type: checkboxes
     id: checklist
     attributes:
       label: "Checklist"
-      description: "Please confirm you have done the following:"
       options:
-        - label: "I have searched existing issues to make sure this isn't a duplicate"
+        - label: "Searched existing issues"
           required: true
-        - label: "I have provided a minimal reproduction case"
+        - label: "Provided minimal repro (Python + Luau)"
           required: true
-        - label: "I have tested this with the latest version of PyLua"
+        - label: "Verified expected behavior in CPython 3.12, if applicable"
           required: false
-        - label: "I have checked if this works correctly in standard Python 3.12"
-          required: false
-  
+
   - type: textarea
     id: additional-context
     attributes:
       label: "Additional Context"
-      description: "Any other information that might be helpful (screenshots, related issues, etc.)"
-    validations:
-      required: false
-      description: "Which part of PyLua is affected?"
-      options:
-        - label: "Compiler (`src/PyLua/compiler/`)"
-        - label: "Virtual Machine (`src/PyLua/vm/`)"
-        - label: "Builtins/Core (`src/PyLua/core/`)"
-        - label: "API/Documentation"
-        - label: "Other (describe below)"
-  - type: textarea
-    id: additional-info
-    attributes:
-      label: "Additional information"
-      description: "Any other context, screenshots, or notes. If 'Other' above, please describe."
+      description: "Screenshots, links, related issues"
     validations:
       required: false
