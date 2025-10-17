@@ -4,8 +4,13 @@ local python = PyLua.new()
 python:execute([[ 
 print("PyLua Version:", __pylua_version__)
 
-print("len of string:", len("hello"))
+string = "Hello, PyLua!"
+
+print("len of string:", len(string))
 print("type of 123:", type(123))
+
+if string[0] == "H":
+	print("First character is H")
 
 if isinstance(123, int):
 	print("123 is an integer")

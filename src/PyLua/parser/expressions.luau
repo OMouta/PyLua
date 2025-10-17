@@ -460,7 +460,14 @@ local function parsePrimary(state: any): Expr
 		else
 			numValue = tonumber(value)
 		end
-		return { type = "Constant", value = numValue, kind = nil, lineno = current.line, col_offset = current.column }
+		local node: Expr = {
+			type = "Constant",
+			value = numValue,
+			kind = nil,
+			lineno = current.line,
+			col_offset = current.column,
+		}
+		return postfix.parse(state, node, expressions.parse)
 	end
 	-- Strings (literal concatenation + f-strings)
 	if current.type == "STRING" then
@@ -478,19 +485,41 @@ local function parsePrimary(state: any): Expr
 				table.insert(parts, makeStringConstant(tok))
 			end
 		end
-		return foldConcat(parts, current)
+		local node = foldConcat(parts, current)
+		return postfix.parse(state, node, expressions.parse)
 	end
 	if current.type == "TRUE" then
 		state:advance()
-		return { type = "Constant", value = true, kind = nil, lineno = current.line, col_offset = current.column }
+		local node: Expr = {
+			type = "Constant",
+			value = true,
+			kind = nil,
+			lineno = current.line,
+			col_offset = current.column,
+		}
+		return postfix.parse(state, node, expressions.parse)
 	end
 	if current.type == "FALSE" then
 		state:advance()
-		return { type = "Constant", value = false, kind = nil, lineno = current.line, col_offset = current.column }
+		local node: Expr = {
+			type = "Constant",
+			value = false,
+			kind = nil,
+			lineno = current.line,
+			col_offset = current.column,
+		}
+		return postfix.parse(state, node, expressions.parse)
 	end
 	if current.type == "NONE" then
 		state:advance()
-		return { type = "Constant", value = nil, kind = nil, lineno = current.line, col_offset = current.column }
+		local node: Expr = {
+			type = "Constant",
+			value = nil,
+			kind = nil,
+			lineno = current.line,
+			col_offset = current.column,
+		}
+		return postfix.parse(state, node, expressions.parse)
 	end
 	if current.type == "NAME" then
 		state:advance()

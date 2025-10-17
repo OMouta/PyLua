@@ -75,6 +75,20 @@ local parserTests: TestFramework.TestSuite = {
 		},
 
 		{
+			name = "Parse string literal subscript",
+			test = function()
+				local tokens = Lexer.tokenize('"hi"[0]')
+				local ast = Parser.parse(tokens)
+				local expr = ast.body[1].value
+				TestFramework.assertEqual(expr.type, "Subscript", "Should parse subscript on literal")
+				TestFramework.assertEqual(expr.value.type, "Constant", "Base should be constant string")
+				TestFramework.assertEqual(expr.value.value, "hi", "String literal should remain 'hi'")
+				TestFramework.assertEqual(expr.slice.type, "Constant", "Index should be constant")
+				TestFramework.assertEqual(expr.slice.value, 0, "Index value should be 0")
+			end,
+		},
+
+		{
 			name = "Parse Simple F-string",
 			test = function()
 				local tokens = Lexer.tokenize('f"Hello {name}!"')
