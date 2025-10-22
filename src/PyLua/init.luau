@@ -12,6 +12,18 @@ local vm = require("@self/vm/interpreter")
 local builtinFunctions = require("@self/builtins/functions")
 local interop = require("@self/interop/bridge")
 
+type _ClassBindingOptions = {
+	pyTypeName: string,
+	typeofName: string?,
+	predicate: ((value: any) -> boolean)?,
+	bindSelf: boolean?,
+	getAttr: ((target: any, attr: string) -> any?)?,
+	setAttr: ((target: any, attr: string, value: any) -> ())?,
+	toLuau: ((target: any, visited: { [any]: any }) -> any)?,
+}
+
+export type ClassBindingOptions = _ClassBindingOptions
+
 -- Type definitions for the API
 export type RuntimeOptions = {
 	debug: boolean?,
@@ -219,6 +231,14 @@ function Runtime:getGlobalPy(name: string): any
 		return nil
 	end
 	return stored
+end
+
+function PyLua.registerClassBinding(options: ClassBindingOptions)
+	interop.registerClassBinding(options)
+end
+
+function PyLua.clearClassBindings()
+	interop.clearClassBindings()
 end
 
 -- Backward compatibility functions (deprecated)

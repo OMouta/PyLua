@@ -13,7 +13,60 @@ type HashEntry = { key: PyObject, value: PyObject }
 
 type LuauFunctionRecord = { func: (...any) -> any }
 
+type ClassBindingOptionsInternal = {
+	pyTypeName: string,
+	typeofName: string?,
+	predicate: ((value: any) -> boolean)?,
+	bindSelf: boolean?,
+	getAttr: ((target: any, attr: string) -> any?)?,
+	setAttr: ((target: any, attr: string, value: any) -> ())?,
+	toLuau: ((target: any, visited: VisitedPy) -> any)?,
+}
+
+type ClassBinding = {
+	pyTypeName: string,
+	typeofName: string?,
+	predicate: ((value: any) -> boolean)?,
+	bindSelf: boolean,
+	getAttr: ((target: any, attr: string) -> any?)?,
+	setAttr: ((target: any, attr: string, value: any) -> ())?,
+	toLuau: ((target: any, visited: VisitedPy) -> any)?,
+}
+
+type BindingPayload = {
+	__pylua_binding: boolean,
+	target: any,
+	binding: ClassBinding,
+}
+
+export type ClassBindingOptions = ClassBindingOptionsInternal
+
 local luauFunctionType: PyType?
+local classBindings: { ClassBinding } = {}
+local bindingByPyType: { [string]: ClassBinding } = {}
+
+local bindingGetAttr: (PyObject, string) -> PyObject?
+local bindingSetAttr: (PyObject, string, PyObject) -> ()
+
+local function tryTypeof(value: any): string?
+	local globalEnv = (_G :: any)
+	local typeofFn = globalEnv and globalEnv.typeof
+	if typeofFn and type(typeofFn) == "function" then
+		local ok, result = pcall(typeofFn, value)
+		if ok and type(result) == "string" then
+			return result
+		end
+	end
+	return nil
+end
+
+local function getTypeTag(value: any): string
+	local tag = tryTypeof(value)
+	if tag then
+		return tag
+	end
+	return type(value)
+end
 
 local function isPyObject(value: any): boolean
 	return type(value) == "table" and value.__type ~= nil and value.__typeobj ~= nil
@@ -53,6 +106,41 @@ local function hashKey(obj: PyObject): string
 		return "None"
 	end
 	return tostring(obj)
+end
+
+local function bindingMatches(binding: ClassBinding, value: any): boolean
+	if binding.typeofName then
+		if getTypeTag(value) ~= binding.typeofName then
+			return false
+		end
+	end
+	if binding.predicate then
+		local ok, result = pcall(binding.predicate, value)
+		if not ok then
+			return false
+		end
+		return result == true
+	end
+	return true
+end
+
+local function safeIndex(target: any, key: string): any?
+	local ok, result = pcall(function()
+		return target[key]
+	end)
+	if ok then
+		return result
+	end
+	return nil
+end
+
+local function safeAssign(target: any, key: string, value: any)
+	local ok, err = pcall(function()
+		target[key] = value
+	end)
+	if not ok then
+		error("AttributeError: cannot set attribute '" .. key .. "': " .. tostring(err), 2)
+	end
 end
 
 local function ensureLuauFunctionType(): PyType
@@ -104,6 +192,164 @@ function Bridge.wrapLuauFunction(fn: (...any) -> any): PyObject
 	return wrapper
 end
 
+bindingGetAttr = function(obj: PyObject, attr: string): PyObject?
+	local payloadRaw = obj.__value
+	if type(payloadRaw) ~= "table" then
+		return nil
+	end
+	local payload = payloadRaw :: BindingPayload
+	local binding = payload.binding
+	if not binding then
+		return nil
+	end
+	local rawValue: any?
+	if binding.getAttr then
+		local ok, result = pcall(binding.getAttr, payload.target, attr)
+		if ok then
+			rawValue = result
+		else
+			rawValue = nil
+		end
+	end
+	if rawValue == nil then
+		rawValue = safeIndex(payload.target, attr)
+	end
+	if rawValue == nil then
+		return nil
+	end
+	if isPyObject(rawValue) then
+		return rawValue :: PyObject
+	end
+	if type(rawValue) == "function" then
+		local method = rawValue
+		local callFn: (...any) -> any
+		if binding.bindSelf then
+			callFn = function(...: any): any
+				return method(payload.target, ...)
+			end
+		else
+			callFn = method
+		end
+		return Bridge.wrapLuauFunction(callFn)
+	end
+	return Bridge.luauToPy(rawValue)
+end
+
+bindingSetAttr = function(obj: PyObject, attr: string, value: PyObject)
+	local payloadRaw = obj.__value
+	if type(payloadRaw) ~= "table" then
+		error("AttributeError: cannot set attribute on unbound object", 2)
+	end
+	local payload = payloadRaw :: BindingPayload
+	local binding = payload.binding
+	if not binding then
+		error("AttributeError: cannot set attribute on unbound object", 2)
+	end
+	local luauValue = Bridge.pyToLuau(value)
+	if binding.setAttr then
+		local ok, errMsg = pcall(function()
+			binding.setAttr(payload.target, attr, luauValue)
+		end)
+		if not ok then
+			error(errMsg, 2)
+		end
+	else
+		safeAssign(payload.target, attr, luauValue)
+	end
+end
+
+local function ensureBindingType(binding: ClassBinding): PyType
+	local ok, existing = pcall(function(): PyType
+		return Base.getTypeObject(binding.pyTypeName)
+	end)
+	local typeObj: PyType
+	if ok and existing then
+		typeObj = existing
+	else
+		typeObj = Base.registerType(binding.pyTypeName, {})
+	end
+	typeObj.__getattr = bindingGetAttr
+	typeObj.__setattr = bindingSetAttr
+	typeObj.methods = typeObj.methods or {}
+	return typeObj
+end
+
+local function createBindingInstance(value: any, visited: VisitedLuau, binding: ClassBinding): PyObject
+	local existing = visited[value]
+	if existing then
+		return existing
+	end
+	ensureBindingType(binding)
+	local payload: BindingPayload = {
+		__pylua_binding = true,
+		target = value,
+		binding = binding,
+	}
+	local wrapper = Base.newPyObject(binding.pyTypeName, payload)
+	visited[value] = wrapper
+	return wrapper
+end
+
+local function tryClassBinding(value: any, visited: VisitedLuau): PyObject?
+	if isPyObject(value) then
+		return nil
+	end
+	for _, binding in ipairs(classBindings) do
+		if bindingMatches(binding, value) then
+			return createBindingInstance(value, visited, binding)
+		end
+	end
+	return nil
+end
+
+function Bridge.registerClassBinding(options: ClassBindingOptionsInternal)
+	if type(options) ~= "table" then
+		error("registerClassBinding requires options table", 2)
+	end
+	local pyTypeName = options.pyTypeName
+	if type(pyTypeName) ~= "string" or pyTypeName == "" then
+		error("registerClassBinding requires pyTypeName", 2)
+	end
+	if options.typeofName == nil and options.predicate == nil then
+		error("registerClassBinding requires typeofName or predicate", 2)
+	end
+	local bindSelf = if options.bindSelf ~= nil then options.bindSelf else true
+	local existing = bindingByPyType[pyTypeName]
+	local binding: ClassBinding
+	if existing then
+		existing.typeofName = options.typeofName
+		existing.predicate = options.predicate
+		existing.bindSelf = bindSelf
+		existing.getAttr = options.getAttr
+		existing.setAttr = options.setAttr
+		existing.toLuau = options.toLuau
+		binding = existing
+	else
+		binding = {
+			pyTypeName = pyTypeName,
+			typeofName = options.typeofName,
+			predicate = options.predicate,
+			bindSelf = bindSelf,
+			getAttr = options.getAttr,
+			setAttr = options.setAttr,
+			toLuau = options.toLuau,
+		}
+		bindingByPyType[pyTypeName] = binding
+		classBindings[#classBindings + 1] = binding
+	end
+	ensureBindingType(binding)
+	return binding
+end
+
+function Bridge.clearClassBindings()
+	for index = #classBindings, 1, -1 do
+		classBindings[index] = nil
+	end
+	for key in pairs(bindingByPyType) do
+		bindingByPyType[key] = nil
+	end
+end
+
 local function luauToPyInternal(value: any, visited: VisitedLuau): PyObject
 	local valueType = type(value)
 	if valueType == "nil" then
@@ -113,6 +359,10 @@ local function luauToPyInternal(value: any, visited: VisitedLuau): PyObject
 	elseif valueType == "function" then
 		return Bridge.wrapLuauFunction(value)
 	elseif valueType ~= "table" then
+		local bindingWrapper = tryClassBinding(value, visited)
+		if bindingWrapper then
+			return bindingWrapper
+		end
 		return Base.newPyObject("object", value)
 	end
 
@@ -122,6 +372,11 @@ local function luauToPyInternal(value: any, visited: VisitedLuau): PyObject
 
 	if value.__nil then
 		return Base.newNone()
+	end
+
+	local bindingWrapper = tryClassBinding(value, visited)
+	if bindingWrapper then
+		return bindingWrapper
 	end
 
 	if visited[value] then
@@ -199,6 +454,17 @@ local function pyToLuauInternal(obj: PyObject, visited: VisitedPy): any
 			index += 1
 		end
 		return arr
+		elseif type(obj.__value) == "table" and (obj.__value :: any).__pylua_binding then
+			local payload = obj.__value :: BindingPayload
+			local binding = payload.binding
+			if binding.toLuau then
+				visited[obj] = payload.target
+				local converted = binding.toLuau(payload.target, visited)
+				visited[obj] = converted
+				return converted
+			end
+			visited[obj] = payload.target
+			return payload.target
 	elseif typeName == "luau_function" then
 		local record: LuauFunctionRecord = obj.__value
 		return record.func
