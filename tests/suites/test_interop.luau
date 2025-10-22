@@ -3,6 +3,7 @@
 
 local TestFramework = require("../framework")
 local PyLua = require("../../src/PyLua")
+local Bridge = require("../../src/PyLua/interop/bridge")
 
 local interopSuite: TestFramework.TestSuite = {
 	name = "Interop Tests",
@@ -63,6 +64,91 @@ py_dict = {'a': 1, 'b': 2}
 				end)
 				TestFramework.assertFalse(ok, "Luau error should surface as Python exception")
 				TestFramework.assertTrue(string.find(tostring(err), "ValueError") ~= nil, "Error message should include ValueError")
+			end,
+		},
+		{
+			name = "Binds Luau Tables As Python Objects",
+			test = function()
+				Bridge.clearClassBindings()
+				Bridge.registerClassBinding({
+					pyTypeName = "Widget",
+					predicate = function(value: any): boolean
+						return type(value) == "table" and value.__kind == "Widget"
+					end,
+				})
+				local python = PyLua.new()
+				local widget = {
+					__kind = "Widget",
+					value = 5,
+					increment = function(self: any, amount: number)
+						self.value += amount
+						return self.value
+					end,
+				}
+				python:setGlobal("widget", widget)
+				python:execute([[before = widget.value
+after = widget.increment(7)
+widget.value = after + 1]])
+				local before = python:getGlobal("before")
+				local after = python:getGlobal("after")
+				TestFramework.assertEqual(before, 5, "Python should see initial attribute value")
+				TestFramework.assertEqual(after, 12, "Method binding should return updated value")
+				TestFramework.assertEqual(widget.value, 13, "Python assignment should update Luau table")
+				local roundTrip = python:getGlobal("widget")
+				TestFramework.assertEqual(roundTrip, widget, "Proxy should roundtrip original table")
+			end,
+		},
+		{
+			name = "Supports Non Self-Bound Methods",
+			test = function()
+				Bridge.clearClassBindings()
+				Bridge.registerClassBinding({
+					pyTypeName = "Utility",
+					predicate = function(value: any): boolean
+						return type(value) == "table" and value.__kind == "Utility"
+					end,
+					bindSelf = false,
+				})
+				local python = PyLua.new()
+				local utility = {
+					__kind = "Utility",
+					double = function(amount: number)
+						return amount * 2
+					end,
+				}
+				python:setGlobal("utility", utility)
+				python:execute("result = utility.double(6)")
+				local result = python:getGlobal("result")
+				TestFramework.assertEqual(result, 12, "bindSelf=false should avoid injecting table")
+				local roundTrip = python:getGlobal("utility")
+				TestFramework.assertEqual(roundTrip, utility, "Utility should roundtrip to original table")
+			end,
+		},
+		{
+			name = "Supports Custom Attribute Setters",
+			test = function()
+				Bridge.clearClassBindings()
+				Bridge.registerClassBinding({
+					pyTypeName = "Counter",
+					predicate = function(value: any): boolean
+						return type(value) == "table" and value.__kind == "Counter"
+					end,
+					setAttr = function(target, attr, newValue)
+						if attr == "value" then
+							target.value = math.floor(newValue)
+						else
+							target[attr] = newValue
+						end
+					end,
+				})
+				local python = PyLua.new()
+				local counter = {
+					__kind = "Counter",
+					value = 0,
+				}
+				python:setGlobal("counter", counter)
+				python:execute("counter.value = 7.9")
+				TestFramework.assertEqual(counter.value, 7, "Custom setter should coerce values")
 			end,
 		},
 	},

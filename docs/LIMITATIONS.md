@@ -2,6 +2,6 @@
 
 A practical subset is implemented; some features are deferred or partial:
 
-- Interop: Luau callables and core table/primitive conversions work; richer type mapping (custom userdata, class binding) still pending
+- Interop: `PyLua.registerClassBinding` now exposes richer Luau ↔ Python object mapping; automatic discovery for complex userdata/metatable hierarchies remains pending
 
 Track progress in [REWRITE_PLAN.md](../internalDocs/REWRITE_PLAN.md).
