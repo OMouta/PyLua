@@ -4,10 +4,12 @@ local base = require("./base")
 local builtins = require("./builtins")
 
 type PyObject = base.PyObject
+type PyType = base.PyType
 export type PyList = PyObject & { __type: "list", __value: { PyObject } }
 export type PyTuple = PyObject & { __type: "tuple", __value: { PyObject } }
 export type PyDict = PyObject & { __type: "dict", __value: { [string]: { key: PyObject, value: PyObject } } }
 export type PySet = PyObject & { __type: "set", __value: { [string]: { value: PyObject } } }
+type MethodMap = { [string]: (PyObject, { PyObject }?) -> PyObject }
 
 -- Helper utilities
 
@@ -166,6 +168,13 @@ local function ensureType(name: string)
 	end
 end
 
+local function ensureMethods(pyType: PyType): MethodMap
+	if not pyType.methods then
+		pyType.methods = {} :: MethodMap
+	end
+	return pyType.methods :: MethodMap
+end
+
 ensureType("list")
 ensureType("tuple")
 ensureType("dict")
@@ -186,9 +195,9 @@ end
 
 do
 	local listType = getTypeObject("list")
-	listType.methods = listType.methods or {}
+	local listMethods = ensureMethods(listType)
 
-	listType.methods["append"] = function(selfObj: PyObject, args: { PyObject }?)
+	listMethods["append"] = function(selfObj: PyObject, args: { PyObject }?)
 		local value = args and args[1]
 		if not value then
 			error("TypeError: append() missing value", 2)
@@ -197,7 +206,7 @@ do
 		return builtins.None()
 	end
 
-	listType.methods["pop"] = function(selfObj: PyObject, args: { PyObject }?)
+	listMethods["pop"] = function(selfObj: PyObject, args: { PyObject }?)
 		local arr = selfObj.__value :: { PyObject }
 		if #arr == 0 then
 			error("IndexError: pop from empty list", 2)
@@ -209,20 +218,24 @@ do
 		else
 			index = #arr
 		end
-		return table.remove(arr, index)
+		local removed = table.remove(arr, index)
+		if not removed then
+			error("IndexError: pop index invalid", 2)
+		end
+		return removed
 	end
 
-	listType.methods["__len__"] = function(selfObj: PyObject)
+	listMethods["__len__"] = function(selfObj: PyObject)
 		return base.newInt(#(selfObj.__value :: { PyObject }))
 	end
 
-	listType.methods["__iter__"] = function(selfObj: PyObject)
+	listMethods["__iter__"] = function(selfObj: PyObject)
 		local iterState = { index = 0, list = selfObj }
 		local iterator = base.newPyObject("list_iterator", iterState)
 		local iterType = getTypeObject("list_iterator")
-		iterType.methods = iterType.methods or {}
-		if not iterType.methods["__next__"] then
-			iterType.methods["__next__"] = function(it: PyObject)
+		local iterMethods = ensureMethods(iterType)
+		if not iterMethods["__next__"] then
+			iterMethods["__next__"] = function(it: PyObject)
 				local state = it.__value
 				state.index += 1
 				local arr = state.list.__value :: { PyObject }
@@ -235,7 +248,7 @@ do
 		return iterator
 	end
 
-	listType.methods["__add__"] = function(selfObj: PyObject, args: { PyObject }?)
+	listMethods["__add__"] = function(selfObj: PyObject, args: { PyObject }?)
 		local other = args and args[1]
 		if not other or other.__type ~= "list" then
 			error("TypeError: can only concatenate list (not '" .. (other and other.__type or "nil") .. "') to list", 2)
@@ -250,7 +263,7 @@ do
 		return Collections.newList(combined)
 	end
 
-	listType.methods["__getitem__"] = function(selfObj: PyObject, args: { PyObject }?)
+	listMethods["__getitem__"] = function(selfObj: PyObject, args: { PyObject }?)
 		if not args or not args[1] then
 			error("TypeError: list indices must be integers", 2)
 		end
@@ -260,7 +273,7 @@ do
 		return arr[resolved]
 	end
 
-	listType.methods["__setitem__"] = function(selfObj: PyObject, args: { PyObject }?)
+	listMethods["__setitem__"] = function(selfObj: PyObject, args: { PyObject }?)
 		if not args or #args < 2 then
 			error("TypeError: list assignment requires index and value", 2)
 		end
@@ -272,7 +285,7 @@ do
 		return builtins.None()
 	end
 
-	listType.methods["__contains__"] = function(selfObj: PyObject, args: { PyObject }?)
+	listMethods["__contains__"] = function(selfObj: PyObject, args: { PyObject }?)
 		if not args or not args[1] then
 			return boolResult(false)
 		end
@@ -281,7 +294,7 @@ do
 		return boolResult(found)
 	end
 
-	listType.methods["__matmul__"] = function(selfObj: PyObject, args: { PyObject }?)
+	listMethods["__matmul__"] = function(selfObj: PyObject, args: { PyObject }?)
 		local other = args and args[1]
 		if not other then
 			error("TypeError: matrix multiplication requires right operand", 2)
@@ -289,7 +302,7 @@ do
 		return matrixMultiply(selfObj, base.ensurePyObject(other))
 	end
 
-	listType.methods["__rmatmul__"] = function(selfObj: PyObject, args: { PyObject }?)
+	listMethods["__rmatmul__"] = function(selfObj: PyObject, args: { PyObject }?)
 		local other = args and args[1]
 		if not other then
 			error("TypeError: matrix multiplication requires left operand", 2)
@@ -312,19 +325,19 @@ end
 
 do
 	local tupleType = getTypeObject("tuple")
-	tupleType.methods = tupleType.methods or {}
+	local tupleMethods = ensureMethods(tupleType)
 
-	tupleType.methods["__len__"] = function(selfObj: PyObject)
+	tupleMethods["__len__"] = function(selfObj: PyObject)
 		return base.newInt(#(selfObj.__value :: { PyObject }))
 	end
 
-	tupleType.methods["__iter__"] = function(selfObj: PyObject)
+	tupleMethods["__iter__"] = function(selfObj: PyObject)
 		local listVersion: PyObject = Collections.newList(selfObj.__value)
 		local iterMethod = base.getattr(listVersion, "__iter__")
 		return base.call(iterMethod, {})
 	end
 
-	tupleType.methods["__getitem__"] = function(selfObj: PyObject, args: { PyObject }?)
+	tupleMethods["__getitem__"] = function(selfObj: PyObject, args: { PyObject }?)
 		if not args or not args[1] then
 			error("TypeError: tuple indices must be integers", 2)
 		end
@@ -334,7 +347,7 @@ do
 		return arr[resolved]
 	end
 
-	tupleType.methods["__contains__"] = function(selfObj: PyObject, args: { PyObject }?)
+	tupleMethods["__contains__"] = function(selfObj: PyObject, args: { PyObject }?)
 		if not args or not args[1] then
 			return boolResult(false)
 		end
@@ -360,9 +373,9 @@ end
 
 do
 	local dictType = getTypeObject("dict")
-	dictType.methods = dictType.methods or {}
+	local dictMethods = ensureMethods(dictType)
 
-	dictType.methods["set"] = function(selfObj: PyObject, args: { PyObject }?)
+	dictMethods["set"] = function(selfObj: PyObject, args: { PyObject }?)
 		if not args or #args < 2 then
 			error("TypeError: set requires key and value", 2)
 		end
@@ -373,7 +386,7 @@ do
 		return builtins.None()
 	end
 
-	dictType.methods["get"] = function(selfObj: PyObject, args: { PyObject }?)
+	dictMethods["get"] = function(selfObj: PyObject, args: { PyObject }?)
 		if not args or #args < 1 then
 			error("TypeError: get requires key", 2)
 		end
@@ -388,7 +401,7 @@ do
 		return builtins.None()
 	end
 
-	dictType.methods["__len__"] = function(selfObj: PyObject)
+	dictMethods["__len__"] = function(selfObj: PyObject)
 		local count = 0
 		for _ in pairs(selfObj.__value) do
 			count += 1
@@ -396,7 +409,7 @@ do
 		return base.newInt(count)
 	end
 
-	dictType.methods["__getitem__"] = function(selfObj: PyObject, args: { PyObject }?)
+	dictMethods["__getitem__"] = function(selfObj: PyObject, args: { PyObject }?)
 		if not args or not args[1] then
 			error("TypeError: dict indices must be provided", 2)
 		end
@@ -408,7 +421,7 @@ do
 		return entry.value
 	end
 
-	dictType.methods["__setitem__"] = function(selfObj: PyObject, args: { PyObject }?)
+	dictMethods["__setitem__"] = function(selfObj: PyObject, args: { PyObject }?)
 		if not args or #args < 2 then
 			error("TypeError: dict assignment requires key and value", 2)
 		end
@@ -419,7 +432,7 @@ do
 		return builtins.None()
 	end
 
-	dictType.methods["__contains__"] = function(selfObj: PyObject, args: { PyObject }?)
+	dictMethods["__contains__"] = function(selfObj: PyObject, args: { PyObject }?)
 		if not args or not args[1] then
 			return boolResult(false)
 		end
@@ -428,7 +441,7 @@ do
 		return boolResult(entry ~= nil)
 	end
 
-	dictType.methods["keys"] = function(selfObj: PyObject)
+	dictMethods["keys"] = function(selfObj: PyObject)
 		local values: { PyObject } = {}
 		for _, entry in pairs(selfObj.__value) do
 			values[#values + 1] = entry.key
@@ -436,7 +449,7 @@ do
 		return Collections.newList(values)
 	end
 
-	dictType.methods["values"] = function(selfObj: PyObject)
+	dictMethods["values"] = function(selfObj: PyObject)
 		local values: { PyObject } = {}
 		for _, entry in pairs(selfObj.__value) do
 			values[#values + 1] = entry.value
@@ -444,7 +457,7 @@ do
 		return Collections.newList(values)
 	end
 
-	dictType.methods["items"] = function(selfObj: PyObject)
+	dictMethods["items"] = function(selfObj: PyObject)
 		local pairsList: { PyObject } = {}
 		for _, entry in pairs(selfObj.__value) do
 			pairsList[#pairsList + 1] = Collections.newTuple({ entry.key, entry.value })
@@ -468,9 +481,9 @@ end
 
 do
 	local setType = getTypeObject("set")
-	setType.methods = setType.methods or {}
+	local setMethods = ensureMethods(setType)
 
-	setType.methods["add"] = function(selfObj: PyObject, args: { PyObject }?)
+	setMethods["add"] = function(selfObj: PyObject, args: { PyObject }?)
 		local value = args and args[1]
 		if not value then
 			error("TypeError: add requires value", 2)
@@ -481,7 +494,7 @@ do
 		return builtins.None()
 	end
 
-	setType.methods["__len__"] = function(selfObj: PyObject)
+	setMethods["__len__"] = function(selfObj: PyObject)
 		local count = 0
 		for _ in pairs(selfObj.__value) do
 			count += 1
@@ -489,7 +502,7 @@ do
 		return base.newInt(count)
 	end
 
-	setType.methods["__contains__"] = function(selfObj: PyObject, args: { PyObject }?)
+	setMethods["__contains__"] = function(selfObj: PyObject, args: { PyObject }?)
 		if not args or not args[1] then
 			return boolResult(false)
 		end
@@ -497,7 +510,7 @@ do
 		return boolResult((selfObj.__value :: any)[hashKey(value)] ~= nil)
 	end
 
-	setType.methods["remove"] = function(selfObj: PyObject, args: { PyObject }?)
+	setMethods["remove"] = function(selfObj: PyObject, args: { PyObject }?)
 		if not args or not args[1] then
 			error("TypeError: remove() requires a value", 2)
 		end
@@ -511,7 +524,7 @@ do
 		return builtins.None()
 	end
 
-	setType.methods["discard"] = function(selfObj: PyObject, args: { PyObject }?)
+	setMethods["discard"] = function(selfObj: PyObject, args: { PyObject }?)
 		if not args or not args[1] then
 			error("TypeError: discard() requires a value", 2)
 		end
