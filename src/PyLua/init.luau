@@ -224,13 +224,13 @@ end
 -- Backward compatibility functions (deprecated)
 -- These will be removed in a future version
 function PyLua.execute(code: string)
-	warn("PyLua.execute() is deprecated. Use PyLua.new():execute() instead.")
+	print("PyLua.execute() is deprecated. Use PyLua.new():execute() instead.")
 	local runtime = PyLua.new()
 	runtime:execute(code)
 end
 
 function PyLua.eval(code: string): any
-	warn("PyLua.eval() is deprecated. Use PyLua.new():eval() instead.")
+	print("PyLua.eval() is deprecated. Use PyLua.new():eval() instead.")
 	local runtime = PyLua.new()
 	return runtime:eval(code)
 end
