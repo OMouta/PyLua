@@ -1,4 +1,4 @@
-# Current Limitations (0.3.0-dev2)
+# Current Limitations (0.3.0-dev3)
 
 A practical subset is implemented; some features are deferred or partial:
 

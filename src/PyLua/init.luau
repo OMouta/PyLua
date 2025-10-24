@@ -1,7 +1,7 @@
 local PyLua = {}
 
 -- Version information
-PyLua.version = "0.3.0-dev2"
+PyLua.version = "0.3.0-dev3"
 PyLua.description = "PyLua - Embedded Python interpreter for Luau"
 
 -- Import core components
