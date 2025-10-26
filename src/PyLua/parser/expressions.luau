@@ -10,6 +10,27 @@ export type Expr = nodes.Expr
 
 local expressions = {}
 
+local MAX_LAMBDA_NESTING = 64
+
+local parseBinaryExpression: (any, number) -> Expr
+
+local function enterLambda(state: any)
+	local depth = (state.lambdaDepth or 0) + 1
+	if depth > MAX_LAMBDA_NESTING then
+		state:raise("Lambda expression nesting too deep")
+	end
+	state.lambdaDepth = depth
+end
+
+local function leaveLambda(state: any)
+	local depth = (state.lambdaDepth or 1) - 1
+	if depth <= 0 then
+		state.lambdaDepth = nil
+	else
+		state.lambdaDepth = depth
+	end
+end
+
 local function prefixContains(prefix: string?, flag: string): boolean
 	if not prefix then
 		return false
@@ -142,7 +163,7 @@ local function parseLambdaParameters(state: any): nodes.Arguments
 
 		if state.current and state.current.type == "EQUAL" then
 			state:advance()
-			local defaultExpr = expressions.parse(state)
+			local defaultExpr = parseBinaryExpression(state, precedence.LAMBDA)
 			table.insert(args.defaults, defaultExpr)
 		end
 
@@ -162,6 +183,7 @@ end
 
 local function parseLambda(state: any): Expr
 	local lambdaToken: Token = state.current :: Token
+	enterLambda(state)
 	state:advance()
 
 	local args = newArguments()
@@ -170,7 +192,7 @@ local function parseLambda(state: any): Expr
 	end
 
 	state:consume("COLON", "Expected ':' after lambda parameters")
-	local bodyExpr = expressions.parse(state)
+	local bodyExpr = parseBinaryExpression(state, precedence.LAMBDA)
 
 	local lambdaNode: Expr = {
 		type = "Lambda",
@@ -182,7 +204,9 @@ local function parseLambda(state: any): Expr
 		end_col_offset = bodyExpr.end_col_offset,
 	}
 
-	return postfix.parse(state, lambdaNode, expressions.parse)
+	local result = postfix.parse(state, lambdaNode, expressions.parse)
+	leaveLambda(state)
+	return result
 end
 
 local function makeSubState(tokenList: { Token }, parentState: any)
@@ -520,9 +544,6 @@ local function parsePrimary(state: any): Expr
 		state:raise("Unexpected end of input in expression")
 	end
 	local current: Token = currentOpt :: Token
-	if current.type == "LAMBDA" then
-		return parseLambda(state)
-	end
 	-- Numbers
 	if current.type == "NUMBER" then
 		state:advance()
@@ -875,12 +896,20 @@ local function parseUnary(state: any): Expr
 	return parsePrimary(state)
 end
 
-local function parseBinaryExpression(state: any, minPrec: number): Expr
-	local left = parseUnary(state)
+local function parsePrefix(state: any, _minPrec: number): Expr
+	local current: Token? = state.current
+	if current and current.type == "LAMBDA" then
+		return parseLambda(state)
+	end
+	return parseUnary(state)
+end
+
+parseBinaryExpression = function(state: any, minPrec: number): Expr
+	local left = parsePrefix(state, minPrec)
 	local function foldComparison(base: Expr, firstTok: Token, firstOp: nodes.CmpOp): Expr
 		local ops = { firstOp }
 		local comparators: { Expr } = {}
-		local rhs = parseUnary(state)
+		local rhs = parseBinaryExpression(state, PRECEDENCE[firstTok.type] + 1)
 		table.insert(comparators, rhs)
 		while true do
 			local t: Token? = state.current
@@ -901,7 +930,7 @@ local function parseBinaryExpression(state: any, minPrec: number): Expr
 			else
 				state:advance()
 			end
-			local r2 = parseUnary(state)
+			local r2 = parseBinaryExpression(state, PRECEDENCE[t.type] + 1)
 			table.insert(ops, op2)
 			table.insert(comparators, r2)
 		end
@@ -976,7 +1005,7 @@ local function parseBinaryExpression(state: any, minPrec: number): Expr
 end
 
 function expressions.parse(state: any): Expr
-	return parseBinaryExpression(state, 1)
+	return parseBinaryExpression(state, precedence.LAMBDA)
 end
 
 -- Expose helpers used by statements module for assignment target parsing
