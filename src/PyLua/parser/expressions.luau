@@ -109,6 +109,82 @@ local function foldConcat(parts: { Expr }, token: Token): Expr
 	return result
 end
 
+local function newArguments(): nodes.Arguments
+	return {
+		posonlyargs = {},
+		args = {},
+		vararg = nil,
+		kwonlyargs = {},
+		kw_defaults = {},
+		kwarg = nil,
+		defaults = {},
+	}
+end
+
+local function parseLambdaParameters(state: any): nodes.Arguments
+	local args = newArguments()
+
+	while state.current and state.current.type ~= "COLON" do
+		if state.current.type ~= "NAME" then
+			state:raise("Expected parameter name in lambda")
+		end
+		local paramToken: Token = state.current
+		state:advance()
+		local param: nodes.Arg = {
+			arg = paramToken.value,
+			annotation = nil,
+			lineno = paramToken.line,
+			col_offset = paramToken.column,
+			end_lineno = paramToken.endLine,
+			end_col_offset = paramToken.endColumn,
+		}
+		table.insert(args.args, param)
+
+		if state.current and state.current.type == "EQUAL" then
+			state:advance()
+			local defaultExpr = expressions.parse(state)
+			table.insert(args.defaults, defaultExpr)
+		end
+
+		if not state.current or state.current.type ~= "COMMA" then
+			break
+		end
+
+		local lookaheadToken = state:lookahead(1)
+		state:advance()
+		if not lookaheadToken or lookaheadToken.type == "COLON" then
+			break
+		end
+	end
+
+	return args
+end
+
+local function parseLambda(state: any): Expr
+	local lambdaToken: Token = state.current :: Token
+	state:advance()
+
+	local args = newArguments()
+	if state.current and state.current.type ~= "COLON" then
+		args = parseLambdaParameters(state)
+	end
+
+	state:consume("COLON", "Expected ':' after lambda parameters")
+	local bodyExpr = expressions.parse(state)
+
+	local lambdaNode: Expr = {
+		type = "Lambda",
+		args = args,
+		body = bodyExpr,
+		lineno = lambdaToken.line,
+		col_offset = lambdaToken.column,
+		end_lineno = bodyExpr.end_lineno,
+		end_col_offset = bodyExpr.end_col_offset,
+	}
+
+	return postfix.parse(state, lambdaNode, expressions.parse)
+end
+
 local function makeSubState(tokenList: { Token }, parentState: any)
 	local sub: any = {
 		tokens = tokenList,
@@ -444,6 +520,9 @@ local function parsePrimary(state: any): Expr
 		state:raise("Unexpected end of input in expression")
 	end
 	local current: Token = currentOpt :: Token
+	if current.type == "LAMBDA" then
+		return parseLambda(state)
+	end
 	-- Numbers
 	if current.type == "NUMBER" then
 		state:advance()

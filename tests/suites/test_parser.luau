@@ -509,6 +509,18 @@ local parserTests: TestFramework.TestSuite = {
 			end,
 		},
 		{
+			name = "Parse Lambda Expression",
+			test = function()
+				local tokens = Lexer.tokenize("lambda x, y=1: x + y")
+				local ast = Parser.parse(tokens)
+				local expr = ast.body[1].value
+				TestFramework.assertEqual(expr.type, "Lambda", "Should be Lambda node")
+				TestFramework.assertEqual(#expr.args.args, 2, "Lambda should have two parameters")
+				TestFramework.assertEqual(#expr.args.defaults, 1, "Lambda should capture defaults")
+				TestFramework.assertEqual(expr.body.type, "BinOp", "Lambda body should be BinOp")
+			end,
+		},
+		{
 			name = "Parse Chained Postfix",
 			test = function()
 				local tokens = Lexer.tokenize("obj.method(1).attr[2]")

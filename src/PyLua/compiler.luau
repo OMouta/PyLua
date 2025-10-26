@@ -267,6 +267,40 @@ local function compileListCompExpr(st: CompilerState, node: nodes.ListComp)
 	emit(st, "CALL_FUNCTION", 0, node.lineno)
 end
 
+local function compileLambdaExpr(st: CompilerState, node: nodes.Lambda)
+	local lambdaState = newState()
+	lambdaState.code.name = "<lambda>"
+	lambdaState.code.firstlineno = node.lineno
+	lambdaState.code.argcount = if node.args and node.args.args then #node.args.args else 0
+	lambdaState.code.kwonlyargcount = 0
+	lambdaState.code.varnames = {}
+
+	if node.args and node.args.args then
+		for _, arg in ipairs(node.args.args) do
+			lambdaState.code.varnames[#lambdaState.code.varnames + 1] = arg.arg
+		end
+	end
+
+	compileExpr(lambdaState, node.body)
+	local retLine = node.body.lineno or node.lineno
+	emit(lambdaState, "RETURN_VALUE", nil, retLine)
+
+	local codeIdx = addConst(st, lambdaState.code)
+	emit(st, "LOAD_CONST", codeIdx, node.lineno)
+
+	local defaults = if node.args and node.args.defaults then node.args.defaults else {}
+	local flags = 0
+	if defaults and #defaults > 0 then
+		for _, defaultExpr in ipairs(defaults) do
+			compileExpr(st, defaultExpr)
+		end
+		emit(st, "BUILD_TUPLE", #defaults, node.lineno)
+		flags = flags + 0x01
+	end
+
+	emit(st, "MAKE_FUNCTION", flags, node.lineno)
+end
+
 local function compileTryNoFinally(st: CompilerState, node: any)
 	if not node.handlers or #node.handlers == 0 then
 		error("try statement must have at least one handler", 2)
@@ -674,6 +708,8 @@ compileExpr = function(st: CompilerState, node: any)
 		emit(st, "CALL_FUNCTION", arg_count, node.lineno)
 	elseif t == "ListComp" then
 		compileListCompExpr(st, node)
+	elseif t == "Lambda" then
+		compileLambdaExpr(st, node)
 	elseif t == "List" then
 		-- Compile list literal: [1, 2, 3]
 		-- Push all elements onto stack
