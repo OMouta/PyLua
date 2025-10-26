@@ -509,6 +509,39 @@ local parserTests: TestFramework.TestSuite = {
 			end,
 		},
 		{
+			name = "Parse Lambda Expression",
+			test = function()
+				local tokens = Lexer.tokenize("lambda x, y=1: x + y")
+				local ast = Parser.parse(tokens)
+				local expr = ast.body[1].value
+				TestFramework.assertEqual(expr.type, "Lambda", "Should be Lambda node")
+				TestFramework.assertEqual(#expr.args.args, 2, "Lambda should have two parameters")
+				TestFramework.assertEqual(#expr.args.defaults, 1, "Lambda should capture defaults")
+				TestFramework.assertEqual(expr.body.type, "BinOp", "Lambda body should be BinOp")
+			end,
+		},
+		{
+			name = "Parse Lambda As Binary Operand",
+			test = function()
+				local tokens = Lexer.tokenize("a + lambda x: x")
+				local ast = Parser.parse(tokens)
+				local expr = ast.body[1].value
+				TestFramework.assertEqual(expr.type, "BinOp", "Top level should be BinOp")
+				TestFramework.assertEqual(expr.op, "Add", "Operator should be Add")
+				TestFramework.assertEqual(expr.right.type, "Lambda", "Right side should be Lambda expression")
+			end,
+		},
+		{
+			name = "Parse Nested Lambda Body",
+			test = function()
+				local tokens = Lexer.tokenize("lambda x: lambda y: x + y")
+				local ast = Parser.parse(tokens)
+				local expr = ast.body[1].value
+				TestFramework.assertEqual(expr.type, "Lambda", "Outer expression should be Lambda")
+				TestFramework.assertEqual(expr.body.type, "Lambda", "Body should be Lambda for nested form")
+			end,
+		},
+		{
 			name = "Parse Chained Postfix",
 			test = function()
 				local tokens = Lexer.tokenize("obj.method(1).attr[2]")

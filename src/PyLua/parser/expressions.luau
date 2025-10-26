@@ -10,6 +10,27 @@ export type Expr = nodes.Expr
 
 local expressions = {}
 
+local MAX_LAMBDA_NESTING = 64
+
+local parseBinaryExpression: (any, number) -> Expr
+
+local function enterLambda(state: any)
+	local depth = (state.lambdaDepth or 0) + 1
+	if depth > MAX_LAMBDA_NESTING then
+		state:raise("Lambda expression nesting too deep")
+	end
+	state.lambdaDepth = depth
+end
+
+local function leaveLambda(state: any)
+	local depth = (state.lambdaDepth or 1) - 1
+	if depth <= 0 then
+		state.lambdaDepth = nil
+	else
+		state.lambdaDepth = depth
+	end
+end
+
 local function prefixContains(prefix: string?, flag: string): boolean
 	if not prefix then
 		return false
@@ -106,6 +127,85 @@ local function foldConcat(parts: { Expr }, token: Token): Expr
 			col_offset = token.column,
 		}
 	end
+	return result
+end
+
+local function newArguments(): nodes.Arguments
+	return {
+		posonlyargs = {},
+		args = {},
+		vararg = nil,
+		kwonlyargs = {},
+		kw_defaults = {},
+		kwarg = nil,
+		defaults = {},
+	}
+end
+
+local function parseLambdaParameters(state: any): nodes.Arguments
+	local args = newArguments()
+
+	while state.current and state.current.type ~= "COLON" do
+		if state.current.type ~= "NAME" then
+			state:raise("Expected parameter name in lambda")
+		end
+		local paramToken: Token = state.current
+		state:advance()
+		local param: nodes.Arg = {
+			arg = paramToken.value,
+			annotation = nil,
+			lineno = paramToken.line,
+			col_offset = paramToken.column,
+			end_lineno = paramToken.endLine,
+			end_col_offset = paramToken.endColumn,
+		}
+		table.insert(args.args, param)
+
+		if state.current and state.current.type == "EQUAL" then
+			state:advance()
+			local defaultExpr = parseBinaryExpression(state, precedence.LAMBDA)
+			table.insert(args.defaults, defaultExpr)
+		end
+
+		if not state.current or state.current.type ~= "COMMA" then
+			break
+		end
+
+		local lookaheadToken = state:lookahead(1)
+		state:advance()
+		if not lookaheadToken or lookaheadToken.type == "COLON" then
+			break
+		end
+	end
+
+	return args
+end
+
+local function parseLambda(state: any): Expr
+	local lambdaToken: Token = state.current :: Token
+	enterLambda(state)
+	state:advance()
+
+	local args = newArguments()
+	if state.current and state.current.type ~= "COLON" then
+		args = parseLambdaParameters(state)
+	end
+
+	state:consume("COLON", "Expected ':' after lambda parameters")
+	local bodyExpr = parseBinaryExpression(state, precedence.LAMBDA)
+
+	local lambdaNode: Expr = {
+		type = "Lambda",
+		args = args,
+		body = bodyExpr,
+		lineno = lambdaToken.line,
+		col_offset = lambdaToken.column,
+		end_lineno = bodyExpr.end_lineno,
+		end_col_offset = bodyExpr.end_col_offset,
+	}
+
+	local result = postfix.parse(state, lambdaNode, expressions.parse)
+	leaveLambda(state)
 	return result
 end
 
@@ -796,12 +896,20 @@ local function parseUnary(state: any): Expr
 	return parsePrimary(state)
 end
 
-local function parseBinaryExpression(state: any, minPrec: number): Expr
-	local left = parseUnary(state)
+local function parsePrefix(state: any, _minPrec: number): Expr
+	local current: Token? = state.current
+	if current and current.type == "LAMBDA" then
+		return parseLambda(state)
+	end
+	return parseUnary(state)
+end
+
+parseBinaryExpression = function(state: any, minPrec: number): Expr
+	local left = parsePrefix(state, minPrec)
 	local function foldComparison(base: Expr, firstTok: Token, firstOp: nodes.CmpOp): Expr
 		local ops = { firstOp }
 		local comparators: { Expr } = {}
-		local rhs = parseUnary(state)
+		local rhs = parseBinaryExpression(state, PRECEDENCE[firstTok.type] + 1)
 		table.insert(comparators, rhs)
 		while true do
 			local t: Token? = state.current
@@ -822,7 +930,7 @@ local function parseBinaryExpression(state: any, minPrec: number): Expr
 			else
 				state:advance()
 			end
-			local r2 = parseUnary(state)
+			local r2 = parseBinaryExpression(state, PRECEDENCE[t.type] + 1)
 			table.insert(ops, op2)
 			table.insert(comparators, r2)
 		end
@@ -897,7 +1005,7 @@ local function parseBinaryExpression(state: any, minPrec: number): Expr
 end
 
 function expressions.parse(state: any): Expr
-	return parseBinaryExpression(state, 1)
+	return parseBinaryExpression(state, precedence.LAMBDA)
 end
 
 -- Expose helpers used by statements module for assignment target parsing

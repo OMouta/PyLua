@@ -2,6 +2,7 @@ local precedence = {}
 
 -- Precedence levels (lower number = lower precedence)
 precedence.LEVELS = {
+	LAMBDA = 0,
 	OR = 1,
 	AND = 2,
 	NOT = 3, -- unary not
@@ -50,5 +51,7 @@ precedence.BINOP_MAP = {
 
 -- Augmented assignment mapping (token of operator before '=' -> BinOpType)
 precedence.AUGASSIGN_MAP = precedence.BINOP_MAP
+
+precedence.LAMBDA = precedence.LEVELS.LAMBDA
 
 return precedence

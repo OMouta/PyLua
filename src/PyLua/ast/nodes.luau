@@ -263,6 +263,13 @@ export type ListComp = Expr & {
 	generators: { Comprehension },
 }
 
+-- Lambda expression: lambda parameters: expression
+export type Lambda = Expr & {
+	type: "Lambda",
+	args: Arguments,
+	body: Expr,
+}
+
 -- Starred expression: *value (in lists, tuples, calls)
 export type Starred = Expr & {
 	type: "Starred",
@@ -343,6 +350,7 @@ export type AnyExpr =
 	| Dict
 	| Set
 	| ListComp
+	| Lambda
 	| Starred
 	| DictUnpack
 

@@ -25,6 +25,24 @@ def create_user(username, role="user", active=True):
 create_user("admin", "administrator", False)
 create_user("john", "moderator")
 create_user("jane")
+
+# Lambda function
+square = lambda x: x * x
+print("square(5) =", square(5))
+
+# lambda with default argument
+increment = lambda x, inc=1: x + inc
+print("increment(10) =", increment(10))
+print("increment(10, 5) =", increment(10, 5))
+
+# Function calling another function
+def helper(x):
+    return x + 1
+
+def main(x):
+    return helper(x) * 2
+    
+print("main(5) =", main(5))
 ]])
 
 -- You can also evaluate expressions and read back results

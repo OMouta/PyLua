@@ -81,7 +81,6 @@ result = calculate()
 				TestFramework.assert(globals.y == nil, "Local variable y should not be in global scope")
 			end,
 		},
-
 		{
 			name = "Multiple Function Calls",
 			test = function()
@@ -94,6 +93,25 @@ result2 = double(10)
 ]])
 				TestFramework.assertEqual(globals.result1, 10, "First function call should work")
 				TestFramework.assertEqual(globals.result2, 20, "Second function call should work")
+			end,
+		},
+
+		{
+			name = "Lambda Basic Invocation",
+			test = function()
+				local globals = executeCode([[result = (lambda x: x + 1)(5)]])
+				TestFramework.assertEqual(globals.result, 6, "Lambda should compute expression body")
+			end,
+		},
+
+		{
+			name = "Lambda With Default Argument",
+			test = function()
+				local globals = executeCode([[f = lambda x, y=2: x * y
+result1 = f(3)
+result2 = f(3, 4)]])
+				TestFramework.assertEqual(globals.result1, 6, "Lambda should use default when omitted")
+				TestFramework.assertEqual(globals.result2, 12, "Lambda should use explicit argument")
 			end,
 		},
 

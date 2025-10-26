@@ -238,7 +238,7 @@ Completion Criteria: Original `parser.luau` shrinks to thin façade (<150 lines)
 #### 5.2 Advanced Language Features
 
 - [x] **List comprehensions**: [x for x in iterable]
-- [ ] **Lambda functions**: Anonymous functions
+- [x] **Lambda functions**: Anonymous functions
 - [ ] **Generators**: yield expressions and iteration
 - [x] **Exception handling**: Basic try/except with tuple patterns and finally clauses
 - [x] **f-strings**: Runtime expression interpolation and formatting (lexer already tokenizes prefixes; implement evaluation and formatting).
@@ -251,6 +251,32 @@ Completion Criteria: Original `parser.luau` shrinks to thin façade (<150 lines)
 - [x] **Error translation**: Python exceptions ↔ Luau errors
 
 **Key Files**: `builtins/functions.luau`, `builtins/exceptions.luau`
+
+### Phase 6: Future
+
+#### v3.1 - Classes & Modules
+
+- [ ] Class definitions and inheritance
+- [ ] Module system and imports
+- [ ] Package structure
+
+#### v3.2 - Advanced Features
+
+- [ ] Decorators
+- [ ] Context managers
+- [ ] Async/await (coroutines)
+
+#### v3.3 - Standard Library
+
+- [ ] Core modules (math, string, etc.)
+- [ ] File I/O operations
+- [ ] JSON handling
+
+#### v3.4 - Optimization
+
+- [ ] Bytecode optimization
+- [ ] JIT compilation possibilities
+- [ ] Memory optimizations
 
 ## API Design
 
@@ -314,32 +340,6 @@ python:execute("result = lua_func(6, 7)")
 
 - [ ] Benchmarks: Execution speed comparisons
 - [ ] Memory usage: Object lifecycle tracking
-
-## Future Roadmap
-
-### v3.1 - Classes & Modules
-
-- [ ] Class definitions and inheritance
-- [ ] Module system and imports
-- [ ] Package structure
-
-### v3.2 - Advanced Features
-
-- [ ] Decorators
-- [ ] Context managers
-- [ ] Async/await (coroutines)
-
-### v3.3 - Standard Library
-
-- [ ] Core modules (math, string, etc.)
-- [ ] File I/O operations
-- [ ] JSON handling
-
-### v3.4 - Optimization
-
-- [ ] Bytecode optimization
-- [ ] JIT compilation possibilities
-- [ ] Memory optimizations
 
 ## Success Criteria
 
