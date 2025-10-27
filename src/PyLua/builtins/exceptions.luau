@@ -122,6 +122,10 @@ local function createExceptionInstance(name: string, message: string?): PyObject
 		instance.__dict = instance.__dict or {}
 		(instance.__dict :: any).message = base.newPyObject("str", message)
 	end
+	if name == "StopIteration" then
+		instance.__dict = instance.__dict or {}
+		(instance.__dict :: any).value = builtins.None()
+	end
 	return instance
 end
 

@@ -414,6 +414,34 @@ return function(deps: { compileStmt: (CompilerState, any) -> () })
 			compileListCompExpr(st, node)
 		elseif t == "Lambda" then
 			compileLambdaExpr(st, node)
+		elseif t == "Yield" then
+			if not st.isGenerator then
+				error("SyntaxError: 'yield' outside function", 2)
+			end
+			if node.value then
+				compileExpr(st, node.value)
+			else
+				local idxNone = State.addConst(st, nil)
+				State.emit(st, "LOAD_CONST", idxNone, node.lineno)
+			end
+			State.emit(st, "YIELD_VALUE", nil, node.lineno)
+		elseif t == "YieldFrom" then
+			if not st.isGenerator then
+				error("SyntaxError: 'yield' outside function", 2)
+			end
+			compileExpr(st, node.value)
+			State.emit(st, "GET_ITER", nil, node.lineno)
+			local loopStart = State.getCurrentAddress(st)
+			local forIterJump = State.getCurrentAddress(st)
+			State.emit(st, "FOR_ITER", 0, node.lineno)
+			State.emit(st, "YIELD_VALUE", nil, node.lineno)
+			local currentAddr = State.getCurrentAddress(st)
+			local backOffset = loopStart - currentAddr - 1
+			State.emit(st, "JUMP_FORWARD", backOffset, node.lineno)
+			local loopEnd = State.getCurrentAddress(st)
+			State.patchJump(st, forIterJump, loopEnd)
+			local idxNone = State.addConst(st, nil)
+			State.emit(st, "LOAD_CONST", idxNone, node.lineno)
 		elseif t == "List" then
 			for _, elt in ipairs(node.elts) do
 				compileExpr(st, elt)

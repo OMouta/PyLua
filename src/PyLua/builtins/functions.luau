@@ -645,6 +645,41 @@ local function compareGreater(a: PyObject, b: PyObject): boolean
 	return va > vb
 end
 
+function Functions.next_(args: { PyObject }): PyObject
+	local count = #args
+	if count == 0 then
+		error("TypeError: next() expected at least 1 argument, got 0", 2)
+	elseif count > 2 then
+		error("TypeError: next() expected at most 2 arguments, got " .. tostring(count), 2)
+	end
+
+	local iterator = ensurePy(args[1])
+	local ok, nextMethod = pcall(function()
+		return base.getattr(iterator, "__next__")
+	end)
+	if not ok or not nextMethod then
+		error("TypeError: '" .. iterator.__type .. "' object is not an iterator", 2)
+	end
+
+	local success, result = pcall(function()
+		return base.call(nextMethod, {})
+	end)
+
+	if success then
+		return result
+	end
+
+	local err = result
+	if type(err) == "table" and (err :: any).__type == "StopIteration" then
+		if count == 2 then
+			return ensurePy(args[2])
+		end
+		error(err, 0)
+	end
+
+	error(err, 0)
+end
+
 -- sum(iterable, start=0)
 function Functions.sum_(args: { PyObject }): PyObject
 	local count = #args
@@ -770,6 +805,9 @@ function Functions.createBuiltins(): { [string]: PyObject }
 				error("TypeError: repr() takes exactly one argument", 2)
 			end
 			return Functions.repr_(args[1])
+		end),
+		["next"] = wrapBuiltin("next", function(args)
+			return Functions.next_(args)
 		end),
 		["ascii"] = wrapBuiltin("ascii", function(args)
 			if #args ~= 1 then

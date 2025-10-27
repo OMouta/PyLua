@@ -19,6 +19,38 @@ return function(deps: StatementDeps)
 
 	local compileStmt: (CompilerState, any) -> ()
 
+	local function nodeContainsYield(node: any): boolean
+		if type(node) ~= "table" then
+			return false
+		end
+		local nodeType = node.type
+		if nodeType == "Yield" or nodeType == "YieldFrom" then
+			return true
+		end
+		if nodeType == "FunctionDef" or nodeType == "ClassDef" then
+			return false
+		end
+		if nodeType == "Lambda" then
+			return node.body and nodeContainsYield(node.body)
+		end
+		for _, value in pairs(node) do
+			if type(value) == "table" then
+				if value.type then
+					if nodeContainsYield(value) then
+						return true
+					end
+				else
+					for _, item in ipairs(value) do
+						if nodeContainsYield(item) then
+							return true
+						end
+					end
+				end
+			end
+		end
+		return false
+	end
+
 	local function compileTryNoFinally(st: CompilerState, node: any)
 		if not node.handlers or #node.handlers == 0 then
 			error("try statement must have at least one handler", 2)
@@ -160,6 +192,17 @@ return function(deps: StatementDeps)
 		local funcState = State.newState()
 		funcState.code.name = funcName
 		funcState.code.firstlineno = node.lineno
+		local isGenerator = false
+		if body then
+			for _, stmt in ipairs(body) do
+				if nodeContainsYield(stmt) then
+					isGenerator = true
+					break
+				end
+			end
+		end
+		funcState.isGenerator = isGenerator
+		funcState.code.isGenerator = isGenerator
 
 		local argcount = 0
 		local varnames: { string } = {}

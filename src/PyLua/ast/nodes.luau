@@ -270,6 +270,18 @@ export type Lambda = Expr & {
 	body: Expr,
 }
 
+-- Yield expression: yield value (optional)
+export type Yield = Expr & {
+	type: "Yield",
+	value: Expr?,
+}
+
+-- Yield from expression: yield from iterator
+export type YieldFrom = Expr & {
+	type: "YieldFrom",
+	value: Expr,
+}
+
 -- Starred expression: *value (in lists, tuples, calls)
 export type Starred = Expr & {
 	type: "Starred",
@@ -351,6 +363,8 @@ export type AnyExpr =
 	| Set
 	| ListComp
 	| Lambda
+	| Yield
+	| YieldFrom
 	| Starred
 	| DictUnpack
 
