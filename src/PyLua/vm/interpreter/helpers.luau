@@ -91,6 +91,9 @@ local function iterMembershipContains(container: PyObject, needle: PyObject): bo
 				return true
 			end
 		else
+			if type(itemOrErr) == "table" and (itemOrErr :: any).__type == "StopIteration" then
+				return false
+			end
 			local errMessage = tostring(itemOrErr)
 			if string.find(errMessage, "StopIteration", 1, true) ~= nil then
 				return false

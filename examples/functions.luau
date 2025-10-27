@@ -1,7 +1,7 @@
 local PyLua = require("../src/PyLua")
 local python = PyLua.new()
 
-python:execute([[ 
+python:execute([[
 def add(a, b):
     return a + b
 
@@ -43,6 +43,16 @@ def main(x):
     return helper(x) * 2
     
 print("main(5) =", main(5))
+
+# Generator function
+def countdown(n):
+    while n > 0:
+        yield n
+        n -= 1
+
+print("Countdown:")
+for value in countdown(3):
+    print("  ", value)
 ]])
 
 -- You can also evaluate expressions and read back results

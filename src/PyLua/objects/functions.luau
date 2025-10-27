@@ -18,6 +18,7 @@ export type PyCode = {
 	defaults: { PyObject }?, -- Default parameter values
 	filename: string?, -- Source filename
 	firstlineno: number?, -- First line number in source
+	isGenerator: boolean?,
 }
 
 -- Python function type
@@ -61,7 +62,8 @@ function Functions.newCode(
 	names: { [number]: string },
 	defaults: { PyObject }?,
 	filename: string?,
-	firstlineno: number?
+	firstlineno: number?,
+	isGenerator: boolean?
 ): PyCode
 	return {
 		name = name,
@@ -74,6 +76,7 @@ function Functions.newCode(
 		defaults = defaults,
 		filename = filename,
 		firstlineno = firstlineno,
+		isGenerator = isGenerator,
 	}
 end
 

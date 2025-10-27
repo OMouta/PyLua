@@ -3,6 +3,7 @@ local Functions = require("../../objects/functions")
 local Instructions = require("../../bytecode/instructions")
 local Base = require("../../objects/base")
 local State = require("./state")
+local Generator = require("./generator")
 
 local CallFunction = {}
 
@@ -144,6 +145,16 @@ function CallFunction.new(
 		bindPositionalArguments(code, locals, safeArgs)
 		applyDefaultValues(code, locals, safeArgs, requiredArgs, defaultsList)
 		bindKeywordArguments(code, locals, safeArgs, safeKwargs, requiredArgs)
+
+		if code.isGenerator then
+			return Generator.new({
+				code = code,
+				globals = funcGlobals,
+				builtins = vm.builtins,
+				locals = locals,
+				executeInstruction = executeInstruction,
+			})
+		end
 
 		local funcFrame = FrameModule.new(code.bytecode, funcGlobals, vm.builtins, locals, code.name)
 
