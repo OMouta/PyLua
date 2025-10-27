@@ -65,7 +65,7 @@ local function ensureGeneratorType(): Base.PyType
 	return typeObj
 end
 
-local function raiseStopIteration(value: PyObject?)
+local function raiseStopIteration(value: PyObject?): never
 	local payloadValue = value or Base.newNone()
 	local exc = Base.newPyObject("StopIteration", { value = payloadValue, message = nil })
 	exc.__dict = exc.__dict or {}
@@ -75,7 +75,7 @@ end
 
 local function runGenerator(info: GeneratorInfo, sendValue: PyObject?): PyObject
 	if info.finished then
-		raiseStopIteration(info.returnValue)
+		return raiseStopIteration(info.returnValue)
 	end
 	if info.running then
 		error("ValueError: generator already executing", 2)
@@ -134,13 +134,12 @@ local function runGenerator(info: GeneratorInfo, sendValue: PyObject?): PyObject
 	end
 
 	if info.finished then
-		raiseStopIteration(info.returnValue)
+		return raiseStopIteration(info.returnValue)
 	end
 
 	-- Generator exhausted without explicit finish marker
 	info.finished = true
-	raiseStopIteration(info.returnValue)
-	return Base.newNone()
+	return raiseStopIteration(info.returnValue)
 end
 
 function Generator.new(params: GeneratorParams): PyObject

@@ -2,6 +2,14 @@ local Base = require("../../objects/base")
 
 local Iteration = {}
 
+local ITERATOR_TYPES = {
+	list_iterator = true,
+	tuple_iterator = true,
+	set_iterator = true,
+	dict_iterator = true,
+	str_iterator = true,
+}
+
 export type PyObject = Base.PyObject
 
 function Iteration.createIterator(iterable: any): any
@@ -73,7 +81,7 @@ function Iteration.createIterator(iterable: any): any
 		}
 	elseif objType == "generator" then
 		return obj
-	elseif objType == "list_iterator" or objType == "tuple_iterator" or objType == "set_iterator" or objType == "dict_iterator" or objType == "str_iterator" then
+	elseif objType and ITERATOR_TYPES[objType] then
 		return obj
 	end
 

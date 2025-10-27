@@ -27,11 +27,8 @@ return function(deps: StatementDeps)
 		if nodeType == "Yield" or nodeType == "YieldFrom" then
 			return true
 		end
-		if nodeType == "FunctionDef" or nodeType == "ClassDef" then
+		if nodeType == "FunctionDef" or nodeType == "ClassDef" or nodeType == "Lambda" then
 			return false
-		end
-		if nodeType == "Lambda" then
-			return node.body and nodeContainsYield(node.body)
 		end
 		for _, value in pairs(node) do
 			if type(value) == "table" then
