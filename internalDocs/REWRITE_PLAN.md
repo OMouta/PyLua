@@ -256,6 +256,8 @@ Completion Criteria: Original `parser.luau` shrinks to thin façade (<150 lines)
 
 #### v3.1 - Classes & Modules
 
+Read [MODULES](./MODULES.md) for more information about modules and packages!
+
 - [ ] Class definitions and inheritance
 - [ ] Module system and imports
 - [ ] Package structure
