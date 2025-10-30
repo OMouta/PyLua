@@ -14,6 +14,7 @@ export type CodeObject = {
 	name: string?,
 	argcount: number?,
 	kwonlyargcount: number?,
+	isGenerator: boolean?,
 }
 
 export type LoopContext = {
@@ -28,6 +29,7 @@ export type CompilerState = {
 	loopStack: { LoopContext },
 	labelCounter: number,
 	tempNameCounter: number,
+	isGenerator: boolean,
 }
 
 local State = {}
@@ -59,12 +61,14 @@ function State.newState(): CompilerState
 			name = nil,
 			argcount = nil,
 			kwonlyargcount = nil,
+			isGenerator = false,
 		},
 		constIndex = {},
 		nameIndex = {},
 		loopStack = {},
 		labelCounter = 0,
 		tempNameCounter = 0,
+		isGenerator = false,
 	}
 end
 

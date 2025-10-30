@@ -60,11 +60,52 @@ local function createBinaryModule(deps: BinaryDeps)
 	local BINOP_MAP = precedence.BINOP_MAP
 	local parsePrimary = deps.parsePrimary
 	local parseLambda = deps.parseLambda
+	local parseBinaryExpression: (state: any, minPrec: number) -> Expr
+
+	local function isYieldTerminator(tokenType: string): boolean
+		return tokenType == "COMMA"
+			or tokenType == "COLON"
+			or tokenType == "RPAR"
+			or tokenType == "RSQB"
+			or tokenType == "RBRACE"
+			or tokenType == "NEWLINE"
+			or tokenType == "ENDMARKER"
+			or tokenType == "DEDENT"
+			or tokenType == "SEMICOLON"
+	end
+
+	local function parseYieldExpression(state: any): Expr
+		local yieldToken: Token = state.current :: Token
+		state:advance()
+		if state.current and state.current.type == "FROM" then
+			state:advance()
+			local valueExpr = parseBinaryExpression(state, precedence.LAMBDA)
+			return {
+				type = "YieldFrom",
+				value = valueExpr,
+				lineno = yieldToken.line,
+				col_offset = yieldToken.column,
+			}
+		end
+		local valueExpr: Expr? = nil
+		if state.current and not isYieldTerminator(state.current.type) then
+			valueExpr = parseBinaryExpression(state, precedence.LAMBDA)
+		end
+		return {
+			type = "Yield",
+			value = valueExpr,
+			lineno = yieldToken.line,
+			col_offset = yieldToken.column,
+		}
+	end
 
 	local function parseUnary(state: any): Expr
 		local current: Token? = state.current
 		if not current then
 			return parsePrimary(state)
+		end
+		if current.type == "YIELD" then
+			return parseYieldExpression(state)
 		end
 		if current.type == "MINUS" then
 			state:advance()
@@ -121,7 +162,7 @@ local function createBinaryModule(deps: BinaryDeps)
 		return parseUnary(state)
 	end
 
-	local function parseBinaryExpression(state: any, minPrec: number): Expr
+	parseBinaryExpression = function(state: any, minPrec: number): Expr
 		local left = parsePrefix(state, minPrec)
 
 		local function foldComparison(base: Expr, firstTok: Token, firstOp: CmpOp): Expr

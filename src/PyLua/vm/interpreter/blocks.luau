@@ -1,5 +1,6 @@
 local FrameModule = require("../frame")
 local Stack = require("../stack")
+local Base = require("../../objects/base")
 
 local Blocks = {}
 
@@ -19,6 +20,18 @@ function Blocks.handleReturn(vm: any, frame: Frame, value: any): boolean
 	while true do
 		local block = FrameModule.getCurrentBlock(frame)
 		if not block then
+			if (frame :: any).is_generator then
+				local info = (frame :: any).generator_state
+				if info then
+					info.returnValue = Base.ensurePyObject(value)
+					info.finished = true
+					info.lastYield = nil
+					info.resumeValue = nil
+					info.hasResumeValue = false
+					info.nextSend = nil
+				end
+				return false
+			end
 			vm.return_value = value
 			return false
 		end

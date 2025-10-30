@@ -61,6 +61,7 @@ export type Opcode =
 	-- Function calls
 	| "MAKE_FUNCTION"
 	| "CALL_FUNCTION"
+	| "YIELD_VALUE"
 	| "RETURN_VALUE"
 	-- Object operations
 	| "LOAD_ATTR"
@@ -152,6 +153,7 @@ local OPCODE_INFO: { [Opcode]: OpcodeInfo } = {
 	-- Function calls
 	MAKE_FUNCTION = { name = "MAKE_FUNCTION", arg = true, doc = "Create function object" },
 	CALL_FUNCTION = { name = "CALL_FUNCTION", arg = true, doc = "Call with positional arg count" },
+	YIELD_VALUE = { name = "YIELD_VALUE", arg = false, doc = "Yield from generator" },
 	RETURN_VALUE = { name = "RETURN_VALUE", arg = false, doc = "Return TOS" },
 
 	-- Object / attribute / subscripting

@@ -375,6 +375,25 @@ function Dispatcher.dispatchInstruction(
 			return false
 		end
 		return true
+	elseif opcode == "YIELD_VALUE" then
+		local value = FrameModule.pop(frame)
+		local generatorFlag = (frame :: any).is_generator
+		if not generatorFlag then
+			error("RuntimeError: 'yield' outside generator", 2)
+		end
+		local info = (frame :: any).generator_state
+		if not info then
+			error("RuntimeError: generator metadata missing", 2)
+		end
+		info.lastYield = Helpers.coercePyObject(value)
+		if not info.nextSend then
+			info.nextSend = Base.newNone()
+		end
+		info.resumeValue = info.nextSend
+		info.hasResumeValue = true
+		info.nextSend = nil
+		FrameModule.advance(frame)
+		return false
 	elseif opcode == "GET_ITER" then
 		local iterable = FrameModule.pop(frame)
 		local iterator = Iteration.createIterator(iterable)
@@ -526,7 +545,8 @@ function Dispatcher.dispatchInstruction(
 			codeObj.names,
 			defaults,
 			"<string>",
-			codeObj.firstlineno
+			codeObj.firstlineno,
+			codeObj.isGenerator
 		)
 		local func = Functions.newFunction(pyCode, vm.globals, defaults, nil)
 		FrameModule.push(frame, func)
