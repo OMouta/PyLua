@@ -13,14 +13,33 @@ type MethodMap = { [string]: (PyObject, { PyObject }?) -> PyObject }
 
 -- Helper utilities
 
+-- Cache for hash keys to avoid repeated computation
+-- Uses weak keys (__mode = "k") so cached entries are automatically cleaned up by GC
+-- when the PyObject keys are no longer referenced elsewhere
+local hashCache = setmetatable({}, { __mode = "k" }) :: { [any]: string }
+
 local function hashKey(obj: PyObject): string
-	local t = obj.__type
-	if t == "int" or t == "float" or t == "bool" or t == "str" then
-		return t .. ":" .. tostring(obj.__value)
-	elseif t == "NoneType" then
-		return "None"
+	-- Quick cache lookup for frequently accessed objects
+	local cached = hashCache[obj]
+	if cached then
+		return cached
 	end
-	return tostring(obj)
+
+	local t = obj.__type
+	local hash: string
+	if t == "int" or t == "float" or t == "bool" or t == "str" then
+		-- Use string.format for slightly better performance than concatenation
+		hash = string.format("%s:%s", t, tostring(obj.__value))
+	elseif t == "NoneType" then
+		hash = "None"
+	else
+		hash = tostring(obj)
+	end
+
+	-- Cache the result (weak keys allow GC to clean up unused entries)
+	hashCache[obj] = hash
+
+	return hash
 end
 
 local function ensureIntIndex(value: PyObject, caller: string): number
@@ -253,12 +272,18 @@ do
 		if not other or other.__type ~= "list" then
 			error("TypeError: can only concatenate list (not '" .. (other and other.__type or "nil") .. "') to list", 2)
 		end
-		local combined: { PyObject } = {}
-		for _, item in ipairs(selfObj.__value) do
-			combined[#combined + 1] = item
+		local selfArr = selfObj.__value :: { PyObject }
+		local otherArr = other.__value :: { PyObject }
+		-- Pre-allocate combined array with known size
+		local combined = table.create(#selfArr + #otherArr)
+		local idx = 1
+		for _, item in ipairs(selfArr) do
+			combined[idx] = item
+			idx += 1
 		end
-		for _, item in ipairs(other.__value) do
-			combined[#combined + 1] = item
+		for _, item in ipairs(otherArr) do
+			combined[idx] = item
+			idx += 1
 		end
 		return Collections.newList(combined)
 	end

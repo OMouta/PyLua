@@ -130,50 +130,58 @@ local function pyToString(obj: PyObject): string
 end
 
 local function reprString(s: string): string
-	local pieces = { "'" }
+	-- Pre-allocate with generous size estimate (2x for escapes + quotes)
+	local pieces = table.create(#s * 2 + 2)
+	pieces[1] = "'"
+	local idx = 2
 	for i = 1, #s do
 		local ch = s:sub(i, i)
 		if ch == "\\" then
-			pieces[#pieces + 1] = "\\\\"
+			pieces[idx] = "\\\\"
 		elseif ch == "'" then
-			pieces[#pieces + 1] = "\\'"
+			pieces[idx] = "\\'"
 		elseif ch == "\n" then
-			pieces[#pieces + 1] = "\\n"
+			pieces[idx] = "\\n"
 		elseif ch == "\t" then
-			pieces[#pieces + 1] = "\\t"
+			pieces[idx] = "\\t"
 		elseif ch == "\r" then
-			pieces[#pieces + 1] = "\\r"
+			pieces[idx] = "\\r"
 		else
-			pieces[#pieces + 1] = ch
+			pieces[idx] = ch
 		end
+		idx += 1
 	end
-	pieces[#pieces + 1] = "'"
-	return table.concat(pieces)
+	pieces[idx] = "'"
+	return table.concat(pieces, "", 1, idx)
 end
 
 local function asciiString(s: string): string
-	local pieces = { "'" }
+	-- Pre-allocate with generous size estimate (4x for hex escapes + quotes)
+	local pieces = table.create(#s * 4 + 2)
+	pieces[1] = "'"
+	local idx = 2
 	for i = 1, #s do
 		local ch = s:sub(i, i)
 		local byte = string.byte(ch)
 		if ch == "\\" then
-			pieces[#pieces + 1] = "\\\\"
+			pieces[idx] = "\\\\"
 		elseif ch == "'" then
-			pieces[#pieces + 1] = "\\'"
+			pieces[idx] = "\\'"
 		elseif ch == "\n" then
-			pieces[#pieces + 1] = "\\n"
+			pieces[idx] = "\\n"
 		elseif ch == "\t" then
-			pieces[#pieces + 1] = "\\t"
+			pieces[idx] = "\\t"
 		elseif ch == "\r" then
-			pieces[#pieces + 1] = "\\r"
+			pieces[idx] = "\\r"
 		elseif byte < 32 or byte > 126 then
-			pieces[#pieces + 1] = string.format("\\x%02x", byte)
+			pieces[idx] = string.format("\\x%02x", byte)
 		else
-			pieces[#pieces + 1] = ch
+			pieces[idx] = ch
 		end
+		idx += 1
 	end
-	pieces[#pieces + 1] = "'"
-	return table.concat(pieces)
+	pieces[idx] = "'"
+	return table.concat(pieces, "", 1, idx)
 end
 
 objectRepr = function(obj: PyObject?): string
@@ -306,11 +314,13 @@ local function ensureRangeType()
 	if not rangeMethods["__repr__"] then
 		rangeMethods["__repr__"] = function(selfObj: PyObject)
 			local data = selfObj.__value
-			local pieces = { "range(" .. tostring(data.start), tostring(data.stop) }
-			if data.step ~= 1 then
-				pieces[#pieces + 1] = tostring(data.step)
+			local result: string
+			if data.step == 1 then
+				result = string.format("range(%s, %s)", tostring(data.start), tostring(data.stop))
+			else
+				result = string.format("range(%s, %s, %s)", tostring(data.start), tostring(data.stop), tostring(data.step))
 			end
-			return base.newPyObject("str", table.concat(pieces, ", ") .. ")")
+			return base.newPyObject("str", result)
 		end
 	end
 	rangeTypeCached = rangeType

@@ -16,6 +16,16 @@ local compareOperations = Helpers.compareOperations
 
 local callPyFunctionRef: ((vm: any, func: any, args: { any }?, kwargs: { [string]: any }?) -> any)? = nil
 
+-- Helper to check if value is already a PyObject (performance optimization)
+local function isPyObject(value: any): boolean
+	return type(value) == "table" and (value :: any).__type ~= nil
+end
+
+-- Helper to ensure value is a PyObject (optimized check first)
+local function toPyObject(value: any): any
+	return if isPyObject(value) then value else Base.ensurePyObject(value)
+end
+
 local function ensureCallFunction(): (vm: any, func: any, args: { any }?, kwargs: { [string]: any }?) -> any
 	if not callPyFunctionRef then
 		error("Interpreter dispatch: callPyFunction not configured", 2)
@@ -111,7 +121,7 @@ function Dispatcher.dispatchInstruction(
 		else
 			name = tostring(arg)
 		end
-		local pyObj = if type(obj) == "table" and (obj :: any).__type ~= nil then obj else Base.ensurePyObject(obj)
+		local pyObj = toPyObject(obj)
 		local value = Base.getattr(pyObj, name)
 		FrameModule.push(frame, value)
 	elseif opcode == "STORE_ATTR" then
@@ -124,16 +134,14 @@ function Dispatcher.dispatchInstruction(
 		else
 			name = tostring(arg)
 		end
-		local pyObj = if type(obj) == "table" and (obj :: any).__type ~= nil then obj else Base.ensurePyObject(obj)
-		local pyValue = if type(value) == "table" and (value :: any).__type ~= nil then value else Base.ensurePyObject(value)
+		local pyObj = toPyObject(obj)
+		local pyValue = toPyObject(value)
 		Base.setattr(pyObj, name, pyValue)
 	elseif opcode == "LOAD_SUBSCR" then
 		local index = FrameModule.pop(frame)
 		local container = FrameModule.pop(frame)
-		local pyContainer = if type(container) == "table" and (container :: any).__type ~= nil
-			then container
-			else Base.ensurePyObject(container)
-		local pyIndex = if type(index) == "table" and (index :: any).__type ~= nil then index else Base.ensurePyObject(index)
+		local pyContainer = toPyObject(container)
+		local pyIndex = toPyObject(index)
 		local getter = Base.getattr(pyContainer, "__getitem__")
 		local result = Base.call(getter, { pyIndex })
 		FrameModule.push(frame, result)
@@ -141,18 +149,16 @@ function Dispatcher.dispatchInstruction(
 		local value = FrameModule.pop(frame)
 		local index = FrameModule.pop(frame)
 		local container = FrameModule.pop(frame)
-		local pyContainer = if type(container) == "table" and (container :: any).__type ~= nil
-			then container
-			else Base.ensurePyObject(container)
-		local pyIndex = if type(index) == "table" and (index :: any).__type ~= nil then index else Base.ensurePyObject(index)
-		local pyValue = if type(value) == "table" and (value :: any).__type ~= nil then value else Base.ensurePyObject(value)
+		local pyContainer = toPyObject(container)
+		local pyIndex = toPyObject(index)
+		local pyValue = toPyObject(value)
 		local setter = Base.getattr(pyContainer, "__setitem__")
 		Base.call(setter, { pyIndex, pyValue })
 	elseif opcode == "BINARY_ADD" then
 		local b = FrameModule.pop(frame)
 		local a = FrameModule.pop(frame)
-		local left = if type(a) == "table" and (a :: any).__type ~= nil then a else Base.ensurePyObject(a)
-		local right = if type(b) == "table" and (b :: any).__type ~= nil then b else Base.ensurePyObject(b)
+		local left = toPyObject(a)
+		local right = toPyObject(b)
 		FrameModule.push(frame, Base.operate("add", left :: any, right :: any))
 	elseif opcode == "BINARY_SUBTRACT" then
 		local b = FrameModule.pop(frame)
@@ -193,14 +199,14 @@ function Dispatcher.dispatchInstruction(
 	elseif opcode == "BINARY_FLOOR_DIVIDE" then
 		local b = FrameModule.pop(frame)
 		local a = FrameModule.pop(frame)
-		local left = if type(a) == "table" and (a :: any).__type ~= nil then a else Base.ensurePyObject(a)
-		local right = if type(b) == "table" and (b :: any).__type ~= nil then b else Base.ensurePyObject(b)
+		local left = toPyObject(a)
+		local right = toPyObject(b)
 		FrameModule.push(frame, Base.operate("floordiv", left :: any, right :: any))
 	elseif opcode == "BINARY_MATRIX_MULTIPLY" then
 		local b = FrameModule.pop(frame)
 		local a = FrameModule.pop(frame)
-		local left = if type(a) == "table" and (a :: any).__type ~= nil then a else Base.ensurePyObject(a)
-		local right = if type(b) == "table" and (b :: any).__type ~= nil then b else Base.ensurePyObject(b)
+		local left = toPyObject(a)
+		local right = toPyObject(b)
 		FrameModule.push(frame, Base.operate("matmul", left :: any, right :: any))
 	elseif opcode == "UNARY_POSITIVE" then
 		local a = FrameModule.pop(frame)
@@ -238,11 +244,8 @@ function Dispatcher.dispatchInstruction(
 			local rightVal = (type(rawRight) == "table" and (rawRight :: any).__value ~= nil) and (rawRight :: any).__value or rawRight
 			result = op(leftVal, rightVal)
 		end
-		if type(result) == "table" and (result :: any).__type ~= nil then
-			FrameModule.push(frame, result)
-		else
-			FrameModule.push(frame, Base.ensurePyObject(result))
-		end
+		-- Optimize: check if result is already PyObject before wrapping
+		FrameModule.push(frame, if isPyObject(result) then result else Base.ensurePyObject(result))
 	elseif opcode == "JUMP_FORWARD" then
 		assert(arg ~= nil, "JUMP_FORWARD requires argument")
 		FrameModule.jump(frame, frame.pc + arg + 1)
@@ -250,7 +253,7 @@ function Dispatcher.dispatchInstruction(
 	elseif opcode == "POP_JUMP_IF_TRUE" then
 		assert(arg ~= nil, "POP_JUMP_IF_TRUE requires argument")
 		local value = FrameModule.pop(frame)
-		local isTrue = if type(value) == "table" and value.__type ~= nil then Base.truthy(value) else (value and true or false)
+		local isTrue = if isPyObject(value) then Base.truthy(value) else (value and true or false)
 		if isTrue then
 			FrameModule.jump(frame, arg)
 			frame.skip_advance = true
@@ -258,7 +261,7 @@ function Dispatcher.dispatchInstruction(
 	elseif opcode == "POP_JUMP_IF_FALSE" then
 		assert(arg ~= nil, "POP_JUMP_IF_FALSE requires argument")
 		local value = FrameModule.pop(frame)
-		local isTrue = if type(value) == "table" and value.__type ~= nil then Base.truthy(value) else (value and true or false)
+		local isTrue = if isPyObject(value) then Base.truthy(value) else (value and true or false)
 		if not isTrue then
 			FrameModule.jump(frame, arg)
 			frame.skip_advance = true
@@ -266,7 +269,7 @@ function Dispatcher.dispatchInstruction(
 	elseif opcode == "JUMP_IF_TRUE_OR_POP" then
 		assert(arg ~= nil, "JUMP_IF_TRUE_OR_POP requires argument")
 		local value = FrameModule.peek(frame)
-		local isTrue = if type(value) == "table" and value.__type ~= nil then Base.truthy(value) else (value and true or false)
+		local isTrue = if isPyObject(value) then Base.truthy(value) else (value and true or false)
 		if isTrue then
 			FrameModule.jump(frame, arg)
 			frame.skip_advance = true
@@ -276,7 +279,7 @@ function Dispatcher.dispatchInstruction(
 	elseif opcode == "JUMP_IF_FALSE_OR_POP" then
 		assert(arg ~= nil, "JUMP_IF_FALSE_OR_POP requires argument")
 		local value = FrameModule.peek(frame)
-		local isTrue = if type(value) == "table" and value.__type ~= nil then Base.truthy(value) else (value and true or false)
+		local isTrue = if isPyObject(value) then Base.truthy(value) else (value and true or false)
 		if not isTrue then
 			FrameModule.jump(frame, arg)
 			frame.skip_advance = true
@@ -446,27 +449,36 @@ function Dispatcher.dispatchInstruction(
 	elseif opcode == "BUILD_LIST" then
 		assert(arg ~= nil, "BUILD_LIST requires argument")
 		local elements = Stack.popN(frame.stack, arg)
-		local arr = {}
+		-- Pre-allocate array with known size for better performance
+		local arr = table.create(arg)
+		-- Stack.popN returns elements in reverse order, so we iterate backwards
+		-- and append in order to reverse them back (matching original behavior)
 		for i = #elements, 1, -1 do
-			arr[#arr + 1] = Base.ensurePyObject(elements[i])
+			arr[#elements - i + 1] = Base.ensurePyObject(elements[i])
 		end
 		local list = Base.newPyObject("list", arr)
 		FrameModule.push(frame, list)
 	elseif opcode == "BUILD_TUPLE" then
 		assert(arg ~= nil, "BUILD_TUPLE requires argument")
 		local elements = Stack.popN(frame.stack, arg)
-		local arr = {}
+		-- Pre-allocate array with known size for better performance
+		local arr = table.create(arg)
+		-- Stack.popN returns elements in reverse order, so we iterate backwards
+		-- and append in order to reverse them back (matching original behavior)
 		for i = #elements, 1, -1 do
-			arr[#arr + 1] = Base.ensurePyObject(elements[i])
+			arr[#elements - i + 1] = Base.ensurePyObject(elements[i])
 		end
 		local tuple = Base.newPyObject("tuple", arr)
 		FrameModule.push(frame, tuple)
 	elseif opcode == "BUILD_SET" then
 		assert(arg ~= nil, "BUILD_SET requires argument")
 		local elements = Stack.popN(frame.stack, arg)
-		local values = {}
+		-- Pre-allocate array with known size for better performance
+		local values = table.create(arg)
+		-- Stack.popN returns elements in reverse order, so we iterate backwards
+		-- and append in order to reverse them back (matching original behavior)
 		for i = #elements, 1, -1 do
-			values[#values + 1] = Base.ensurePyObject(elements[i])
+			values[#elements - i + 1] = Base.ensurePyObject(elements[i])
 		end
 		local set = Collections.newSet(values)
 		FrameModule.push(frame, set)

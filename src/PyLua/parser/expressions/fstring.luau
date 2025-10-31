@@ -282,7 +282,8 @@ local function createFStringParser(deps: FStringDeps)
 		while i <= len do
 			local ch = string.sub(content, i, i)
 			if ch == "{" then
-				if i < len and string.sub(content, i + 1, i + 1) == "{" then
+				local nextCh = i < len and string.sub(content, i + 1, i + 1) or nil
+				if nextCh == "{" then
 					table.insert(literalBuffer, "{")
 					i += 2
 				else
@@ -292,7 +293,8 @@ local function createFStringParser(deps: FStringDeps)
 					i = nextIndex
 				end
 			elseif ch == "}" then
-				if i < len and string.sub(content, i + 1, i + 1) == "}" then
+				local nextCh = i < len and string.sub(content, i + 1, i + 1) or nil
+				if nextCh == "}" then
 					table.insert(literalBuffer, "}")
 					i += 2
 				else

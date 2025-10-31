@@ -100,31 +100,31 @@ end
 local function tokenizeNumber(state: LexerState): Token
 	local startPos = state.pos
 	local startCol = state.column
-	local value = ""
+	local parts = {} -- Use table for efficient concatenation
 
 	-- Handle different number formats
 	local char = peek(state)
 
 	-- Binary, octal, hex prefixes
 	if char == "0" then
-		value = value .. advance(state) :: string
+		table.insert(parts, advance(state) :: string)
 		local nextChar = peek(state)
 
 		if nextChar == "b" or nextChar == "B" then
 			-- Binary number
-			value = value .. advance(state) :: string
+			table.insert(parts, advance(state) :: string)
 			while peek(state) and (peek(state) == "0" or peek(state) == "1") do
-				value = value .. advance(state) :: string
+				table.insert(parts, advance(state) :: string)
 			end
 		elseif nextChar == "o" or nextChar == "O" then
 			-- Octal number
-			value = value .. advance(state) :: string
+			table.insert(parts, advance(state) :: string)
 			while peek(state) and peek(state) >= "0" and peek(state) <= "7" do
-				value = value .. advance(state) :: string
+				table.insert(parts, advance(state) :: string)
 			end
 		elseif nextChar == "x" or nextChar == "X" then
 			-- Hexadecimal number
-			value = value .. advance(state) :: string
+			table.insert(parts, advance(state) :: string)
 			while
 				peek(state)
 				and (
@@ -133,35 +133,36 @@ local function tokenizeNumber(state: LexerState): Token
 					or (peek(state) >= "A" and peek(state) <= "F")
 				)
 			do
-				value = value .. advance(state) :: string
+				table.insert(parts, advance(state) :: string)
 			end
 		end
 	end
 
 	-- Regular decimal digits
 	while peek(state) and tokens.isDigit(peek(state) :: string) do
-		value = value .. advance(state) :: string
+		table.insert(parts, advance(state) :: string)
 	end
 
 	-- Decimal point
 	if peek(state) == "." and peek(state, 1) and tokens.isDigit(peek(state, 1) :: string) then
-		value = value .. advance(state) :: string -- consume '.'
+		table.insert(parts, advance(state) :: string) -- consume '.'
 		while peek(state) and tokens.isDigit(peek(state) :: string) do
-			value = value .. advance(state) :: string
+			table.insert(parts, advance(state) :: string)
 		end
 	end
 
 	-- Scientific notation
 	if peek(state) == "e" or peek(state) == "E" then
-		value = value .. advance(state) :: string
+		table.insert(parts, advance(state) :: string)
 		if peek(state) == "+" or peek(state) == "-" then
-			value = value .. advance(state) :: string
+			table.insert(parts, advance(state) :: string)
 		end
 		while peek(state) and tokens.isDigit(peek(state) :: string) do
-			value = value .. advance(state) :: string
+			table.insert(parts, advance(state) :: string)
 		end
 	end
 
+	local value = table.concat(parts)
 	return tokens.newToken("NUMBER", value, state.line, startCol, state.line, state.column - 1)
 end
 
@@ -170,7 +171,7 @@ local function tokenizeString(state: LexerState): Token
 	local startCol = state.column
 	local startLine = state.line
 	-- Detect optional string prefix (r, f, u, b and combos; case-insensitive like Python)
-	local prefix = ""
+	local prefixParts = {}
 	while true do
 		local c = peek(state)
 		if not c then
@@ -178,12 +179,13 @@ local function tokenizeString(state: LexerState): Token
 		end
 		local lc = string.lower(c)
 		if lc == "r" or lc == "f" or lc == "u" or lc == "b" then
-			prefix ..= lc
+			table.insert(prefixParts, lc)
 			advance(state)
 		else
 			break
 		end
 	end
+	local prefix = table.concat(prefixParts)
 
 	-- Opening quote
 	local quote = advance(state) :: string
@@ -200,8 +202,8 @@ local function tokenizeString(state: LexerState): Token
 		advance(state)
 	end
 
-	-- Accumulate raw content (without delimiters)
-	local content = ""
+	-- Accumulate raw content (without delimiters) using table for efficiency
+	local contentParts = {}
 	while peek(state) do
 		local ch = peek(state) :: string
 		if isTriple then
@@ -211,7 +213,7 @@ local function tokenizeString(state: LexerState): Token
 				advance(state)
 				break
 			else
-				content ..= advance(state) :: string
+				table.insert(contentParts, advance(state) :: string)
 			end
 		else
 			if ch == quote then
@@ -219,23 +221,24 @@ local function tokenizeString(state: LexerState): Token
 				break
 			elseif ch == "\\" then
 				-- Keep escapes verbatim here; decoding can occur later if needed (non-raw)
-				content ..= advance(state) :: string
+				table.insert(contentParts, advance(state) :: string)
 				if peek(state) then
-					content ..= advance(state) :: string
+					table.insert(contentParts, advance(state) :: string)
 				end
 			elseif ch == "\n" then
 				return tokens.newToken("ERRORTOKEN", "Unterminated string", startLine, startCol)
 			else
-				content ..= advance(state) :: string
+				table.insert(contentParts, advance(state) :: string)
 			end
 		end
 	end
+	local content = table.concat(contentParts)
 
 	local lexeme
 	if isTriple then
-		lexeme = (prefix or "") .. quote .. quote .. quote .. content .. quote .. quote .. quote
+		lexeme = prefix .. quote .. quote .. quote .. content .. quote .. quote .. quote
 	else
-		lexeme = (prefix or "") .. quote .. content .. quote
+		lexeme = prefix .. quote .. content .. quote
 	end
 	-- Normalize prefix order: Python treats combinations regardless of order; keep lowercase as scanned
 	local extras = { stringPrefix = prefix ~= "" and prefix or nil, isTriple = isTriple, stringContent = content }
@@ -245,18 +248,19 @@ end
 -- Tokenize an identifier or keyword
 local function tokenizeIdentifier(state: LexerState): Token
 	local startCol = state.column
-	local value = ""
+	local parts = {} -- Use table for efficient concatenation
 
 	-- First character must be letter or underscore
 	if peek(state) and tokens.isIdentifierStart(peek(state) :: string) then
-		value = value .. advance(state) :: string
+		table.insert(parts, advance(state) :: string)
 	end
 
 	-- Subsequent characters can be letters, digits, or underscores
 	while peek(state) and tokens.isIdentifierCont(peek(state) :: string) do
-		value = value .. advance(state) :: string
+		table.insert(parts, advance(state) :: string)
 	end
 
+	local value = table.concat(parts)
 	-- Check if it's a keyword
 	local tokenType: TokenType = (tokens.isKeyword(value) or "NAME") :: TokenType
 
