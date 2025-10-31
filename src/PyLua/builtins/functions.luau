@@ -130,8 +130,8 @@ local function pyToString(obj: PyObject): string
 end
 
 local function reprString(s: string): string
-	-- Pre-allocate with estimated size (string length + 2 for quotes)
-	local pieces = table.create(#s + 2)
+	-- Pre-allocate with generous size estimate (2x for escapes + quotes)
+	local pieces = table.create(#s * 2 + 2)
 	pieces[1] = "'"
 	local idx = 2
 	for i = 1, #s do
@@ -152,12 +152,12 @@ local function reprString(s: string): string
 		idx += 1
 	end
 	pieces[idx] = "'"
-	return table.concat(pieces)
+	return table.concat(pieces, "", 1, idx)
 end
 
 local function asciiString(s: string): string
-	-- Pre-allocate with estimated size
-	local pieces = table.create(#s + 2)
+	-- Pre-allocate with generous size estimate (4x for hex escapes + quotes)
+	local pieces = table.create(#s * 4 + 2)
 	pieces[1] = "'"
 	local idx = 2
 	for i = 1, #s do
@@ -181,7 +181,7 @@ local function asciiString(s: string): string
 		idx += 1
 	end
 	pieces[idx] = "'"
-	return table.concat(pieces)
+	return table.concat(pieces, "", 1, idx)
 end
 
 objectRepr = function(obj: PyObject?): string

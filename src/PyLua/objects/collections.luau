@@ -279,11 +279,14 @@ do
 		local otherArr = other.__value :: { PyObject }
 		-- Pre-allocate combined array with known size
 		local combined = table.create(#selfArr + #otherArr)
+		local idx = 1
 		for _, item in ipairs(selfArr) do
-			combined[#combined + 1] = item
+			combined[idx] = item
+			idx += 1
 		end
 		for _, item in ipairs(otherArr) do
-			combined[#combined + 1] = item
+			combined[idx] = item
+			idx += 1
 		end
 		return Collections.newList(combined)
 	end
