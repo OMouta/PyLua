@@ -13,10 +13,8 @@ type MethodMap = { [string]: (PyObject, { PyObject }?) -> PyObject }
 
 -- Helper utilities
 
--- Cache for hash keys to avoid repeated computation
-local hashCache = {} :: { [any]: string }
-local cacheSize = 0
-local MAX_CACHE_SIZE = 1000 -- Limit cache size to prevent memory issues
+-- Cache for hash keys to avoid repeated computation (uses weak keys for GC)
+local hashCache = setmetatable({}, { __mode = "k" }) :: { [any]: string }
 
 local function hashKey(obj: PyObject): string
 	-- Quick cache lookup for frequently accessed objects
@@ -36,11 +34,8 @@ local function hashKey(obj: PyObject): string
 		hash = tostring(obj)
 	end
 
-	-- Cache the result (with size limit to prevent unbounded growth)
-	if cacheSize < MAX_CACHE_SIZE then
-		hashCache[obj] = hash
-		cacheSize += 1
-	end
+	-- Cache the result (weak keys allow GC to clean up unused entries)
+	hashCache[obj] = hash
 
 	return hash
 end

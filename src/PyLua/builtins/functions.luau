@@ -314,14 +314,13 @@ local function ensureRangeType()
 	if not rangeMethods["__repr__"] then
 		rangeMethods["__repr__"] = function(selfObj: PyObject)
 			local data = selfObj.__value
-			-- Pre-allocate with max expected size
-			local pieces = table.create(3)
-			pieces[1] = "range(" .. tostring(data.start)
-			pieces[2] = tostring(data.stop)
-			if data.step ~= 1 then
-				pieces[3] = tostring(data.step)
+			local result: string
+			if data.step == 1 then
+				result = string.format("range(%s, %s)", tostring(data.start), tostring(data.stop))
+			else
+				result = string.format("range(%s, %s, %s)", tostring(data.start), tostring(data.stop), tostring(data.step))
 			end
-			return base.newPyObject("str", table.concat(pieces, ", ") .. ")")
+			return base.newPyObject("str", result)
 		end
 	end
 	rangeTypeCached = rangeType
