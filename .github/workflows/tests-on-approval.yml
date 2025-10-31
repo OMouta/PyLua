@@ -1,0 +1,48 @@
+name: Tests on PR Approval
+
+on:
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  test:
+    if: github.event.review.state == 'approved'
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Download lute (v0.1.0-nightly.20251019) for Windows
+        uses: robinraju/release-downloader@v1.11
+        with:
+          repository: luau-lang/lute
+          tag: '0.1.0-nightly.20251019'
+          fileName: 'lute-windows-x86_64.zip'
+          out-file-path: lute-download
+
+      - name: Extract lute and add to PATH
+        shell: pwsh
+        run: |
+          $zip = Get-ChildItem -Path "lute-download" -Filter *.zip | Select-Object -First 1
+          if (-not $zip) { Write-Error "Failed to find lute release asset (*.zip)."; exit 1 }
+          Expand-Archive -Path $zip.FullName -DestinationPath "$PWD\lute-bin" -Force
+          $exe = Get-ChildItem -Path "$PWD\lute-bin" -Recurse -Filter lute*.exe | Select-Object -First 1
+          if ($exe) {
+            $binDir = Split-Path $exe.FullName
+          } else {
+            $binDir = "$PWD\lute-bin"
+          }
+          Write-Host "Using lute from $binDir"
+          $binDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Verify lute
+        shell: pwsh
+        run: lute --version
+
+      - name: Run test suite
+        shell: pwsh
+        run: lute .\tests\run_tests.luau
