@@ -13,7 +13,9 @@ type MethodMap = { [string]: (PyObject, { PyObject }?) -> PyObject }
 
 -- Helper utilities
 
--- Cache for hash keys to avoid repeated computation (uses weak keys for GC)
+-- Cache for hash keys to avoid repeated computation
+-- Uses weak keys (__mode = "k") so cached entries are automatically cleaned up by GC
+-- when the PyObject keys are no longer referenced elsewhere
 local hashCache = setmetatable({}, { __mode = "k" }) :: { [any]: string }
 
 local function hashKey(obj: PyObject): string
