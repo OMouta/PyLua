@@ -451,10 +451,10 @@ function Dispatcher.dispatchInstruction(
 		local elements = Stack.popN(frame.stack, arg)
 		-- Pre-allocate array with known size for better performance
 		local arr = table.create(arg)
-		local idx = 1
+		-- Iterate backwards to maintain stack order (elements are popped in reverse)
 		for i = #elements, 1, -1 do
+			local idx = #elements - i + 1
 			arr[idx] = Base.ensurePyObject(elements[i])
-			idx += 1
 		end
 		local list = Base.newPyObject("list", arr)
 		FrameModule.push(frame, list)
@@ -463,10 +463,10 @@ function Dispatcher.dispatchInstruction(
 		local elements = Stack.popN(frame.stack, arg)
 		-- Pre-allocate array with known size for better performance
 		local arr = table.create(arg)
-		local idx = 1
+		-- Iterate backwards to maintain stack order (elements are popped in reverse)
 		for i = #elements, 1, -1 do
+			local idx = #elements - i + 1
 			arr[idx] = Base.ensurePyObject(elements[i])
-			idx += 1
 		end
 		local tuple = Base.newPyObject("tuple", arr)
 		FrameModule.push(frame, tuple)
@@ -475,10 +475,10 @@ function Dispatcher.dispatchInstruction(
 		local elements = Stack.popN(frame.stack, arg)
 		-- Pre-allocate array with known size for better performance
 		local values = table.create(arg)
-		local idx = 1
+		-- Iterate backwards to maintain stack order (elements are popped in reverse)
 		for i = #elements, 1, -1 do
+			local idx = #elements - i + 1
 			values[idx] = Base.ensurePyObject(elements[i])
-			idx += 1
 		end
 		local set = Collections.newSet(values)
 		FrameModule.push(frame, set)
