@@ -4,20 +4,38 @@
 
 Run Python inside Luau (e.g., Roblox). PyLua 0.3 is a compact, CPython‑inspired interpreter you can embed in Luau projects.
 
-## Highlights
+## Quick Start
 
-- Python 3.12 (and below) semantics where practical
-- Works with [Lute] and Luau runtimes (Roblox Studio, etc.)
-- Simple API: execute/eval and share values via `globals()`
-- CPython‑style pipeline (lexer → parser → AST → bytecode → VM)
+### Installation
 
-## Quick start
+#### Manual
 
-Run an example from the repo root (requires Lute in PATH):
+- Download the latest release from Releases
+- Place the PyLua module in your ReplicatedStorage
 
-```powershell
-lute examples/hello_world.luau
+#### Jelly
+
+- Install with jelly
+
+```shell
+jelly install omouta/pylua@0.3.0
 ```
+
+#### Wally
+
+- Add PyLua to wally.toml
+
+```toml
+pylua = "omouta/pylua@0.3.0"
+```
+
+- Install with wally
+
+```shell
+wally install
+```
+
+### Use PyLua
 
 Embed and run a bit of Python:
 
@@ -50,6 +68,4 @@ Issues and PRs welcome. See `CONTRIBUTING.md` for guidelines.
 
 ## License
 
-MIT — see [`LICENSE`](./LICENSE).
-
-[Lute]: https://github.com/luau-lang/lute
+MIT - see [`LICENSE`](./LICENSE).

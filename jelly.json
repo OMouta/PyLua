@@ -1,5 +1,5 @@
 {
-  "name": "OMouta/PyLua",
+  "name": "omouta/pylua",
   "version": "0.3.0",
   "description": "Embedded Python Interpreter for Luau",
   "license": "MIT",
