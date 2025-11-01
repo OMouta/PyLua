@@ -181,7 +181,7 @@ See `docs/INTEROP.md` for planned full two-way binding features.
 - **`docs/OBJECTS.md`**: Python object model implementation details
 - **`docs/BYTECODE.md`**: Instruction set reference
 - **`docs/examples/`**: Working code samples
-- **`internalDocs/REWRITE_PLAN.md`**: Implementation checklist and phase tracking
+- **`internalDocs/ROADMAP.md`**: Planned milestones and future work
 
 ## Quick Reference: Key Files
 

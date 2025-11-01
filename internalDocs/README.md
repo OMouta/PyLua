@@ -4,21 +4,17 @@ This directory contains internal documentation for PyLua v0.3 development. These
 
 ## Documents Overview
 
-### [REWRITE_PLAN.md](./REWRITE_PLAN.md)
+### [ROADMAP.md](./ROADMAP.md)
 
-#### Complete development roadmap and architecture specification
+#### Post-0.3 roadmap and milestones
 
-This is the master planning document for PyLua v0.3. It outlines:
+This is the planning document for work after the 0.3 release. It outlines:
 
-- Current issues with v0.2 and motivation for the rewrite
-- Target architecture following CPython's design principles
-- Detailed implementation phases (Foundation → Parser → Object System → VM → Built-ins)
-- Python 3.12 compliance goals and version limitations
-- API design inspired by Lupa (inverse Python-in-Luau)
-- Testing strategy and success criteria
-- Future roadmap for v3.1+ features
+- Planned milestones and future features
+- High-level priorities for v3.1+ (classes/modules, decorators, context managers, async, etc.)
+- Performance and footprint goals
 
-**Start here** if you want to understand the overall project direction and implementation plan.
+**Start here** if you want to understand what's next.
 
 ### [LANGUAGE_IMPLEMENTATION.md](./LANGUAGE_IMPLEMENTATION.md)
 
@@ -39,14 +35,14 @@ This document provides background on how programming language interpreters work,
 
 ### For Contributors
 
-- **New contributors**: Start with `REWRITE_PLAN.md` to understand the project scope and current phase
+- **New contributors**: Start with `ROADMAP.md` to understand upcoming work and priorities
 - **Core developers**: Use both documents as reference for implementation decisions
 - **Language experts**: `LANGUAGE_IMPLEMENTATION.md` provides the theoretical foundation
 
 ### For Maintainers
 
 - Architecture decisions should align with the principles outlined in these documents
-- Use the phase breakdown in `REWRITE_PLAN.md` for milestone planning
+- Use the sections in `ROADMAP.md` for milestone planning
 - Reference the compliance goals when evaluating feature requests
 
 ## Key Design Principles
@@ -73,11 +69,10 @@ When contributing to PyLua v0.3:
 
 | Need to... | Reference |
 |------------|-----------|
-| Understand project scope and goals | `REWRITE_PLAN.md` - Overview & Design Principles |
+| See upcoming features and priorities | `ROADMAP.md` - Post-0.3 milestones |
 | Implement lexer/tokenizer | `LANGUAGE_IMPLEMENTATION.md` - Lexical Analysis |
 | Design AST nodes | `LANGUAGE_IMPLEMENTATION.md` - Parsing and AST |
 | Build the virtual machine | `LANGUAGE_IMPLEMENTATION.md` - CPython Execution Model |
-| Check implementation phases | `REWRITE_PLAN.md` - Implementation Phases |
 | Understand Python 3.12 features | `LANGUAGE_IMPLEMENTATION.md` - Python 3.12 Syntax Updates |
 
 ## External References

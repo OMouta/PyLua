@@ -11,7 +11,7 @@ body:
         **Before asking**: Please check the documentation first:
         - [docs/README.md](https://github.com/OMouta/PyLua/blob/master/docs/README.md) - Documentation index
         - [internalDocs/README.md](https://github.com/OMouta/PyLua/blob/master/internalDocs/README.md) - Internal docs overview
-        - [internalDocs/REWRITE_PLAN.md](https://github.com/OMouta/PyLua/blob/master/internalDocs/REWRITE_PLAN.md) - Current development status
+        - [internalDocs/ROADMAP.md](https://github.com/OMouta/PyLua/blob/master/internalDocs/ROADMAP.md) - Planned future work
         - [CONTRIBUTING.md](https://github.com/OMouta/PyLua/blob/master/CONTRIBUTING.md) - Development guidelines
         
         We're here to help! Please provide as much context as possible.
@@ -112,7 +112,7 @@ body:
       placeholder: |
         - OS: Windows 11 / macOS 14 / Ubuntu 22.04
         - Roblox Studio Version: 
-        - PyLua Version: v0.3 rewrite / v0.2 legacy
+  - PyLua Version: v0.3.x / v0.2 legacy
         - Luau Version (if applicable): 
       value: |
         - OS: 

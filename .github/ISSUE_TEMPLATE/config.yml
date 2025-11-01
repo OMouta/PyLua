@@ -3,9 +3,9 @@ contact_links:
   - name: Documentation (public)
     url: https://github.com/OMouta/PyLua/blob/master/docs/README.md
     about: Read the docs for usage, architecture, and examples
-  - name: Development Plan
-    url: https://github.com/OMouta/PyLua/blob/master/internalDocs/REWRITE_PLAN.md
-    about: Check the current development phase and roadmap
+  - name: Roadmap
+    url: https://github.com/OMouta/PyLua/blob/master/internalDocs/ROADMAP.md
+    about: Check planned milestones and future work
   - name: Contributing Guide
     url: https://github.com/OMouta/PyLua/blob/master/CONTRIBUTING.md
     about: Learn how to contribute to PyLua v0.3

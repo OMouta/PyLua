@@ -9,7 +9,7 @@ body:
         Thanks for proposing a feature for **PyLua v0.3**.
 
         Please check the docs/roadmap to ensure fit with Python 3.12 compliance and current phases.
-        Docs: https://github.com/OMouta/PyLua/blob/master/docs/README.md • Roadmap: https://github.com/OMouta/PyLua/blob/master/internalDocs/REWRITE_PLAN.md
+        Docs: https://github.com/OMouta/PyLua/blob/master/docs/README.md • Roadmap: https://github.com/OMouta/PyLua/blob/master/internalDocs/ROADMAP.md
 
   - type: dropdown
     id: feature-type
@@ -30,7 +30,7 @@ body:
   - type: dropdown
     id: development-phase
     attributes:
-      label: "Phase Alignment (from REWRITE_PLAN)"
+  label: "Phase Alignment (from ROADMAP)"
       options:
         - "Phase 1: Foundation (lexer, tokens, AST)"
         - "Phase 2: Parser (expressions, statements, postfix)"
@@ -139,7 +139,7 @@ body:
       options:
         - label: "Searched existing issues"
           required: true
-        - label: "Reviewed REWRITE_PLAN.md for phase fit"
+  - label: "Reviewed ROADMAP.md for phase fit"
           required: true
         - label: "Provided motivation and (if possible) example"
           required: true

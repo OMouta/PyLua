@@ -1,6 +1,6 @@
-# PyLua Documentation (v0.3 dev)
+# PyLua Documentation (v0.3)
 
-Welcome to the living docs for the PyLua 0.3 rewrite. This version is a ground-up interpreter for running Python 3.12- on Luau. It’s in active development; see [internalDocs/REWRITE_PLAN.md](../internalDocs/REWRITE_PLAN.md) for the roadmap and supported features.
+Welcome to the PyLua 0.3 docs. This version is a ground-up interpreter for running Python 3.12- on Luau. For planned post-0.3 work, see the [Roadmap](../internalDocs/ROADMAP.md).
 
 If you’re just looking to try things, the examples below are the best starting point.
 
@@ -57,17 +57,17 @@ Useful methods:
 
 Deep dives and references:
 
-- [Architecture](docs/ARCHITECTURE.md)
-- [Lexer](docs/LEXER.md)
-- [Parser](docs/PARSER.md) & [AST](docs/AST.md)
-- [Compiler](docs/COMPILER.md)
-- [Bytecode](docs/BYTECODE.md)
-- [Virtual Machine](docs/VM.md)
-- [Object Model](`docs/OBJECTS.md)
-- [Built-ins](docs/BUILTINS.md)
-- [Interop](docs/INTEROP.md)
-- [Testing](docs/TESTING.md)
-- [Limitations](docs/LIMITATIONS.md)
+- [Architecture](./ARCHITECTURE.md)
+- [Lexer](./LEXER.md)
+- [Parser](./PARSER.md) & [AST](./AST.md)
+- [Compiler](./COMPILER.md)
+- [Bytecode](./BYTECODE.md)
+- [Virtual Machine](./VM.md)
+- [Object Model](./OBJECTS.md)
+- [Built-ins](./BUILTINS.md)
+- [Interop](./INTEROP.md)
+- [Testing](./TESTING.md)
+- [Limitations](./LIMITATIONS.md)
 
 ## Running tests
 

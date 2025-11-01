@@ -1,7 +1,6 @@
 {
 	"recommendations": [
 		"johnnymorganz.luau-lsp",
-		"JohnnyMorganz.stylua",
 		"tamasfe.even-better-toml",
 		"github.copilot"
 	]

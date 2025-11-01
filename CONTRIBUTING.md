@@ -1,12 +1,12 @@
 # Contributing to PyLua
 
-Thank you for your interest in contributing to PyLua! This document provides guidelines and information for contributors to the PyLua v0.3 rewrite project.
+Thank you for your interest in contributing to PyLua! This document provides guidelines and information for contributors to the PyLua v0.3 project.
 
 ## Project Overview
 
-PyLua v0.3 is a complete rewrite of the Python interpreter for Luau/Roblox. We're building a production-quality Python 3.12-compliant interpreter following CPython's design principles with a Lupa-inspired API.
+PyLua v0.3 is a production-quality Python interpreter for Luau/Roblox. We follow CPython's design principles with a Lupa-inspired API.
 
-**Important**: We are currently in a major rewrite phase. Please read the [internalDocs/REWRITE_PLAN.md](./internalDocs/REWRITE_PLAN.md) to understand the current development phase and architecture goals.
+Please read the [internalDocs/ROADMAP.md](./internalDocs/ROADMAP.md) to understand planned milestones and longer-term goals.
 
 ## Getting Started
 
@@ -41,7 +41,7 @@ PyLua v0.3 is a complete rewrite of the Python interpreter for Luau/Roblox. We'r
 
 3. **Understand the Architecture**
    - Read [internalDocs/README.md](./internalDocs/README.md) for documentation overview
-   - Review [internalDocs/REWRITE_PLAN.md](./internalDocs/REWRITE_PLAN.md) for current phase
+   - Review [internalDocs/ROADMAP.md](./internalDocs/ROADMAP.md) for upcoming work
    - Study [internalDocs/LANGUAGE_IMPLEMENTATION.md](./internalDocs/LANGUAGE_IMPLEMENTATION.md) for technical background
 
 4. **Set Up Development Environment**
@@ -62,7 +62,7 @@ PyLua v0.3 is a complete rewrite of the Python interpreter for Luau/Roblox. We'r
 
 #### Feature Requests
 
-- Review the rewrite plan to ensure alignment with project goals
+- Review the roadmap to ensure alignment with project goals
 - Use the feature request template
 - Consider Python 3.12 compliance requirements
 - Discuss major features in issues before implementation
@@ -198,7 +198,7 @@ end
 
 ### What to Focus On
 
-- **Current phase priorities** from the rewrite plan
+- **Roadmap priorities** for upcoming work
 - **Python 3.12 compliance** and below
 - **Clean, maintainable code** with proper separation of concerns
 - **Comprehensive testing** for reliability

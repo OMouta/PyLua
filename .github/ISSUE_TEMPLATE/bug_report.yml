@@ -9,7 +9,7 @@ body:
         Thanks for reporting a bug in **PyLua v0.3**.
 
         Please include a minimal repro and exact environment so we can reproduce. PyLua targets Python 3.12 and below.
-        Docs: https://github.com/OMouta/PyLua/blob/master/docs/README.md • Roadmap: https://github.com/OMouta/PyLua/blob/master/internalDocs/REWRITE_PLAN.md
+  Docs: https://github.com/OMouta/PyLua/blob/master/docs/README.md • Roadmap: https://github.com/OMouta/PyLua/blob/master/internalDocs/ROADMAP.md
 
   - type: dropdown
     id: version
@@ -17,7 +17,7 @@ body:
       label: "PyLua Version"
       description: "Which version/build are you on?"
       options:
-        - "v0.3.x (current rewrite in src/PyLua)"
+        - "v0.3.x (current; src/PyLua)"
         - "v0.2 (legacy; see docs/0.2)"
         - "Custom build/fork"
         - "Not sure"
@@ -109,8 +109,8 @@ body:
     id: commit
     attributes:
       label: "PyLua Commit or Version"
-      description: "Example: 0.3.0-dev2 or commit SHA"
-      placeholder: "0.3.0-dev2 / a1b2c3d"
+      description: "Example: 0.3.0 or commit SHA"
+      placeholder: "0.3.0 / a1b2c3d"
     validations:
       required: false
 

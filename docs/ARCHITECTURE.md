@@ -35,4 +35,4 @@ Python Source → Lexer → Parser → AST → Compiler → Bytecode → VM → 
 
 ---
 
-See also: [REWRITE_PLAN.md](../internalDocs/REWRITE_PLAN.md) for detailed milestones and checklists.
+See also: [ROADMAP.md](../internalDocs/ROADMAP.md) for planned milestones and future work.

@@ -1,57 +1,55 @@
-# PyLua - Embedded Python Interpreter for Luau
+# PyLua - Embedded Python for Luau
 
-> Notice: For v0.2 docs, see [docs/0.2/README.md](docs/0.2/README.md).
+> For v0.2 docs, see [docs/0.2/README.md](docs/0.2/README.md).
 
-PyLua lets you run Python inside Luau (e.g., Roblox). The v0.3 rewrite is a proper interpreter built in Luau with a CPython-inspired design.
+Run Python inside Luau (e.g., Roblox). PyLua 0.3 is a compact, CPython‑inspired interpreter you can embed in Luau projects.
 
-## What is it?
+## Highlights
 
-- A Python 3.12-and-below interpreter implemented in Luau
-- Runs on [Lute] and other Luau-compatible runtimes
-- Embeddable API for executing/evaluating Python and sharing values via `globals()`
+- Python 3.12 (and below) semantics where practical
+- Works with [Lute] and Luau runtimes (Roblox Studio, etc.)
+- Simple API: execute/eval and share values via `globals()`
+- CPython‑style pipeline (lexer → parser → AST → bytecode → VM)
 
-## Use cases
+## Quick start
 
-- Author gameplay logic in Python while running on Luau
-- Build modding hooks: expose Luau callbacks to Python scripts
-- Teach/prototype Python inside Roblox-like environments
-- Explore interpreter architecture (tokens → AST → bytecode → VM)
+Run an example from the repo root (requires Lute in PATH):
 
-## How it’s built
-
-Interpreter pipeline:
-
-- Lexer → Parser → AST → Compiler → Bytecode → VM
-
-Key modules (see `src/PyLua/`):
-
-- `lexer.luau`, `parser/` – Python-compliant tokenization and parsing
-- `compiler.luau` – compile AST to bytecode
-- `vm/` – stack-based virtual machine
-- `objects/` – Python object model
-- `builtins/` – core built-in functions and types
-
-## Status
-
-- Version: `0.3.0-dev3`
-- Target: Python 3.12 syntax and below (3.13+ out of scope)
-- Roadmap: `internalDocs/REWRITE_PLAN.md`
-
-## Get started
-
-See docs and examples for usage and API details:
-
-- Docs home: `docs/README.md`
-- Examples: `docs/examples/`
-
-You can also quickly try an example with Lute from the repo root:
-
-```bash
+```powershell
 lute examples/hello_world.luau
 ```
 
+Embed and run a bit of Python:
+
+```lua
+local PyLua = require("./src/PyLua")
+local py = PyLua.new()
+
+py:execute([[x = 2 + 3]])
+print(py:getGlobal("x")) -- 5
+
+local result = py:eval("sum([1, 2, 3])")
+print(result) -- 6
+```
+
+## Docs and examples
+
+- Docs index: `docs/README.md`
+- Architecture overview: `docs/ARCHITECTURE.md`
+- Examples: `examples/`
+
+## Status
+
+- Version: `0.3.0`
+- Target: Python 3.12 and below (3.13+ out of scope)
+- Roadmap: `internalDocs/ROADMAP.md`
+
+## Contributing
+
+Issues and PRs welcome. See `CONTRIBUTING.md` for guidelines.
+
 ## License
 
-MIT - see [`LICENSE`](./LICENSE).
+MIT — see [`LICENSE`](./LICENSE).
 
 [Lute]: https://github.com/luau-lang/lute
