@@ -3,14 +3,16 @@ local Helpers = require("@self/helpers")
 local Dispatcher = require("@self/dispatcher")
 local Executor = require("@self/executor")
 local CallFunction = require("@self/call_function")
+local Base = require("../objects/base")
 
 local FrameModule = require("./frame")
 
 local Interpreter = {}
 
 local executeInstruction = Executor.new(Dispatcher.dispatchInstruction)
-local callPyFunction = CallFunction.new(executeInstruction)
-Dispatcher.setCallPyFunction(callPyFunction)
+local callHelpers = CallFunction.new(executeInstruction)
+Dispatcher.setCallHelpers(callHelpers)
+Base.setPythonCallHelper(callHelpers.call)
 
 function Interpreter.newState(globals: { [string]: any }?, builtins: { [string]: any }?)
 	return State.newState(globals, builtins)
@@ -29,31 +31,39 @@ function Interpreter.execute(
 	vm.current_frame = frame
 	table.insert(vm.call_stack, frame)
 
-	while FrameModule.hasNext(frame) do
-		local instruction = FrameModule.getCurrentInstruction(frame)
-		if not instruction then
-			break
+	local function run()
+		Base.setActiveVM(vm)
+		while FrameModule.hasNext(frame) do
+			local instruction = FrameModule.getCurrentInstruction(frame)
+			if not instruction then
+				break
+			end
+
+			local shouldContinue = executeInstruction(vm, frame, instruction, constants, names)
+			if not shouldContinue then
+				break
+			end
+
+			if not frame.skip_advance then
+				FrameModule.advance(frame)
+			else
+				frame.skip_advance = false
+			end
 		end
 
-		local shouldContinue = executeInstruction(vm, frame, instruction, constants, names)
-		if not shouldContinue then
-			break
+		local ret = Helpers.unwrapPrimitive(vm.return_value)
+		for key, value in pairs(vm.globals) do
+			vm.globals[key] = Helpers.unwrapPrimitive(value)
 		end
-
-		if not frame.skip_advance then
-			FrameModule.advance(frame)
-		else
-			frame.skip_advance = false
-		end
+		return ret
 	end
 
-	local ret = Helpers.unwrapPrimitive(vm.return_value)
-
-	for key, value in pairs(vm.globals) do
-		vm.globals[key] = Helpers.unwrapPrimitive(value)
+	local ok, result = pcall(run)
+	Base.setActiveVM(nil)
+	if not ok then
+		error(result, 0)
 	end
-
-	return ret
+	return result
 end
 
 function Interpreter.executeWithTimeout(

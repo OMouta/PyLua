@@ -282,6 +282,12 @@ local function handleIndentation(state: LexerState): { Token }
 		end
 	end
 
+	-- If the rest of the line is blank or a comment, ignore indentation changes
+	local nextChar = peek(state)
+	if not nextChar or nextChar == "\n" or nextChar == "#" then
+		return indentTokens
+	end
+
 	local currentIndent = state.indentStack[#state.indentStack]
 
 	if indentLevel > currentIndent then
@@ -313,7 +319,9 @@ function Lexer.tokenize(source: string): { Token }
 		-- Handle indentation at line start
 		if state.atLineStart and peek(state) then
 			local char = peek(state) :: string
-			if tokens.isWhitespace(char) then
+			if char == "\n" or char == "#" then
+				-- Blank or comment-only line at current indent; defer handling to newline logic
+			elseif tokens.isWhitespace(char) then
 				-- Line has indentation - count it
 				local indentTokens = handleIndentation(state)
 				for _, token in ipairs(indentTokens) do

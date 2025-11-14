@@ -3,6 +3,7 @@ local Stack = require("../stack")
 local Base = require("../../objects/base")
 local Collections = require("../../objects/collections")
 local ObjBuiltins = require("../../objects/builtins")
+local ClassBuilder = require("../../objects/class_builder")
 local Exceptions = require("../../builtins/exceptions")
 local interop = require("../../interop/bridge")
 
@@ -14,7 +15,28 @@ local Dispatcher = {}
 
 local compareOperations = Helpers.compareOperations
 
-local callPyFunctionRef: ((vm: any, func: any, args: { any }?, kwargs: { [string]: any }?) -> any)? = nil
+type CallHelpers = {
+	call: (vm: any, func: any, args: { any }?, kwargs: { [string]: any }?) -> any,
+	callWithLocals: (
+		vm: any,
+		func: any,
+		args: { any }?,
+		kwargs: { [string]: any }?,
+		locals: { [string]: any }?,
+		captureLocals: boolean?
+	) -> (any, { [string]: any }?)
+}
+
+type PyObject = Base.PyObject
+
+local callHelpersRef: CallHelpers? = nil
+
+local function ensureCallHelpers(): CallHelpers
+	if not callHelpersRef then
+		error("Interpreter dispatch: call helpers not configured", 2)
+	end
+	return callHelpersRef
+end
 
 -- Helper to check if value is already a PyObject (performance optimization)
 local function isPyObject(value: any): boolean
@@ -26,15 +48,30 @@ local function toPyObject(value: any): any
 	return if isPyObject(value) then value else Base.ensurePyObject(value)
 end
 
-local function ensureCallFunction(): (vm: any, func: any, args: { any }?, kwargs: { [string]: any }?) -> any
-	if not callPyFunctionRef then
-		error("Interpreter dispatch: callPyFunction not configured", 2)
+local function instantiateClass(classObj: PyObject, args: { PyObject }): PyObject
+	local info = classObj.__value
+	if type(info) ~= "table" then
+		error("TypeError: cannot instantiate non-class object", 2)
 	end
-	return callPyFunctionRef
+	local pyType = (info :: any).pyType
+	if not pyType then
+		error("TypeError: invalid class metadata", 2)
+	end
+	local instance = Base.newInstance(pyType)
+	local okInit, initMethod = pcall(function()
+		return Base.getattr(instance, "__init__")
+	end)
+	if okInit and initMethod then
+		Base.call(initMethod, args)
+	elseif #args > 0 then
+		local name = (info :: any).name or classObj.__type
+		error(string.format("TypeError: %s() takes no arguments", tostring(name)), 2)
+	end
+	return instance
 end
 
-function Dispatcher.setCallPyFunction(fn: (vm: any, func: any, args: { any }?, kwargs: { [string]: any }?) -> any)
-	callPyFunctionRef = fn
+function Dispatcher.setCallHelpers(helpers: CallHelpers)
+	callHelpersRef = helpers
 end
 
 function Dispatcher.dispatchInstruction(
@@ -562,6 +599,18 @@ function Dispatcher.dispatchInstruction(
 		)
 		local func = Functions.newFunction(pyCode, vm.globals, defaults, nil)
 		FrameModule.push(frame, func)
+	elseif opcode == "BUILD_CLASS" then
+		assert(arg ~= nil, "BUILD_CLASS requires argument")
+		local baseCount = arg
+		local bases = table.create(baseCount)
+		for i = baseCount, 1, -1 do
+			bases[i] = Helpers.coercePyObject(FrameModule.pop(frame))
+		end
+		local nameValue = FrameModule.pop(frame)
+		local bodyFunc = Helpers.coercePyObject(FrameModule.pop(frame))
+		local helpers = ensureCallHelpers()
+		local classObj = ClassBuilder.build(vm, helpers, bodyFunc, nameValue, bases)
+		FrameModule.push(frame, classObj)
 	elseif opcode == "CALL_FUNCTION" then
 		assert(arg ~= nil, "CALL_FUNCTION requires argument")
 		local argc = arg
@@ -571,21 +620,27 @@ function Dispatcher.dispatchInstruction(
 		for i = #args, 1, -1 do
 			orderedArgs[#orderedArgs + 1] = Helpers.coercePyObject(args[i])
 		end
+		local helpers = ensureCallHelpers()
 		if type(func) == "table" and func.__type == "builtin_function_or_method" then
+			local result = Base.call(func, orderedArgs)
+			FrameModule.push(frame, Helpers.coercePyObject(result))
+		elseif type(func) == "table" and func.__type == "bound_method" then
 			local result = Base.call(func, orderedArgs)
 			FrameModule.push(frame, Helpers.coercePyObject(result))
 		elseif type(func) == "table" and func.__type == "luau_function" then
 			local callMethod = Base.getattr(func, "__call__")
 			local result = Base.call(callMethod, orderedArgs)
 			FrameModule.push(frame, Helpers.coercePyObject(result))
+		elseif type(func) == "table" and func.__type == "type" then
+			local instance = instantiateClass(func, orderedArgs)
+			FrameModule.push(frame, instance)
 		elseif type(func) == "function" then
 			local wrapped = interop.wrapLuauFunction(func)
 			local callMethod = Base.getattr(wrapped, "__call__")
 			local result = Base.call(callMethod, orderedArgs)
 			FrameModule.push(frame, Helpers.coercePyObject(result))
 		else
-			local callFn = ensureCallFunction()
-			local result = callFn(vm, func, orderedArgs, {})
+			local result = helpers.call(vm, func, orderedArgs, {})
 			FrameModule.push(frame, result)
 		end
 	else

@@ -57,39 +57,6 @@ end
 
 local objectRepr: (PyObject?) -> string
 
-local function ensurePyTypeName(typeObj: PyObject): string
-	local objType = typeObj.__type
-	if objType == "type" then
-		local info = typeObj.__value
-		local name = if type(info) == "table" then (info :: any).name else nil
-		if type(name) == "string" then
-			return name
-		end
-	elseif objType == "builtin_function_or_method" then
-		local inner = typeObj.__value
-		local name = if type(inner) == "table" then (inner :: any).name else nil
-		if type(name) == "string" then
-			return name
-		end
-	end
-	error("TypeError: isinstance() arg 2 has invalid type object", 3)
-end
-
-local function collectTypeNames(spec: PyObject, out: { string })
-	local specType = spec.__type
-	if specType == "tuple" then
-		local elements = spec.__value :: { PyObject }
-		for _, item in ipairs(elements) do
-			collectTypeNames(item, out)
-		end
-	elseif specType == "type" or specType == "builtin_function_or_method" then
-		local name = ensurePyTypeName(spec)
-		out[#out + 1] = name
-	else
-		error("TypeError: isinstance() arg 2 must be a type or tuple of types", 3)
-	end
-end
-
 local function tryRepr(obj: PyObject): string?
 	local ok, reprMethod = pcall(function()
 		return base.getattr(obj, "__repr__")
@@ -436,7 +403,7 @@ function Functions.type_(obj: PyObject): PyObject
 	if obj == nil then
 		error("TypeError: type() takes 1 argument", 2)
 	end
-	return base.newPyObject("type", { name = obj.__type })
+	return base.newPyObject("type", { name = obj.__type, pyType = obj.__typeobj })
 end
 
 -- range(start, stop?, step?)
@@ -554,9 +521,52 @@ function Functions.ascii_(value: PyObject?): PyObject
 	return Functions.repr_(value)
 end
 
-local subclassMap: { [string]: { [string]: boolean } } = {
-	bool = { int = true },
-}
+local function resolvePyTypeFromSpec(spec: PyObject): base.PyType
+	if spec.__type == "type" then
+		local info = spec.__value
+		if type(info) == "table" and (info :: any).pyType then
+			return (info :: any).pyType
+		end
+		local name = if type(info) == "table" and (info :: any).name then (info :: any).name else spec.__type
+		return base.getTypeObject(name)
+	elseif spec.__type == "builtin_function_or_method" then
+		local inner = spec.__value
+		local name = if type(inner) == "table" then (inner :: any).name else nil
+		if not name then
+			error("TypeError: isinstance() arg 2 has invalid type object", 3)
+		end
+		return base.getTypeObject(name)
+	else
+		error("TypeError: isinstance() arg 2 must be a type or tuple of types", 3)
+	end
+end
+
+local function collectPyTypes(spec: PyObject, out: { base.PyType })
+	if spec.__type == "tuple" then
+		local elements = spec.__value :: { PyObject }
+		for _, item in ipairs(elements) do
+			collectPyTypes(item, out)
+		end
+	else
+		out[#out + 1] = resolvePyTypeFromSpec(spec)
+	end
+end
+
+local function isSubtypeOf(candidate: base.PyType, target: base.PyType): boolean
+	if candidate == target then
+		return true
+	end
+	local bases = candidate.bases
+	if not bases then
+		return false
+	end
+	for _, baseType in ipairs(bases) do
+		if isSubtypeOf(baseType, target) then
+			return true
+		end
+	end
+	return false
+end
 
 function Functions.isinstance_(args: { PyObject }): PyObject
 	if #args ~= 2 then
@@ -564,18 +574,14 @@ function Functions.isinstance_(args: { PyObject }): PyObject
 	end
 	local instance = ensurePy(args[1])
 	local typeSpec = ensurePy(args[2])
-	local targets: { string } = {}
-	collectTypeNames(typeSpec, targets)
+	local targets: { base.PyType } = {}
+	collectPyTypes(typeSpec, targets)
 	if #targets == 0 then
 		return base.newBool(false)
 	end
-	local instanceType = instance.__type
-	local subtype = subclassMap[instanceType]
-	for _, expected in ipairs(targets) do
-		if instanceType == expected then
-			return base.newBool(true)
-		end
-		if subtype and subtype[expected] then
+	local instanceType = instance.__typeobj
+	for _, target in ipairs(targets) do
+		if isSubtypeOf(instanceType, target) then
 			return base.newBool(true)
 		end
 	end
@@ -852,6 +858,8 @@ function Functions.createBuiltins(): { [string]: PyObject }
 	for name, obj in pairs(exceptionTypes) do
 		builtinsTable[name] = obj
 	end
+
+	builtinsTable["object"] = base.wrapType(base.getTypeObject("object"))
 
 	builtinsTable["_pylua_match_exception"] = wrapBuiltin("_pylua_match_exception", function(args)
 		if #args ~= 2 then

@@ -242,6 +242,36 @@ return function(deps: StatementDeps)
 		State.emit(st, "STORE_NAME", nameIdx, node.lineno)
 	end
 
+	local function compileClassDef(st: CompilerState, node: any)
+		local classState = State.newState()
+		classState.code.name = node.name
+		classState.code.firstlineno = node.lineno
+		classState.code.argcount = 0
+		classState.code.varnames = {}
+		for _, stmt in ipairs(node.body) do
+			compileStmt(classState, stmt)
+		end
+		local idxNone = State.addConst(classState, nil)
+		State.emit(classState, "LOAD_CONST", idxNone, node.lineno)
+		State.emit(classState, "RETURN_VALUE", nil, node.lineno)
+
+		local codeIdx = State.addConst(st, classState.code)
+		State.emit(st, "LOAD_CONST", codeIdx, node.lineno)
+		State.emit(st, "MAKE_FUNCTION", 0, node.lineno)
+
+		local nameIdx = State.addConst(st, node.name)
+		State.emit(st, "LOAD_CONST", nameIdx, node.lineno)
+
+		for _, base in ipairs(node.bases) do
+			compileExpr(st, base)
+		end
+
+		State.emit(st, "BUILD_CLASS", #node.bases, node.lineno)
+
+		local storeIdx = State.addName(st, node.name)
+		State.emit(st, "STORE_NAME", storeIdx, node.lineno)
+	end
+
 	compileStmt = function(st: CompilerState, node: any)
 		if node.type == "Expr" then
 			compileExpr(st, node.value)
@@ -386,6 +416,8 @@ return function(deps: StatementDeps)
 			end
 		elseif node.type == "FunctionDef" then
 			compileFunctionDef(st, node)
+		elseif node.type == "ClassDef" then
+			compileClassDef(st, node)
 		else
 			error("Unsupported statement type: " .. tostring(node.type))
 		end

@@ -434,6 +434,42 @@ function statements.parseCompound(state: any): Stmt
 			col_offset = current.column,
 		}
 	end
+	if current.type == "CLASS" then
+		local classToken = current
+		state:advance()
+		local nameToken = state:consume("NAME", "Expected class name after 'class'")
+		local bases: { Expr } = {}
+		local keywords: { nodes.Keyword } = {}
+		if state.current and state.current.type == "LPAR" then
+			state:advance()
+			if state.current and state.current.type ~= "RPAR" then
+				while true do
+					if state.current and state.current.type == "RPAR" then
+						break
+					end
+					local baseExpr = expressions.parse(state)
+					table.insert(bases, baseExpr)
+					if not state.current or state.current.type ~= "COMMA" then
+						break
+					end
+					state:advance()
+				end
+			end
+			state:consume("RPAR", "Expected ')' after base list")
+		end
+		state:consume("COLON", "Expected ':' after class definition")
+		local body = parseSuiteAfterColon(state)
+		return {
+			type = "ClassDef",
+			name = nameToken.value,
+			bases = bases,
+			keywords = keywords,
+			body = body,
+			decorator_list = {},
+			lineno = classToken.line,
+			col_offset = classToken.column,
+		}
+	end
 	state:raise("Unknown compound statement: " .. current.type)
 	error("unreachable")
 end
@@ -448,6 +484,7 @@ function statements.parse(state: any): Stmt
 		or current.type == "WHILE"
 		or current.type == "FOR"
 		or current.type == "DEF"
+		or current.type == "CLASS"
 		or current.type == "TRY"
 	then
 		return statements.parseCompound(state)

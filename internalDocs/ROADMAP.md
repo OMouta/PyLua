@@ -8,7 +8,7 @@ Target: Maintain Python 3.12 semantics where practical and expand the supported 
 
 Read [MODULES.md](./MODULES.md) for more information about modules and packages.
 
-- [ ] Class definitions and inheritance
+- [x] Class definitions and inheritance
 - [ ] Module system and imports
 - [ ] Package structure
 

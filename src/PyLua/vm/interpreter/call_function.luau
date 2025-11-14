@@ -7,6 +7,11 @@ local Generator = require("./generator")
 
 local CallFunction = {}
 
+type CallOptions = {
+	locals: { [string]: any }?,
+	captureLocals: boolean?,
+}
+
 export type Frame = FrameModule.Frame
 export type VMState = State.VMState
 type PyCode = Functions.PyCode
@@ -99,8 +104,14 @@ function CallFunction.new(
 		constants: { any }?,
 		names: { string }?
 	) -> boolean
-): (vm: VMState, func: any, args: { any }?, kwargs: { [string]: any }?) -> any
-	local function callPyFunction(vm: VMState, func: any, args: { any }?, kwargs: { [string]: any }?): any
+)
+	local function callInternal(
+		vm: VMState,
+		func: any,
+		args: { any }?,
+		kwargs: { [string]: any }?,
+		options: CallOptions?
+	): (any, { [string]: any }?)
 		if not Functions.isFunction(func) then
 			error("TypeError: '" .. tostring(func.__type or type(func)) .. "' object is not callable", 2)
 		end
@@ -141,7 +152,7 @@ function CallFunction.new(
 			)
 		end
 
-		local locals: { [string]: any } = {}
+		local locals: { [string]: any } = if options and options.locals then options.locals else {}
 		bindPositionalArguments(code, locals, safeArgs)
 		applyDefaultValues(code, locals, safeArgs, requiredArgs, defaultsList)
 		bindKeywordArguments(code, locals, safeArgs, safeKwargs, requiredArgs)
@@ -153,7 +164,7 @@ function CallFunction.new(
 				builtins = vm.builtins,
 				locals = locals,
 				executeInstruction = executeInstruction,
-			})
+			}), nil
 		end
 
 		local funcFrame = FrameModule.new(code.bytecode, funcGlobals, vm.builtins, locals, code.name)
@@ -190,10 +201,31 @@ function CallFunction.new(
 
 		vm.return_value = nil
 
-		return result
+		local captured = if options and options.captureLocals then locals else nil
+		return result, captured
 	end
 
-	return callPyFunction
+	return {
+		call = function(vm: VMState, func: any, args: { any }?, kwargs: { [string]: any }?)
+			local result = callInternal(vm, func, args, kwargs, nil)
+			return result
+		end,
+		callWithLocals = function(
+			vm: VMState,
+			func: any,
+			args: { any }?,
+			kwargs: { [string]: any }?,
+			locals: { [string]: any }?,
+			captureLocals: boolean?
+		)
+			local opts: CallOptions = {
+				locals = locals or {},
+				captureLocals = if captureLocals == nil then true else captureLocals,
+			}
+			local result, captured = callInternal(vm, func, args, kwargs, opts)
+			return result, captured or opts.locals
+		end,
+	}
 end
 
 return CallFunction

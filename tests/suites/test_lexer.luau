@@ -5,6 +5,23 @@
 local TestFramework = require("../framework")
 local Lexer = require("../../src/PyLua/lexer")
 
+local function dedentsBeforeDef(tokens: { any }, targetDefIndex: number): number
+	local defsSeen = 0
+	local dedents = 0
+	for _, token in ipairs(tokens) do
+		if token.type == "DEF" then
+			defsSeen += 1
+			if defsSeen == targetDefIndex then
+				break
+			end
+		elseif token.type == "DEDENT" then
+			dedents += 1
+		end
+	end
+
+	return dedents
+end
+
 -- Test suite for PyLua Lexer
 local lexerTests: TestFramework.TestSuite = {
 	name = "PyLua Lexer Tests",
@@ -223,6 +240,59 @@ local lexerTests: TestFramework.TestSuite = {
 				TestFramework.assertEqual(tokens[1].line, 1, "Should be on line 1")
 				TestFramework.assertEqual(tokens[1].column, 1, "Should start at column 1")
 				TestFramework.assertEqual(tokens[1].endColumn, 3, "Should end at column 3")
+			end,
+		},
+
+		{
+			name = "Blank indented lines do not dedent",
+			test = function()
+				local source = table.concat({
+					"class Person:",
+					"    def __init__(self):",
+					"        pass",
+					"    ",
+					"    def greet(self):",
+					"        pass",
+					"",
+				}, "\n")
+
+				local tokens = Lexer.tokenize(source)
+				local dedents = dedentsBeforeDef(tokens, 2)
+				TestFramework.assertEqual(dedents, 1, "Only the method body should DEDENT before the second method definition")
+			end,
+		},
+
+		{
+			name = "Blank lines without spaces do not dedent",
+			test = function()
+				local source = table.concat({
+					"class Foo:",
+					"    def bar(self):",
+					"        pass",
+					"",
+					"    def baz(self):",
+					"        pass",
+				}, "\n")
+
+				local tokens = Lexer.tokenize(source)
+				local dedents = dedentsBeforeDef(tokens, 2)
+				TestFramework.assertEqual(dedents, 1, "Only the inner block should DEDENT before the next method")
+			end,
+		},
+
+		{
+			name = "Comment-only lines do not dedent",
+			test = function()
+				local source = table.concat({
+					"class Foo:",
+					"    # Comment",
+					"    def bar(self):",
+					"        pass",
+				}, "\n")
+
+				local tokens = Lexer.tokenize(source)
+				local dedents = dedentsBeforeDef(tokens, 1)
+				TestFramework.assertEqual(dedents, 0, "Comment line should not collapse class indentation")
 			end,
 		},
 	},

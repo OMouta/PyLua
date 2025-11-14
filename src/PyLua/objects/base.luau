@@ -6,6 +6,9 @@ export type PyType = {
 	methods: { [string]: (self: PyObject, args: { PyObject }?) -> PyObject }?,
 	__getattr: ((self: PyObject, name: string) -> PyObject?)?,
 	__setattr: ((self: PyObject, name: string, value: PyObject) -> ())?,
+	bases: { PyType }?,
+	attributes: { [string]: PyObject }?,
+	isUserDefined: boolean?,
 }
 
 export type PyObject = {
@@ -25,8 +28,30 @@ export type PyBoundMethod = PyObject & {
 	},
 }
 
+export type PyPythonBoundMethod = PyObject & {
+	__type: "bound_method",
+	__value: {
+		self: PyObject,
+		func: PyObject,
+	},
+}
+
+type TypeSpec = {
+	methods: { [string]: (self: PyObject, args: { PyObject }?) -> PyObject }?,
+	__getattr: ((self: PyObject, name: string) -> PyObject?)?,
+	__setattr: ((self: PyObject, name: string, value: PyObject) -> ())?,
+	bases: { PyType }?,
+	attributes: { [string]: PyObject }?,
+	isUserDefined: boolean?,
+}
+
 -- Internal registry of types
 local typeRegistry: { [string]: PyType } = {}
+
+type PythonCallHelper = (vm: any, func: any, args: { PyObject }?, kwargs: { [string]: PyObject }?) -> PyObject
+
+local pythonCallHelper: PythonCallHelper? = nil
+local activeVM: any? = nil
 
 -- Primitive singletons (mirrors CPython behavior for None/bool)
 local noneSingleton: PyObject?
@@ -48,6 +73,21 @@ end
 
 local function isPyObject(v: any): boolean
 	return type(v) == "table" and v.__type ~= nil and v.__typeobj ~= nil
+end
+
+function Base.setPythonCallHelper(helper: PythonCallHelper)
+	pythonCallHelper = helper
+end
+
+function Base.setActiveVM(vm: any?)
+	activeVM = vm
+end
+
+local function requirePythonCallContext(): (PythonCallHelper, any)
+	if not pythonCallHelper or not activeVM then
+		error("Python call context not configured", 2)
+	end
+	return pythonCallHelper, activeVM
 end
 
 -- Wrap raw Luau value into a PyObject with inferred type
@@ -84,15 +124,18 @@ end
 
 -- Type registration / lookup
 
-function Base.registerType(name: string, spec: { methods: { [string]: any }? }?): PyType
+function Base.registerType(name: string, spec: TypeSpec?): PyType
 	if typeRegistry[name] then
 		error("Type already registered: " .. name, 2)
 	end
 	local t: PyType = {
 		__name = name,
 		methods = if spec and spec.methods then spec.methods else {},
-		__getattr = if spec and (spec :: any).__getattr then (spec :: any).__getattr else nil,
-		__setattr = if spec and (spec :: any).__setattr then (spec :: any).__setattr else nil,
+		__getattr = if spec and spec.__getattr then spec.__getattr else nil,
+		__setattr = if spec and spec.__setattr then spec.__setattr else nil,
+		bases = spec and spec.bases or nil,
+		attributes = if spec and spec.attributes then spec.attributes else {},
+		isUserDefined = spec and spec.isUserDefined or false,
 	}
 	typeRegistry[name] = t
 	return t
@@ -104,6 +147,131 @@ function Base.getTypeObject(name: string): PyType
 		error("Unknown type: " .. name, 2)
 	end
 	return t
+end
+
+local function ensureTypeAttributes(pyType: PyType): { [string]: PyObject }
+	if not pyType.attributes then
+		pyType.attributes = {}
+	end
+	return pyType.attributes :: { [string]: PyObject }
+end
+
+local function lookupAttribute(pyType: PyType?, name: string): (any, string?)
+	if not pyType then
+		return nil, nil
+	end
+	if pyType.attributes and pyType.attributes[name] ~= nil then
+		return pyType.attributes[name], "pyobject"
+	end
+	if pyType.methods and pyType.methods[name] then
+		return pyType.methods[name], "builtin"
+	end
+	if pyType.bases then
+		for _, baseType in ipairs(pyType.bases) do
+			local value, kind = lookupAttribute(baseType, name)
+			if value ~= nil then
+				return value, kind
+			end
+		end
+	end
+	return nil, nil
+end
+
+local function bindBuiltinMethod(instance: PyObject, name: string, func: (PyObject, { PyObject }?) -> PyObject): PyBoundMethod
+	local builtinType = typeRegistry["builtin_function_or_method"]
+		or Base.registerType("builtin_function_or_method", {})
+	local boundAny: any = {
+		__type = "builtin_function_or_method",
+		__value = {
+			self = instance,
+			name = name,
+			func = func,
+		},
+		__dict = {},
+		__typeobj = builtinType,
+	}
+	return boundAny :: PyBoundMethod
+end
+
+local function bindPythonMethod(instance: PyObject, func: PyObject): PyPythonBoundMethod
+	local boundType = typeRegistry["bound_method"] or Base.registerType("bound_method", {})
+	local boundAny: any = {
+		__type = "bound_method",
+		__value = {
+			self = instance,
+			func = func,
+		},
+		__dict = {},
+		__typeobj = boundType,
+	}
+	return boundAny :: PyPythonBoundMethod
+end
+
+local function tryClassAttribute(obj: PyObject, name: string): PyObject?
+	if obj.__type ~= "type" then
+		return nil
+	end
+	local dict = obj.__dict
+	if dict and dict[name] then
+		return dict[name]
+	end
+	local meta = obj.__value
+	if type(meta) == "table" then
+		local pyType = (meta :: any).pyType
+		if pyType then
+			local attr, kind = lookupAttribute(pyType, name)
+			if attr ~= nil and kind == "pyobject" then
+				return attr :: PyObject
+			end
+		end
+	end
+	return nil
+end
+
+function Base.newClass(name: string, bases: { PyType }, attributes: { [string]: PyObject }): PyObject
+	local normalizedBases = if #bases > 0 then bases else nil
+	local attrCopy: { [string]: PyObject } = {}
+	for key, value in pairs(attributes) do
+		attrCopy[key] = value
+	end
+	local pyType: PyType = {
+		__name = name,
+		methods = {},
+		__getattr = nil,
+		__setattr = nil,
+		bases = normalizedBases,
+		attributes = attrCopy,
+		isUserDefined = true,
+	}
+	typeRegistry[name] = pyType
+	local typeType = typeRegistry["type"] or Base.registerType("type", {})
+	local classObj: PyObject = {
+		__type = "type",
+		__value = {
+			name = name,
+			pyType = pyType,
+			bases = normalizedBases,
+		},
+		__dict = attrCopy,
+		__typeobj = typeType,
+	}
+	return classObj
+end
+
+function Base.wrapType(pyType: PyType): PyObject
+	local typeType = typeRegistry["type"] or Base.registerType("type", {})
+	local dict = ensureTypeAttributes(pyType)
+	local classObj: PyObject = {
+		__type = "type",
+		__value = {
+			name = pyType.__name,
+			pyType = pyType,
+			bases = pyType.bases,
+		},
+		__dict = dict,
+		__typeobj = typeType,
+	}
+	return classObj
 end
 
 -- Object creation
@@ -119,6 +287,16 @@ function Base.newPyObject(typeName: string, value: any): PyObject
 		__value = value,
 		__dict = {},
 		__typeobj = t,
+	}
+	return obj
+end
+
+function Base.newInstance(pyType: PyType): PyObject
+	local obj: PyObject = {
+		__type = pyType.__name,
+		__value = {},
+		__dict = {},
+		__typeobj = pyType,
 	}
 	return obj
 end
@@ -176,32 +354,30 @@ end
 -- 2. Type methods table => produce bound method wrapper
 -- 3. Type custom __getattr hook
 function Base.getattr(obj: PyObject, name: string): PyObject
-	-- Instance attribute (overrides type methods)
+	local classAttr = tryClassAttribute(obj, name)
+	if classAttr then
+		return classAttr
+	end
+
 	local dict = obj.__dict
 	if dict and dict[name] then
 		return dict[name]
 	end
 
-	local t = obj.__typeobj
-	local methods = t.methods
-	if methods and methods[name] then
-		local func = methods[name]
-		-- Bind method to instance
-		local builtinType = typeRegistry["builtin_function_or_method"]
-			or Base.registerType("builtin_function_or_method", {})
-		local boundAny: any = {
-			__type = "builtin_function_or_method",
-			__value = {
-				self = obj,
-				name = name,
-				func = func,
-			},
-			__dict = {},
-			__typeobj = builtinType,
-		}
-		return boundAny :: PyBoundMethod
+	local value, kind = lookupAttribute(obj.__typeobj, name)
+	if value ~= nil then
+		if kind == "builtin" then
+			return bindBuiltinMethod(obj, name, value :: (PyObject, { PyObject }?) -> PyObject)
+		else
+			local attrObj = value :: PyObject
+			if attrObj.__type == "function" then
+				return bindPythonMethod(obj, attrObj)
+			end
+			return attrObj
+		end
 	end
 
+	local t = obj.__typeobj
 	if t.__getattr then
 		local dynamic = t.__getattr(obj, name)
 		if dynamic then
@@ -222,6 +398,23 @@ function Base.setattr(obj: PyObject, name: string, value: PyObject)
 	if not isPyObject(value) then
 		value = Base.ensurePyObject(value)
 	end
+	if obj.__type == "type" then
+		local dict = obj.__dict
+		if not dict then
+			dict = {}
+			obj.__dict = dict
+		end
+		(dict :: { [string]: PyObject })[name] = value
+		local meta = obj.__value
+		if type(meta) == "table" then
+			local pyType = (meta :: any).pyType
+			if pyType then
+				local attrs = ensureTypeAttributes(pyType)
+				attrs[name] = value
+			end
+		end
+		return
+	end
 	local t = obj.__typeobj
 	if t.__setattr then
 		t.__setattr(obj, name, value)
@@ -232,15 +425,28 @@ function Base.setattr(obj: PyObject, name: string, value: PyObject)
 		dict = {}
 		obj.__dict = dict
 	end
-	(dict :: any)[name] = value
+	(dict :: { [string]: PyObject })[name] = value
 end
 
 -- Call a bound method or callable PyObject
 function Base.call(callable: PyObject, args: { PyObject }?): PyObject
-	args = args or {}
+	local provided = args or {}
+	local callArgs = provided :: { PyObject }
 	if callable.__type == "builtin_function_or_method" then
 		local inner = (callable :: PyBoundMethod).__value
-		return inner.func(inner.self, args)
+		return inner.func(inner.self, callArgs)
+	elseif callable.__type == "bound_method" then
+		local helper, vm = requirePythonCallContext()
+		local inner = (callable :: PyPythonBoundMethod).__value
+		local ordered = table.create(#callArgs + 1)
+		ordered[1] = inner.self
+		for i, arg in ipairs(callArgs) do
+			ordered[i + 1] = arg
+		end
+		return helper(vm, inner.func, ordered, {})
+	elseif callable.__type == "function" then
+		local helper, vm = requirePythonCallContext()
+		return helper(vm, callable, callArgs, {})
 	end
 	error("TypeError: object of type '" .. callable.__type .. "' is not callable", 2)
 end
@@ -329,15 +535,15 @@ end
 
 local function bootstrap()
 	local objectType = Base.registerType("object", {})
-	-- Primitive placeholder methods can be added later
-	Base.registerType("int", {})
-	Base.registerType("float", {})
-	Base.registerType("str", {})
-	Base.registerType("bool", {})
-	Base.registerType("NoneType", {})
-	Base.registerType("bytes", {})
-	-- meta for builtins
-	Base.registerType("builtin_function_or_method", {})
+	local intType = Base.registerType("int", { bases = { objectType } })
+	Base.registerType("float", { bases = { objectType } })
+	Base.registerType("str", { bases = { objectType } })
+	Base.registerType("bool", { bases = { intType } })
+	Base.registerType("NoneType", { bases = { objectType } })
+	Base.registerType("bytes", { bases = { objectType } })
+	Base.registerType("type", { bases = { objectType } })
+	Base.registerType("builtin_function_or_method", { bases = { objectType } })
+	Base.registerType("bound_method", { bases = { objectType } })
 	return objectType
 end
 
