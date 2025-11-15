@@ -99,6 +99,42 @@ inst = Ident()
 				TestFramework.assert(globals.inst ~= nil, "Instance should be created when using explicit object base")
 			end,
 		},
+		{
+			name = "super() calls base __init__",
+			test = function()
+				local globals = executeCode([[class Base:
+    def __init__(self, value):
+        self.tag = "Base:" + value
+
+class Child(Base):
+    def __init__(self, value):
+        super().__init__(value)
+        self.tag = self.tag + "->Child"
+
+child = Child("X")
+result = child.tag
+]])
+				TestFramework.assertEqual(globals.result, "Base:X->Child", "super() should invoke parent __init__")
+			end,
+		},
+		{
+			name = "super explicit arguments",
+			test = function()
+				local globals = executeCode([[class Parent:
+    def greet(self):
+        return "parent"
+
+class Kid(Parent):
+    def greet(self):
+        sup = super(Kid, self)
+        return sup.greet() + " and child"
+
+k = Kid()
+greeting = k.greet()
+]])
+				TestFramework.assertEqual(globals.greeting, "parent and child", "super with explicit arguments should access base methods")
+			end,
+		},
 	},
 }
 

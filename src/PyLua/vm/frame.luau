@@ -21,6 +21,7 @@ export type Frame = {
 	block_stack: { Block }, -- Block stack for structured control flow
 	skip_advance: boolean?, -- Flag to skip PC advance (for jumps)
 	finally_stack: { { reason: string, value: any?, target: number? } },
+	function_object: any?, -- Active function object (for super and introspection)
 }
 
 export type Block = {
@@ -53,6 +54,7 @@ function Frame.new(
 		block_stack = {},
 		skip_advance = false,
 		finally_stack = {},
+		function_object = nil,
 	}
 end
 

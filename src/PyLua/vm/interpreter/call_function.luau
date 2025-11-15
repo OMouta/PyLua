@@ -157,6 +157,17 @@ function CallFunction.new(
 		applyDefaultValues(code, locals, safeArgs, requiredArgs, defaultsList)
 		bindKeywordArguments(code, locals, safeArgs, safeKwargs, requiredArgs)
 
+		local funcInfo = func.__value
+		if type(funcInfo) == "table" then
+			local owner = (funcInfo :: any).owner
+			if owner then
+				local existing = locals["__class__"]
+				if existing == nil then
+					locals["__class__"] = Base.wrapType(owner)
+				end
+			end
+		end
+
 		if code.isGenerator then
 			return Generator.new({
 				code = code,
@@ -168,6 +179,7 @@ function CallFunction.new(
 		end
 
 		local funcFrame = FrameModule.new(code.bytecode, funcGlobals, vm.builtins, locals, code.name)
+		funcFrame.function_object = func
 
 		local prevFrame = vm.current_frame
 		vm.current_frame = funcFrame

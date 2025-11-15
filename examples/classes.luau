@@ -12,6 +12,18 @@ class Person:
 
 person = Person("Alice", 30)
 print(person.greet())
+
+class Student(Person):
+    def __init__(self, name, age, student_id):
+        super().__init__(name, age)
+        self.student_id = student_id
+
+    def study(self, subject):
+        return f"{self.name} is studying {subject}."
+
+student = Student("Bob", 20, "S12345")
+print(student.greet())
+print(student.study("Mathematics"))
 ]])
 
 python:execute([[ 

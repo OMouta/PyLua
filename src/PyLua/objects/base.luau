@@ -25,6 +25,7 @@ export type PyBoundMethod = PyObject & {
 		self: PyObject,
 		name: string,
 		func: (self: PyObject, args: { PyObject }?) -> PyObject,
+		owner: PyType?,
 	},
 }
 
@@ -33,6 +34,7 @@ export type PyPythonBoundMethod = PyObject & {
 	__value: {
 		self: PyObject,
 		func: PyObject,
+		owner: PyType?,
 	},
 }
 
@@ -156,28 +158,28 @@ local function ensureTypeAttributes(pyType: PyType): { [string]: PyObject }
 	return pyType.attributes :: { [string]: PyObject }
 end
 
-local function lookupAttribute(pyType: PyType?, name: string): (any, string?)
+local function lookupAttribute(pyType: PyType?, name: string): (any, string?, PyType?)
 	if not pyType then
-		return nil, nil
+		return nil, nil, nil
 	end
 	if pyType.attributes and pyType.attributes[name] ~= nil then
-		return pyType.attributes[name], "pyobject"
+		return pyType.attributes[name], "pyobject", pyType
 	end
 	if pyType.methods and pyType.methods[name] then
-		return pyType.methods[name], "builtin"
+		return pyType.methods[name], "builtin", pyType
 	end
 	if pyType.bases then
 		for _, baseType in ipairs(pyType.bases) do
-			local value, kind = lookupAttribute(baseType, name)
+			local value, kind, owner = lookupAttribute(baseType, name)
 			if value ~= nil then
-				return value, kind
+				return value, kind, owner
 			end
 		end
 	end
-	return nil, nil
+	return nil, nil, nil
 end
 
-local function bindBuiltinMethod(instance: PyObject, name: string, func: (PyObject, { PyObject }?) -> PyObject): PyBoundMethod
+local function bindBuiltinMethod(instance: PyObject, name: string, func: (PyObject, { PyObject }?) -> PyObject, owner: PyType?): PyBoundMethod
 	local builtinType = typeRegistry["builtin_function_or_method"]
 		or Base.registerType("builtin_function_or_method", {})
 	local boundAny: any = {
@@ -186,6 +188,7 @@ local function bindBuiltinMethod(instance: PyObject, name: string, func: (PyObje
 			self = instance,
 			name = name,
 			func = func,
+			owner = owner,
 		},
 		__dict = {},
 		__typeobj = builtinType,
@@ -193,13 +196,14 @@ local function bindBuiltinMethod(instance: PyObject, name: string, func: (PyObje
 	return boundAny :: PyBoundMethod
 end
 
-local function bindPythonMethod(instance: PyObject, func: PyObject): PyPythonBoundMethod
+local function bindPythonMethod(instance: PyObject, func: PyObject, owner: PyType?): PyPythonBoundMethod
 	local boundType = typeRegistry["bound_method"] or Base.registerType("bound_method", {})
 	local boundAny: any = {
 		__type = "bound_method",
 		__value = {
 			self = instance,
 			func = func,
+			owner = owner,
 		},
 		__dict = {},
 		__typeobj = boundType,
@@ -245,6 +249,14 @@ function Base.newClass(name: string, bases: { PyType }, attributes: { [string]: 
 	}
 	typeRegistry[name] = pyType
 	local typeType = typeRegistry["type"] or Base.registerType("type", {})
+	for _, value in pairs(attrCopy) do
+		if type(value) == "table" and value.__type == "function" then
+			local info = value.__value
+			if type(info) == "table" then
+				(info :: any).owner = pyType
+			end
+		end
+	end
 	local classObj: PyObject = {
 		__type = "type",
 		__value = {
@@ -364,14 +376,19 @@ function Base.getattr(obj: PyObject, name: string): PyObject
 		return dict[name]
 	end
 
-	local value, kind = lookupAttribute(obj.__typeobj, name)
+	local value, kind, ownerType = lookupAttribute(obj.__typeobj, name)
 	if value ~= nil then
 		if kind == "builtin" then
-			return bindBuiltinMethod(obj, name, value :: (PyObject, { PyObject }?) -> PyObject)
+			return bindBuiltinMethod(
+				obj,
+				name,
+				value :: (PyObject, { PyObject }?) -> PyObject,
+				ownerType or obj.__typeobj
+			)
 		else
 			local attrObj = value :: PyObject
 			if attrObj.__type == "function" then
-				return bindPythonMethod(obj, attrObj)
+				return bindPythonMethod(obj, attrObj, ownerType or obj.__typeobj)
 			end
 			return attrObj
 		end
@@ -565,6 +582,44 @@ function Base.typeRegistrySnapshot(): { [string]: boolean }
 		snap[name] = true
 	end
 	return snap
+end
+
+function Base.lookupAttributeOnType(pyType: PyType, name: string): (any, string?, PyType?)
+	return lookupAttribute(pyType, name)
+end
+
+local function buildMroRecursive(pyType: PyType, out: { PyType }, seen: { [PyType]: boolean })
+	if seen[pyType] then
+		return
+	end
+	seen[pyType] = true
+	out[#out + 1] = pyType
+	if pyType.bases then
+		for _, baseType in ipairs(pyType.bases) do
+			buildMroRecursive(baseType, out, seen)
+		end
+	end
+end
+
+function Base.computeMro(pyType: PyType): { PyType }
+	local linearized: { PyType } = {}
+	buildMroRecursive(pyType, linearized, {})
+	return linearized
+end
+
+function Base.bindPythonMethod(instance: PyObject, func: PyObject, owner: PyType?): PyPythonBoundMethod
+	return bindPythonMethod(instance, func, owner)
+end
+
+function Base.bindBuiltinMethod(instance: PyObject, name: string, func: (PyObject, { PyObject }?) -> PyObject, owner: PyType?): PyBoundMethod
+	return bindBuiltinMethod(instance, name, func, owner)
+end
+
+function Base.getActiveFrame()
+	if not activeVM then
+		return nil
+	end
+	return activeVM.current_frame
 end
 
 return Base

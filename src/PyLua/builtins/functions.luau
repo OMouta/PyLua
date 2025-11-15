@@ -255,6 +255,148 @@ local function computeRangeLength(start: number, stop: number, step: number): nu
 end
 
 local rangeTypeCached = nil
+local superTypeCached: base.PyType? = nil
+
+local function ensureSuperType(): base.PyType
+	if superTypeCached then
+		return superTypeCached
+	end
+	local objectType = base.getTypeObject("object")
+	superTypeCached = base.registerType("super", {
+		bases = { objectType },
+	})
+	return superTypeCached :: base.PyType
+end
+
+local function unwrapSentinel(value: any): any
+	if type(value) == "table" and value.__nil then
+		return nil
+	end
+	return value
+end
+
+local function resolveTypeFromClass(obj: PyObject): base.PyType
+	if obj.__type ~= "type" then
+		error("TypeError: super() argument 1 must be a type", 2)
+	end
+	local info = obj.__value
+	if type(info) == "table" and (info :: any).pyType then
+		return (info :: any).pyType
+	end
+	local name = if type(info) == "table" and (info :: any).name then (info :: any).name else obj.__type
+	return base.getTypeObject(name)
+end
+
+local function resolveInstance(value: any): PyObject
+	local unwrapped = unwrapSentinel(value)
+	if not unwrapped then
+		error("TypeError: super() argument 2 cannot be None", 2)
+	end
+	return base.ensurePyObject(unwrapped)
+end
+
+local function computeStartIndex(mro: { base.PyType }, owner: base.PyType): number
+	for idx, pyType in ipairs(mro) do
+		if pyType == owner then
+			return idx + 1
+		end
+	end
+	error("RuntimeError: super(): current class not found in MRO", 2)
+end
+
+local function buildSuperObject(owner: base.PyType, instance: PyObject): PyObject
+	local instanceType = instance.__typeobj
+	local mro = base.computeMro(instanceType)
+	local startIndex = computeStartIndex(mro, owner)
+	local superType = ensureSuperType()
+	local superObj: PyObject = {
+		__type = "super",
+		__value = {
+			instance = instance,
+			mro = mro,
+			index = startIndex,
+		},
+		__dict = {},
+		__typeobj = superType,
+	}
+	return superObj
+end
+
+local function resolveCurrentClassAndInstance(): (base.PyType, PyObject)
+	local frame = base.getActiveFrame()
+	if not frame then
+		error("RuntimeError: super(): no active frame", 2)
+	end
+	local funcObj = (frame :: any).function_object
+	if not funcObj or funcObj.__type ~= "function" then
+		error("RuntimeError: super(): unable to determine current function", 2)
+	end
+	local funcInfo = funcObj.__value
+	if type(funcInfo) ~= "table" then
+		error("RuntimeError: super(): invalid function metadata", 2)
+	end
+	local owner = (funcInfo :: any).owner
+	if not owner then
+		error("RuntimeError: super(): current function is not bound to a class", 2)
+	end
+	local code = (funcInfo :: any).code
+	local varnames = if code and code.varnames then code.varnames else {}
+	local firstVar = if #varnames > 0 then varnames[1] else nil
+	if not firstVar then
+		error("RuntimeError: super(): cannot determine implicit self", 2)
+	end
+	local localsTable = frame.locals
+	local rawSelf = localsTable[firstVar]
+	local instance = resolveInstance(rawSelf)
+	return owner, instance
+end
+
+local function superGetattr(selfObj: PyObject, name: string): PyObject?
+	local payload = selfObj.__value
+	if type(payload) ~= "table" then
+		error("TypeError: invalid super object", 2)
+	end
+	local instance = (payload :: any).instance
+	local mro = (payload :: any).mro
+	local startIndex = (payload :: any).index
+	if not instance or not mro or not startIndex then
+		error("TypeError: malformed super object", 2)
+	end
+	for i = startIndex, #mro do
+		local baseType = mro[i]
+		local value, kind, owner = base.lookupAttributeOnType(baseType, name)
+		if value ~= nil then
+			if kind == "builtin" then
+				return base.bindBuiltinMethod(
+					instance,
+					name,
+					value :: (PyObject, { PyObject }?) -> PyObject,
+					owner or baseType
+				)
+			else
+				local attrObj = value :: PyObject
+				if attrObj.__type == "function" then
+					return base.bindPythonMethod(instance, attrObj, owner or baseType)
+				end
+				return attrObj
+			end
+		end
+	end
+	error("AttributeError: 'super' object has no attribute '" .. name .. "'", 2)
+end
+
+(function()
+	local ok, superType = pcall(function()
+		return ensureSuperType()
+	end)
+	if ok and superType then
+		superType.__getattr = superGetattr
+	elseif ok then
+		-- already registered: update __getattr
+		superTypeCached = superType
+		superTypeCached.__getattr = superGetattr
+	end
+end)()
 
 local function ensureRangeType()
 	if rangeTypeCached then
@@ -784,6 +926,21 @@ function Functions.bytes(val: PyObject?): PyObject
 	end
 end
 
+function Functions.super_(args: { PyObject }): PyObject
+	local count = #args
+	local owner: base.PyType
+	local instance: PyObject
+	if count == 0 then
+		owner, instance = resolveCurrentClassAndInstance()
+	elseif count == 2 then
+		owner = resolveTypeFromClass(args[1])
+		instance = resolveInstance(args[2])
+	else
+		error("TypeError: super() expects 0 or 2 arguments", 2)
+	end
+	return buildSuperObject(owner, instance)
+end
+
 function Functions.createBuiltins(): { [string]: PyObject }
 	local builtinsTable = {
 		["print"] = wrapBuiltin("print", function(args)
@@ -851,6 +1008,9 @@ function Functions.createBuiltins(): { [string]: PyObject }
 		end),
 		["isinstance"] = wrapBuiltin("isinstance", function(args)
 			return Functions.isinstance_(args)
+		end),
+		["super"] = wrapBuiltin("super", function(args)
+			return Functions.super_(args)
 		end),
 	}
 
