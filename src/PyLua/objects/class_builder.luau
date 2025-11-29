@@ -14,7 +14,7 @@ type CallHelpers = {
 		kwargs: { [string]: PyObject }?,
 		locals: { [string]: PyObject }?,
 		captureLocals: boolean?
-	) -> (PyObject, { [string]: PyObject }?)
+	) -> (PyObject, { [string]: PyObject }?),
 }
 
 local function ensurePy(value: any): PyObject
@@ -77,7 +77,11 @@ local function normalizeBases(rawBases: { PyObject }, defaultBase: PyType): { Py
 	return resolved
 end
 
-local function snapshotAttributes(namespace: { [string]: PyObject }, className: string, moduleName: string): { [string]: PyObject }
+local function snapshotAttributes(
+	namespace: { [string]: PyObject },
+	className: string,
+	moduleName: string
+): { [string]: PyObject }
 	local attrs: { [string]: PyObject } = {}
 	for key, value in pairs(namespace) do
 		if key ~= "__builtins__" then

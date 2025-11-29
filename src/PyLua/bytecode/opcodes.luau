@@ -77,6 +77,10 @@ export type Opcode =
 	| "BUILD_MAP"
 	| "BUILD_MAP_UNPACK"
 	| "BUILD_CLASS"
+	-- Imports
+	| "IMPORT_NAME"
+	| "IMPORT_FROM"
+	| "IMPORT_STAR"
 
 -- Opcode information
 export type OpcodeInfo = {
@@ -172,6 +176,11 @@ local OPCODE_INFO: { [Opcode]: OpcodeInfo } = {
 	BUILD_MAP = { name = "BUILD_MAP", arg = true, doc = "Build map from 2*N stack items" },
 	BUILD_MAP_UNPACK = { name = "BUILD_MAP_UNPACK", arg = true, doc = "Merge N dicts on stack into one" },
 	BUILD_CLASS = { name = "BUILD_CLASS", arg = true, doc = "Construct a Python class from stack values" },
+
+	-- Imports
+	IMPORT_NAME = { name = "IMPORT_NAME", arg = true, doc = "Import module by name index" },
+	IMPORT_FROM = { name = "IMPORT_FROM", arg = true, doc = "Import symbol from module by name index" },
+	IMPORT_STAR = { name = "IMPORT_STAR", arg = false, doc = "Import all symbols from module" },
 }
 
 -- Public API

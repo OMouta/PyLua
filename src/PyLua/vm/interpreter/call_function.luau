@@ -17,11 +17,7 @@ export type VMState = State.VMState
 type PyCode = Functions.PyCode
 type Instruction = Instructions.Instruction
 
-local function bindPositionalArguments(
-	code: PyCode,
-	locals: { [string]: any },
-	safeArgs: { any }
-)
+local function bindPositionalArguments(code: PyCode, locals: { [string]: any }, safeArgs: { any })
 	for i = 1, #safeArgs do
 		if i <= #code.varnames then
 			local varname = code.varnames[i]
@@ -96,15 +92,13 @@ local function bindKeywordArguments(
 	end
 end
 
-function CallFunction.new(
-	executeInstruction: (
-		vm: VMState,
-		frame: Frame,
-		instruction: Instruction,
-		constants: { any }?,
-		names: { string }?
-	) -> boolean
-)
+function CallFunction.new(executeInstruction: (
+	vm: VMState,
+	frame: Frame,
+	instruction: Instruction,
+	constants: { any }?,
+	names: { string }?
+) -> boolean)
 	local function callInternal(
 		vm: VMState,
 		func: any,
@@ -175,7 +169,8 @@ function CallFunction.new(
 				builtins = vm.builtins,
 				locals = locals,
 				executeInstruction = executeInstruction,
-			}), nil
+			}),
+				nil
 		end
 
 		local funcFrame = FrameModule.new(code.bytecode, funcGlobals, vm.builtins, locals, code.name)

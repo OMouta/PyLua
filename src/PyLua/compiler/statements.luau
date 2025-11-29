@@ -272,6 +272,80 @@ return function(deps: StatementDeps)
 		State.emit(st, "STORE_NAME", storeIdx, node.lineno)
 	end
 
+	local function compileImport(st: CompilerState, node: any)
+		for _, alias in ipairs(node.names) do
+			local levelIdx = State.addConst(st, 0)
+			State.emit(st, "LOAD_CONST", levelIdx, node.lineno)
+
+			local noneIdx = State.addConst(st, nil)
+			State.emit(st, "LOAD_CONST", noneIdx, node.lineno)
+
+			local nameIdx = State.addName(st, alias.name)
+			State.emit(st, "IMPORT_NAME", nameIdx, node.lineno)
+
+			if alias.asname then
+				-- import a.b.c as d
+				-- IMPORT_NAME returns 'a'. We need to traverse to 'c'.
+				local parts = {}
+				for part in string.gmatch(alias.name, "[^%.]+") do
+					table.insert(parts, part)
+				end
+
+				for i = 2, #parts do
+					local partIdx = State.addName(st, parts[i])
+					State.emit(st, "IMPORT_FROM", partIdx, node.lineno)
+					State.emit(st, "ROT_TWO", nil, node.lineno)
+					State.emit(st, "POP_TOP", nil, node.lineno)
+				end
+
+				local storeIdx = State.addName(st, alias.asname)
+				State.emit(st, "STORE_NAME", storeIdx, node.lineno)
+			else
+				-- import a.b.c
+				-- IMPORT_NAME returns 'a'. We store 'a'.
+				local parts = {}
+				for part in string.gmatch(alias.name, "[^%.]+") do
+					table.insert(parts, part)
+				end
+				local topName = parts[1]
+				local storeIdx = State.addName(st, topName)
+				State.emit(st, "STORE_NAME", storeIdx, node.lineno)
+			end
+		end
+	end
+
+	local function compileImportFrom(st: CompilerState, node: any)
+		local levelIdx = State.addConst(st, node.level or 0)
+		State.emit(st, "LOAD_CONST", levelIdx, node.lineno)
+
+		local names = {}
+		for _, alias in ipairs(node.names) do
+			table.insert(names, alias.name)
+		end
+		-- Create a tuple for fromlist
+		local namesTuple = { __type = "tuple", __value = names }
+		local namesIdx = State.addConst(st, namesTuple)
+		State.emit(st, "LOAD_CONST", namesIdx, node.lineno)
+
+		local moduleName = node.module or ""
+		local modIdx = State.addName(st, moduleName)
+		State.emit(st, "IMPORT_NAME", modIdx, node.lineno)
+
+		for _, alias in ipairs(node.names) do
+			if alias.name == "*" then
+				State.emit(st, "IMPORT_STAR", nil, node.lineno)
+			else
+				local nameIdx = State.addName(st, alias.name)
+				State.emit(st, "IMPORT_FROM", nameIdx, node.lineno)
+				local storeName = alias.asname or alias.name
+				local storeIdx = State.addName(st, storeName)
+				State.emit(st, "STORE_NAME", storeIdx, node.lineno)
+			end
+		end
+
+		State.emit(st, "POP_TOP", nil, node.lineno)
+	end
+
 	compileStmt = function(st: CompilerState, node: any)
 		if node.type == "Expr" then
 			compileExpr(st, node.value)
@@ -291,7 +365,7 @@ return function(deps: StatementDeps)
 			if not op then
 				error("Unsupported augmented assignment operator: " .. tostring(node.op))
 			end
-			State.emit(st, (op :: any), nil, node.lineno)
+			State.emit(st, op :: any, nil, node.lineno)
 			compileStoreTarget(st, target)
 		elseif node.type == "Return" then
 			if node.value then
@@ -418,6 +492,10 @@ return function(deps: StatementDeps)
 			compileFunctionDef(st, node)
 		elseif node.type == "ClassDef" then
 			compileClassDef(st, node)
+		elseif node.type == "Import" then
+			compileImport(st, node)
+		elseif node.type == "ImportFrom" then
+			compileImportFrom(st, node)
 		else
 			error("Unsupported statement type: " .. tostring(node.type))
 		end

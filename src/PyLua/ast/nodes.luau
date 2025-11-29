@@ -132,6 +132,28 @@ export type ClassDef = Stmt & {
 	decorator_list: { Expr }, -- Decorators
 }
 
+-- Import alias: name as asname
+export type alias = {
+	name: string,
+	asname: string?,
+	lineno: number,
+	col_offset: number,
+}
+
+-- Import statement: import x, y as z
+export type Import = Stmt & {
+	type: "Import",
+	names: { alias },
+}
+
+-- Import from statement: from .x import y
+export type ImportFrom = Stmt & {
+	type: "ImportFrom",
+	module: string?,
+	names: { alias },
+	level: number?,
+}
+
 -- Return statement: return value
 export type Return = Stmt & {
 	type: "Return",
@@ -340,6 +362,8 @@ export type AnyStmt =
 	| For
 	| FunctionDef
 	| ClassDef
+	| Import
+	| ImportFrom
 	| Return
 	| Break
 	| Continue

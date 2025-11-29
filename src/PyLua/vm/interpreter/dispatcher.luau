@@ -24,7 +24,7 @@ type CallHelpers = {
 		kwargs: { [string]: any }?,
 		locals: { [string]: any }?,
 		captureLocals: boolean?
-	) -> (any, { [string]: any }?)
+	) -> (any, { [string]: any }?),
 }
 
 type PyObject = Base.PyObject
@@ -277,8 +277,11 @@ function Dispatcher.dispatchInstruction(
 		if arg == 6 or arg == 7 or arg == 8 or arg == 9 then
 			result = op(rawLeft, rawRight)
 		else
-			local leftVal = (type(rawLeft) == "table" and (rawLeft :: any).__value ~= nil) and (rawLeft :: any).__value or rawLeft
-			local rightVal = (type(rawRight) == "table" and (rawRight :: any).__value ~= nil) and (rawRight :: any).__value or rawRight
+			local leftVal = (type(rawLeft) == "table" and (rawLeft :: any).__value ~= nil) and (rawLeft :: any).__value
+				or rawLeft
+			local rightVal = (type(rawRight) == "table" and (rawRight :: any).__value ~= nil)
+					and (rawRight :: any).__value
+				or rawRight
 			result = op(leftVal, rightVal)
 		end
 		-- Optimize: check if result is already PyObject before wrapping
@@ -642,6 +645,93 @@ function Dispatcher.dispatchInstruction(
 		else
 			local result = helpers.call(vm, func, orderedArgs, {})
 			FrameModule.push(frame, result)
+		end
+	elseif opcode == "IMPORT_NAME" then
+		assert(arg ~= nil, "IMPORT_NAME requires argument")
+		local name: string
+		if names and names[arg + 1] then
+			name = names[arg + 1]
+		else
+			name = tostring(arg)
+		end
+
+		local fromlist = FrameModule.pop(frame)
+		local level = FrameModule.pop(frame)
+
+		local importFunc = vm.builtins["__import__"]
+		if not importFunc then
+			error("ImportError: __import__ not found", 2)
+		end
+
+		-- Convert frame globals to a PyObject dict-like structure for __import__
+		-- The import system needs access to __package__ for relative imports
+		local globalsForImport = frame.globals
+
+		local args = {
+			Base.newPyObject("str", name),
+			globalsForImport, -- Pass actual globals for __package__ access
+			Base.newNone(), -- locals (not needed)
+			toPyObject(fromlist),
+			toPyObject(level),
+		}
+
+		local result = Base.call(importFunc, args)
+		FrameModule.push(frame, result)
+	elseif opcode == "IMPORT_FROM" then
+		assert(arg ~= nil, "IMPORT_FROM requires argument")
+		local name: string
+		if names and names[arg + 1] then
+			name = names[arg + 1]
+		else
+			name = tostring(arg)
+		end
+
+		local module = FrameModule.peek(frame)
+		local pyModule = toPyObject(module)
+
+		local ok, value = pcall(function()
+			return Base.getattr(pyModule, name)
+		end)
+
+		if ok then
+			FrameModule.push(frame, value)
+		else
+			error("ImportError: cannot import name '" .. name .. "'", 2)
+		end
+	elseif opcode == "IMPORT_STAR" then
+		local module = FrameModule.pop(frame)
+		local pyModule = toPyObject(module)
+
+		-- Check for __all__
+		local hasAll, allList = pcall(function()
+			return Base.getattr(pyModule, "__all__")
+		end)
+
+		if hasAll and allList then
+			-- Iterate __all__
+			local iterator = Iteration.createIterator(allList)
+			while true do
+				local nameObj = Iteration.getNextValue(iterator)
+				if not nameObj then
+					break
+				end
+
+				if nameObj.__type == "str" then
+					local name = nameObj.__value
+					local value = Base.getattr(pyModule, name)
+					FrameModule.setVariable(frame, name, value)
+				end
+			end
+		else
+			-- Iterate __dict__
+			local dict = pyModule.__dict
+			if dict then
+				for name, value in pairs(dict) do
+					if not string.match(name, "^_") then
+						FrameModule.setVariable(frame, name, value)
+					end
+				end
+			end
 		end
 	else
 		error("Unimplemented opcode: " .. opcode, 2)

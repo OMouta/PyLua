@@ -200,7 +200,13 @@ local function createFormattedSectionParser(deps: FStringDeps)
 					conversion = convChar
 					exprEndIndex = exprEndIndex or (i - 1)
 					i += 2
-				elseif ch == ":" and braceDepth == 0 and parenDepth == 0 and bracketDepth == 0 and formatStart == nil then
+				elseif
+					ch == ":"
+					and braceDepth == 0
+					and parenDepth == 0
+					and bracketDepth == 0
+					and formatStart == nil
+				then
 					exprEndIndex = exprEndIndex or (i - 1)
 					formatStart = i + 1
 					i += 1

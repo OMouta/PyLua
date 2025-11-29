@@ -21,5 +21,8 @@ require("./suites/test_generators")
 require("./suites/test_control_flow")
 require("./suites/test_exceptions")
 require("./suites/test_interop")
+require("./suites/test_modules")
+require("./suites/test_modules_advanced")
+require("./suites/test_pep451")
 
 TestFramework.printSummary()
