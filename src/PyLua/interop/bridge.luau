@@ -49,7 +49,7 @@ local bindingGetAttr: (PyObject, string) -> PyObject?
 local bindingSetAttr: (PyObject, string, PyObject) -> ()
 
 local function tryTypeof(value: any): string?
-	local globalEnv = (_G :: any)
+	local globalEnv = _G :: any
 	local typeofFn = globalEnv and globalEnv.typeof
 	if typeofFn and type(typeofFn) == "function" then
 		local ok, result = pcall(typeofFn, value)
@@ -454,17 +454,17 @@ local function pyToLuauInternal(obj: PyObject, visited: VisitedPy): any
 			index += 1
 		end
 		return arr
-		elseif type(obj.__value) == "table" and (obj.__value :: any).__pylua_binding then
-			local payload = obj.__value :: BindingPayload
-			local binding = payload.binding
-			if binding.toLuau then
-				visited[obj] = payload.target
-				local converted = binding.toLuau(payload.target, visited)
-				visited[obj] = converted
-				return converted
-			end
+	elseif type(obj.__value) == "table" and (obj.__value :: any).__pylua_binding then
+		local payload = obj.__value :: BindingPayload
+		local binding = payload.binding
+		if binding.toLuau then
 			visited[obj] = payload.target
-			return payload.target
+			local converted = binding.toLuau(payload.target, visited)
+			visited[obj] = converted
+			return converted
+		end
+		visited[obj] = payload.target
+		return payload.target
 	elseif typeName == "luau_function" then
 		local record: LuauFunctionRecord = obj.__value
 		return record.func

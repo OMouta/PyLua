@@ -427,7 +427,8 @@ local function ensureRangeType()
 			if data.step == 1 then
 				result = string.format("range(%s, %s)", tostring(data.start), tostring(data.stop))
 			else
-				result = string.format("range(%s, %s, %s)", tostring(data.start), tostring(data.stop), tostring(data.step))
+				result =
+					string.format("range(%s, %s, %s)", tostring(data.start), tostring(data.stop), tostring(data.step))
 			end
 			return base.newPyObject("str", result)
 		end

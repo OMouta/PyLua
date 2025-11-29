@@ -19,11 +19,7 @@ type DispatchFunction = (
 	names: { string }?
 ) -> boolean
 
-local function handleException(
-	vm: VMState,
-	frame: Frame,
-	err: any
-): (boolean, PyObject?)
+local function handleException(vm: VMState, frame: Frame, err: any): (boolean, PyObject?)
 	local excObj = Exceptions.fromLuauError(err)
 	while true do
 		local block = FrameModule.popBlock(frame)

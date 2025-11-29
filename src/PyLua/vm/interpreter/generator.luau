@@ -144,7 +144,8 @@ end
 
 function Generator.new(params: GeneratorParams): PyObject
 	local generatorVm = State.newState(params.globals, params.builtins)
-	local frame = FrameModule.new(params.code.bytecode, params.globals, params.builtins, params.locals, params.code.name)
+	local frame =
+		FrameModule.new(params.code.bytecode, params.globals, params.builtins, params.locals, params.code.name)
 	local frameAny = frame :: any
 	frameAny.is_generator = true
 

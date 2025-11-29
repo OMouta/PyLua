@@ -13,12 +13,12 @@ local function parseForTarget(state: any): Expr
 		-- Parenthesized tuple
 		local lparToken = state.current
 		state:advance() -- consume LPAR
-		
+
 		local elements: { Expr } = {}
 		if state.current and state.current.type ~= "RPAR" then
 			-- Parse first element (recursively handles nested tuples)
 			table.insert(elements, parseForTarget(state))
-			
+
 			-- Parse remaining elements
 			while state.current and state.current.type == "COMMA" do
 				state:advance() -- consume COMMA
@@ -28,9 +28,9 @@ local function parseForTarget(state: any): Expr
 				table.insert(elements, parseForTarget(state))
 			end
 		end
-		
+
 		state:consume("RPAR", "Expected ')' to close tuple")
-		
+
 		-- Create tuple node
 		return {
 			type = "Tuple",
@@ -62,13 +62,141 @@ local function assignmentTarget(expr: Expr): Expr
 	return expr
 end
 
+local function parseModuleAlias(state: any): nodes.alias
+	local nameToken = state:consume("NAME", "Expected module name")
+	local name = nameToken.value
+
+	while state.current and state.current.type == "DOT" do
+		state:advance()
+		local part = state:consume("NAME", "Expected name after dot")
+		name = name .. "." .. part.value
+	end
+
+	local asname: string? = nil
+	if state.current and state.current.type == "AS" then
+		state:advance()
+		local asToken = state:consume("NAME", "Expected alias name")
+		asname = asToken.value
+	end
+
+	return {
+		name = name,
+		asname = asname,
+		lineno = nameToken.line,
+		col_offset = nameToken.column,
+	}
+end
+
+local function parseImportFromAlias(state: any): nodes.alias
+	local nameToken = state:consume("NAME", "Expected name")
+	local name = nameToken.value
+
+	local asname: string? = nil
+	if state.current and state.current.type == "AS" then
+		state:advance()
+		local asToken = state:consume("NAME", "Expected alias name")
+		asname = asToken.value
+	end
+
+	return {
+		name = name,
+		asname = asname,
+		lineno = nameToken.line,
+		col_offset = nameToken.column,
+	}
+end
+
 -- Parse a simple statement (assignment, augassign, expression, return)
 function statements.parseSimple(state: any): Stmt
 	local current = state.current
 	if not current then
 		state:raise("Unexpected end of input in statement")
 	end
-	if current.type == "RETURN" then
+	if current.type == "IMPORT" then
+		local importToken = current
+		state:advance()
+		local names = { parseModuleAlias(state) }
+		while state.current and state.current.type == "COMMA" do
+			state:advance()
+			table.insert(names, parseModuleAlias(state))
+		end
+		return {
+			type = "Import",
+			names = names,
+			lineno = importToken.line,
+			col_offset = importToken.column,
+		}
+	elseif current.type == "FROM" then
+		local fromToken = current
+		state:advance()
+
+		local level = 0
+		while state.current and (state.current.type == "DOT" or state.current.type == "ELLIPSIS") do
+			if state.current.type == "DOT" then
+				level = level + 1
+				state:advance()
+			else -- ELLIPSIS is ... (3 dots)
+				level = level + 3
+				state:advance()
+			end
+		end
+
+		local module: string? = nil
+		if state.current and state.current.type == "NAME" then
+			local nameToken = state.current
+			module = nameToken.value
+			state:advance()
+			while state.current and state.current.type == "DOT" do
+				state:advance()
+				local part = state:consume("NAME", "Expected name after dot")
+				module = module .. "." .. part.value
+			end
+		end
+
+		if level == 0 and not module then
+			state:raise("Expected module name or relative import dots")
+		end
+
+		state:consume("IMPORT", "Expected 'import' after 'from ...'")
+
+		local names = {}
+		if state.current and state.current.type == "LPAR" then
+			state:advance()
+			table.insert(names, parseImportFromAlias(state))
+			while state.current and state.current.type == "COMMA" do
+				state:advance()
+				if state.current and state.current.type == "RPAR" then
+					break
+				end
+				table.insert(names, parseImportFromAlias(state))
+			end
+			state:consume("RPAR", "Expected ')'")
+		elseif state.current and state.current.type == "STAR" then
+			local starToken = state.current
+			state:advance()
+			table.insert(names, {
+				name = "*",
+				asname = nil,
+				lineno = starToken.line,
+				col_offset = starToken.column,
+			})
+		else
+			table.insert(names, parseImportFromAlias(state))
+			while state.current and state.current.type == "COMMA" do
+				state:advance()
+				table.insert(names, parseImportFromAlias(state))
+			end
+		end
+
+		return {
+			type = "ImportFrom",
+			module = module,
+			names = names,
+			level = level,
+			lineno = fromToken.line,
+			col_offset = fromToken.column,
+		}
+	elseif current.type == "RETURN" then
 		state:advance()
 		local value: Expr? = nil
 		if
@@ -140,10 +268,7 @@ local function parseSuiteAfterColon(state: any): { Stmt }
 	local body: { Stmt } = {}
 
 	local function skipEmptyLines()
-		while
-			state.current
-			and (state.current.type == "NEWLINE" or state.current.type == "COMMENT")
-		do
+		while state.current and (state.current.type == "NEWLINE" or state.current.type == "COMMENT") do
 			state:advance()
 		end
 	end
@@ -250,10 +375,10 @@ function statements.parseCompound(state: any): Stmt
 		state:advance()
 		-- Parse the target - can be a Name or a Tuple for destructuring
 		local target: Expr
-		
+
 		-- Parse the first part of the target
 		target = parseForTarget(state)
-		
+
 		-- Check if there's a comma, making it an implicit tuple
 		if state.current and state.current.type == "COMMA" then
 			-- Implicit tuple without parens: for x, y in items: or for (a, b), c in items:
@@ -275,10 +400,10 @@ function statements.parseCompound(state: any): Stmt
 				col_offset = elements[1].col_offset,
 			}
 		end
-		
+
 		-- Mark target as Store context before consuming 'in'
 		target = assignmentTarget(target)
-		
+
 		state:consume("IN", "Expected 'in' after for target")
 		local iter = expressions.parse(state)
 		state:consume("COLON", "Expected ':' after for clause")

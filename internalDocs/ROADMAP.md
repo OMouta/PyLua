@@ -9,8 +9,8 @@ Target: Maintain Python 3.12 semantics where practical and expand the supported 
 Read [MODULES.md](./MODULES.md) for more information about modules and packages.
 
 - [x] Class definitions and inheritance
-- [ ] Module system and imports
-- [ ] Package structure
+- [~] Module system and imports (basic implementation complete; full PEP 451 architecture pending)
+- [~] Package structure (classic `__init__.py` packages supported; memory mounts and policy system pending)
 
 ## v3.2 — Advanced Language Features
 

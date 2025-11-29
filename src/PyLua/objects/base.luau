@@ -179,7 +179,12 @@ local function lookupAttribute(pyType: PyType?, name: string): (any, string?, Py
 	return nil, nil, nil
 end
 
-local function bindBuiltinMethod(instance: PyObject, name: string, func: (PyObject, { PyObject }?) -> PyObject, owner: PyType?): PyBoundMethod
+local function bindBuiltinMethod(
+	instance: PyObject,
+	name: string,
+	func: (PyObject, { PyObject }?) -> PyObject,
+	owner: PyType?
+): PyBoundMethod
 	local builtinType = typeRegistry["builtin_function_or_method"]
 		or Base.registerType("builtin_function_or_method", {})
 	local boundAny: any = {
@@ -611,7 +616,12 @@ function Base.bindPythonMethod(instance: PyObject, func: PyObject, owner: PyType
 	return bindPythonMethod(instance, func, owner)
 end
 
-function Base.bindBuiltinMethod(instance: PyObject, name: string, func: (PyObject, { PyObject }?) -> PyObject, owner: PyType?): PyBoundMethod
+function Base.bindBuiltinMethod(
+	instance: PyObject,
+	name: string,
+	func: (PyObject, { PyObject }?) -> PyObject,
+	owner: PyType?
+): PyBoundMethod
 	return bindBuiltinMethod(instance, name, func, owner)
 end
 

@@ -11,6 +11,9 @@ local compiler = require("@self/compiler")
 local vm = require("@self/vm/interpreter")
 local builtinFunctions = require("@self/builtins/functions")
 local interop = require("@self/interop/bridge")
+local Base = require("@self/objects/base")
+local Importer = require("@self/vm/importer")
+local Module = require("@self/objects/module")
 
 type _ClassBindingOptions = {
 	pyTypeName: string,
@@ -30,6 +33,9 @@ export type RuntimeOptions = {
 	timeout: number?,
 	maxRecursion: number?,
 	builtins: { [string]: any }?,
+	searchPath: { string }?,
+	nativeModules: { [string]: any }?,
+	fileSystem: Importer.FileSystem?,
 }
 
 export type Runtime = {
@@ -51,6 +57,7 @@ export type Runtime = {
 	_globalsProxy: { [string]: any },
 	_builtins: { [string]: any },
 	_debug: boolean,
+	_importer: any,
 }
 
 -- Runtime class implementation
@@ -101,7 +108,80 @@ function PyLua.new(options: RuntimeOptions?): Runtime
 		_globalsProxy = globalsProxy,
 		_builtins = opts.builtins or builtinFunctions.createBuiltins(),
 		_debug = if opts.debug ~= nil then opts.debug else false,
+		_importer = nil :: any,
 	}
+
+	local nativeModules = nil
+	if opts.nativeModules then
+		nativeModules = {}
+		for k, v in pairs(opts.nativeModules) do
+			if type(v) == "table" and not (v.__type or v.__value) then
+				local mod = Module.new(k, nil)
+				local dict = mod.__dict :: { [string]: any }
+				for attr, val in pairs(v) do
+					dict[attr] = interop.luauToPy(val)
+				end
+				nativeModules[k] = mod
+			else
+				nativeModules[k] = interop.luauToPy(v)
+			end
+		end
+	end
+
+	local importer = Importer.new(runtime._builtins, opts.searchPath, nativeModules, opts.fileSystem)
+	runtime._importer = importer
+
+	importer:setExecutor(function(code, filename, modGlobals)
+		-- 1. Lexer: code -> tokens
+		local tokens = lexer.tokenize(code)
+
+		-- 2. Parser: tokens -> AST
+		local ast = parser.parse(tokens)
+
+		-- 3. Compiler: AST -> bytecode
+		local bytecode = compiler.compile(ast)
+
+		-- 4. VM: execute bytecode
+		vm.execute(bytecode.bytecode, modGlobals, runtime._builtins, bytecode.constants, bytecode.names)
+	end)
+
+	-- Add __import__ to builtins
+	local function importWrapper(args: { any }?)
+		if not args or #args < 1 then
+			error("TypeError: __import__() takes at least 1 argument (0 given)", 2)
+		end
+		local name = args[1]
+		if name.__type ~= "str" then
+			error("TypeError: __import__() argument 1 must be string, not " .. name.__type, 2)
+		end
+		local globals = args[2]
+		local locals = args[3]
+		local fromlist = args[4]
+		local level = args[5]
+
+		local levelNum = 0
+		if level and level.__type == "int" then
+			levelNum = level.__value
+		end
+
+		return importer:importModule(name.__value, globals, locals, fromlist, levelNum)
+	end
+
+	local builtinType = Base.getTypeObject("builtin_function_or_method")
+	local importBuiltin = {
+		__type = "builtin_function_or_method",
+		__value = {
+			self = nil,
+			name = "__import__",
+			func = function(_self, args)
+				return importWrapper(args)
+			end,
+		},
+		__dict = {},
+		__typeobj = builtinType,
+	}
+
+	runtime._builtins["__import__"] = importBuiltin
 
 	local function initGlobal(name: string, value: any)
 		runtime._globals[name] = interop.luauToPy(value)
