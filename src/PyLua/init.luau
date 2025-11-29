@@ -131,7 +131,7 @@ function PyLua.new(options: RuntimeOptions?): Runtime
 		end
 	end
 
-	local imports = imports.new({
+	local importSystem = imports.new({
 		builtins = runtime._builtins,
 		searchPath = opts.searchPath,
 		nativeModules = nativeModules,
@@ -140,9 +140,9 @@ function PyLua.new(options: RuntimeOptions?): Runtime
 		enableFilesystem = opts.enableFilesystem,
 		policy = opts.policy,
 	})
-	runtime._importer = imports
+	runtime._importer = importSystem
 
-	imports:setExecutor(function(code, filename, modGlobals)
+	importSystem:setExecutor(function(code, filename, modGlobals)
 		-- 1. Lexer: code -> tokens
 		local tokens = lexer.tokenize(code)
 
@@ -175,7 +175,7 @@ function PyLua.new(options: RuntimeOptions?): Runtime
 			levelNum = level.__value
 		end
 
-		return imports:importModule(name.__value, globals, locals, fromlist, levelNum)
+		return importSystem:importModule(name.__value, globals, locals, fromlist, levelNum)
 	end
 
 	local builtinType = Base.getTypeObject("builtin_function_or_method")
