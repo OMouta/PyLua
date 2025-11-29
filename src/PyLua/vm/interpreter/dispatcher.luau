@@ -663,10 +663,14 @@ function Dispatcher.dispatchInstruction(
 			error("ImportError: __import__ not found", 2)
 		end
 
+		-- Convert frame globals to a PyObject dict-like structure for __import__
+		-- The import system needs access to __package__ for relative imports
+		local globalsForImport = frame.globals
+
 		local args = {
 			Base.newPyObject("str", name),
-			Base.newNone(), -- globals (TODO)
-			Base.newNone(), -- locals (TODO)
+			globalsForImport, -- Pass actual globals for __package__ access
+			Base.newNone(), -- locals (not needed)
 			toPyObject(fromlist),
 			toPyObject(level),
 		}

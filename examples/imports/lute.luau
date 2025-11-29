@@ -4,7 +4,8 @@ local FileSystem = require("../../src/Packages/FileSystem/Lute")
 -- Create a Python runtime
 local python = PyLua.new({
     fileSystem = FileSystem,
-    searchPath = {"examples/imports/libs"}
+    searchPath = {"examples/imports/libs"},
+    enableFilesystem = true,
 })
 
 python:execute([[ 

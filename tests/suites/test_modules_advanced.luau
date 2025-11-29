@@ -51,6 +51,7 @@ y = my_native.bar(10)
 				local py = PyLua.new({
 					searchPath = { "/lib" },
 					fileSystem = mockFs,
+					enableFilesystem = true,
 				})
 
 				py:execute([[
@@ -85,6 +86,7 @@ val_x = mymod.x
 				local py = PyLua.new({
 					searchPath = { "/lib" },
 					fileSystem = mockFs,
+					enableFilesystem = true,
 				})
 
 				py:execute([[

@@ -12,7 +12,7 @@ local vm = require("@self/vm/interpreter")
 local builtinFunctions = require("@self/builtins/functions")
 local interop = require("@self/interop/bridge")
 local Base = require("@self/objects/base")
-local Importer = require("@self/vm/importer")
+local imports = require("@self/vm/imports")
 local Module = require("@self/objects/module")
 
 type _ClassBindingOptions = {
@@ -35,7 +35,10 @@ export type RuntimeOptions = {
 	builtins: { [string]: any }?,
 	searchPath: { string }?,
 	nativeModules: { [string]: any }?,
-	fileSystem: Importer.FileSystem?,
+	mounts: { [string]: { [string]: string } }?,
+	fileSystem: imports.FileSystem?,
+	enableFilesystem: boolean?,
+	policy: imports.Policy?,
 }
 
 export type Runtime = {
@@ -128,10 +131,18 @@ function PyLua.new(options: RuntimeOptions?): Runtime
 		end
 	end
 
-	local importer = Importer.new(runtime._builtins, opts.searchPath, nativeModules, opts.fileSystem)
-	runtime._importer = importer
+	local imports = imports.new({
+		builtins = runtime._builtins,
+		searchPath = opts.searchPath,
+		nativeModules = nativeModules,
+		mounts = opts.mounts,
+		fileSystem = opts.fileSystem,
+		enableFilesystem = opts.enableFilesystem,
+		policy = opts.policy,
+	})
+	runtime._importer = imports
 
-	importer:setExecutor(function(code, filename, modGlobals)
+	imports:setExecutor(function(code, filename, modGlobals)
 		-- 1. Lexer: code -> tokens
 		local tokens = lexer.tokenize(code)
 
@@ -164,7 +175,7 @@ function PyLua.new(options: RuntimeOptions?): Runtime
 			levelNum = level.__value
 		end
 
-		return importer:importModule(name.__value, globals, locals, fromlist, levelNum)
+		return imports:importModule(name.__value, globals, locals, fromlist, levelNum)
 	end
 
 	local builtinType = Base.getTypeObject("builtin_function_or_method")
