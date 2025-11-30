@@ -98,6 +98,14 @@ local function isSequenceTable(tbl: { [any]: any }): boolean
 	return true
 end
 
+local function hasMetatableClass(tbl: any): string?
+	local mt = getmetatable(tbl)
+	if mt and type(mt) == "table" and mt.__pylua_class then
+		return mt.__pylua_class
+	end
+	return nil
+end
+
 local function hashKey(obj: PyObject): string
 	local t = obj.__type
 	if t == "int" or t == "float" or t == "bool" or t == "str" then
@@ -381,6 +389,25 @@ local function luauToPyInternal(value: any, visited: VisitedLuau): PyObject
 
 	if visited[value] then
 		return visited[value]
+	end
+
+	-- Check for Luau class with __pylua_class marker in metatable
+	local className = hasMetatableClass(value)
+	if className then
+		-- Create an auto-binding for this metatable-based class
+		local autoBinding: ClassBinding = {
+			pyTypeName = className,
+			bindSelf = true,
+		}
+		ensureBindingType(autoBinding)
+		local payload: BindingPayload = {
+			__pylua_binding = true,
+			target = value,
+			binding = autoBinding,
+		}
+		local wrapper = Base.newPyObject(className, payload)
+		visited[value] = wrapper
+		return wrapper
 	end
 
 	if isSequenceTable(value) then

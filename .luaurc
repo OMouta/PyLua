@@ -7,6 +7,8 @@
   "lintErrors": true,
   "globals": [],
   "aliases": {
-    "lune": "~/.lune/.typedefs/0.10.4/"
+    "lune": "~/.lune/.typedefs/0.10.4/",
+    "lute": "~/.lute/typedefs/0.1.0/lute",
+    "std": "~/.lute/typedefs/0.1.0/std"
   }
 }
