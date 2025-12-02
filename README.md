@@ -2,7 +2,7 @@
 
 > For v0.2 docs, see [docs/0.2/README.md](docs/0.2/README.md).
 
-Run Python inside Luau (e.g., Roblox). PyLua 0.3 is a compact, CPython‑inspired interpreter you can embed in Luau projects.
+Run Python inside Luau (e.g., Roblox). PyLua is a compact, CPython‑inspired interpreter you can embed in Luau projects.
 
 ## Quick Start
 
@@ -11,14 +11,14 @@ Run Python inside Luau (e.g., Roblox). PyLua 0.3 is a compact, CPython‑inspire
 #### Manual
 
 - Download the latest release from Releases
-- Place the PyLua module in your ReplicatedStorage
+- Place the PyLua module in your ReplicatedStorage for roblox projects, or your project folder for other Luau projects.
 
 #### Jelly
 
 - Install with jelly
 
 ```shell
-jelly install omouta/pylua@0.3.0
+jelly install omouta/pylua
 ```
 
 #### Wally
@@ -26,7 +26,7 @@ jelly install omouta/pylua@0.3.0
 - Add PyLua to wally.toml
 
 ```toml
-pylua = "omouta/pylua@0.3.0"
+pylua = "omouta/pylua@MAJOR.MINOR.PATCH"
 ```
 
 - Install with wally
@@ -58,7 +58,7 @@ print(result) -- 6
 
 ## Status
 
-- Version: `0.3.0`
+- Version: `0.3.1`
 - Target: Python 3.12 and below (3.13+ out of scope)
 - Roadmap: `internalDocs/ROADMAP.md`
 
