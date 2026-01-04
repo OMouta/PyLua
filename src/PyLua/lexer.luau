@@ -13,6 +13,7 @@ type LexerState = {
 	length: number,
 	indentStack: { number },
 	atLineStart: boolean,
+	parenLevel: number,
 }
 
 -- Create a new lexer state
@@ -25,6 +26,7 @@ local function newLexerState(source: string): LexerState
 		length = #source,
 		indentStack = { 0 }, -- Start with 0 indentation
 		atLineStart = true,
+		parenLevel = 0,
 	}
 end
 
@@ -41,12 +43,23 @@ end
 local function advance(state: LexerState): string?
 	if state.pos <= state.length then
 		local char = string.sub(state.source, state.pos, state.pos)
+		local nextChar = string.sub(state.source, state.pos + 1, state.pos + 1)
 		state.pos = state.pos + 1
 
 		if char == "\n" then
 			state.line = state.line + 1
 			state.column = 1
 			state.atLineStart = true
+		elseif char == "\r" then
+			if nextChar == "\n" then
+				-- Part of \r\n sequence - treat as whitespace for now, \n will handle newline
+				state.column = state.column + 1
+			else
+				-- Legacy Mac newline (\r only)
+				state.line = state.line + 1
+				state.column = 1
+				state.atLineStart = true
+			end
 		else
 			state.column = state.column + 1
 			if not tokens.isWhitespace(char) then
@@ -284,7 +297,7 @@ local function handleIndentation(state: LexerState): { Token }
 
 	-- If the rest of the line is blank or a comment, ignore indentation changes
 	local nextChar = peek(state)
-	if not nextChar or nextChar == "\n" or nextChar == "#" then
+	if not nextChar or nextChar == "\n" or nextChar == "\r" or nextChar == "#" then
 		return indentTokens
 	end
 
@@ -319,29 +332,39 @@ function Lexer.tokenize(source: string): { Token }
 		-- Handle indentation at line start
 		if state.atLineStart and peek(state) then
 			local char = peek(state) :: string
-			if char == "\n" or char == "#" then
+			if char == "\n" or char == "\r" or char == "#" then
 				-- Blank or comment-only line at current indent; defer handling to newline logic
 			elseif tokens.isWhitespace(char) then
-				-- Line has indentation - count it
-				local indentTokens = handleIndentation(state)
-				for _, token in ipairs(indentTokens) do
-					table.insert(tokenList, token)
-				end
-			else
-				-- Line starts at column 0 - check if we need DEDENTs
-				local currentIndent = state.indentStack[#state.indentStack]
-				if currentIndent > 0 then
-					-- We're at indentation level 0, emit DEDENTs as needed
-					local indentTokens: { Token } = {}
-					while #state.indentStack > 1 and state.indentStack[#state.indentStack] > 0 do
-						table.remove(state.indentStack)
-						table.insert(indentTokens, tokens.newToken("DEDENT", "", state.line, 1))
-					end
+				if state.parenLevel > 0 then
+					-- Inside parens, indentation is ignored (treated as whitespace)
+					skipWhitespace(state)
+				else
+					-- Line has indentation - count it
+					local indentTokens = handleIndentation(state)
 					for _, token in ipairs(indentTokens) do
 						table.insert(tokenList, token)
 					end
 				end
-				skipWhitespace(state)
+			else
+				if state.parenLevel > 0 then
+					-- Inside parens, ignore DEDENTs
+					skipWhitespace(state)
+				else
+					-- Line starts at column 0 - check if we need DEDENTs
+					local currentIndent = state.indentStack[#state.indentStack]
+					if currentIndent > 0 then
+						-- We're at indentation level 0, emit DEDENTs as needed
+						local indentTokens: { Token } = {}
+						while #state.indentStack > 1 and state.indentStack[#state.indentStack] > 0 do
+							table.remove(state.indentStack)
+							table.insert(indentTokens, tokens.newToken("DEDENT", "", state.line, 1))
+						end
+						for _, token in ipairs(indentTokens) do
+							table.insert(tokenList, token)
+						end
+					end
+					skipWhitespace(state)
+				end
 			end
 		else
 			skipWhitespace(state)
@@ -367,17 +390,26 @@ function Lexer.tokenize(source: string): { Token }
 		-- Comments: consume until newline; do not emit COMMENT tokens for parser
 		elseif char == "#" then
 			advance(state) -- consume '#'
-			while peek(state) and peek(state) ~= "\n" do
+			while peek(state) and peek(state) ~= "\n" and peek(state) ~= "\r" do
 				advance(state)
 			end
 
 		-- Newlines
-		elseif char == "\n" then
+		elseif char == "\n" or char == "\r" then
 			-- Capture current coordinates before advancing so NEWLINE points to the line/col where '\n' occurs
 			local ln = state.line
 			local col = state.column
-			advance(state)
-			table.insert(tokenList, tokens.newToken("NEWLINE", "\n", ln, col))
+			local val = char
+			if char == "\r" and peek(state, 1) == "\n" then
+				advance(state) -- consume \r
+				advance(state) -- consume \n
+				val = "\r\n"
+			else
+				advance(state)
+			end
+			if state.parenLevel == 0 then
+				table.insert(tokenList, tokens.newToken("NEWLINE", val, ln, col))
+			end
 
 		-- Two-character operators
 		elseif char == "=" and peek(state, 1) == "=" then
@@ -449,16 +481,22 @@ function Lexer.tokenize(source: string): { Token }
 				tokenType = "AT"
 			elseif ch == "(" then
 				tokenType = "LPAR"
+				state.parenLevel = state.parenLevel + 1
 			elseif ch == ")" then
 				tokenType = "RPAR"
+				state.parenLevel = state.parenLevel - 1
 			elseif ch == "[" then
 				tokenType = "LSQB"
+				state.parenLevel = state.parenLevel + 1
 			elseif ch == "]" then
 				tokenType = "RSQB"
+				state.parenLevel = state.parenLevel - 1
 			elseif ch == "{" then
 				tokenType = "LBRACE"
+				state.parenLevel = state.parenLevel + 1
 			elseif ch == "}" then
 				tokenType = "RBRACE"
+				state.parenLevel = state.parenLevel - 1
 			elseif ch == "," then
 				tokenType = "COMMA"
 			elseif ch == ":" then

@@ -202,7 +202,7 @@ end
 
 -- Check if character is whitespace (but not newline)
 function Tokens.isWhitespace(char: string): boolean
-	return char == " " or char == "\t" or char == "\r"
+	return char == " " or char == "\t" or char == "\f" or char == "\v"
 end
 
 return Tokens
