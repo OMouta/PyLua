@@ -54,17 +54,18 @@ end
 function State:consume(tokenType: string, message: string?): Token
 	local cur = self.current
 	if not cur then
-		errors.raise(message or ("Expected " .. tokenType .. " but reached end of input"))
+		local lastToken = self.tokens[#self.tokens]
+		errors.raise(message or ("Expected " .. tokenType .. " but reached end of input"), lastToken)
 	end
 	if cur.type ~= tokenType then
-		errors.raise(message or ("Expected " .. tokenType .. " but got " .. cur.type))
+		errors.raise(message or ("Expected " .. tokenType .. " but got " .. cur.type), cur)
 	end
 	self:advance()
 	return cur :: any
 end
 
 function State:raise(msg: string)
-	errors.raise(msg)
+	errors.raise(msg, self.current)
 end
 
 local function skipLayout(state: ParserState)

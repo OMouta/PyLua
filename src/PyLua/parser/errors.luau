@@ -14,8 +14,12 @@ function errors.expected(expected: string, got: string?, loc: Location?)
 end
 
 -- Simple raise helper (throws Lua error)
-function errors.raise(msg: string)
-	error(msg)
+function errors.raise(msg: string, loc: Location?)
+	if loc then
+		error(string.format("%s at %s", msg, fmtLocation(loc)), 0)
+	else
+		error(msg, 0)
+	end
 end
 
 -- Placeholder synchronization (future): skip until one of NEWLINE/DEDENT/ENDMARKER

@@ -24,5 +24,6 @@ require("./suites/test_interop")
 require("./suites/test_modules")
 require("./suites/test_modules_advanced")
 require("./suites/test_pep451")
+require("./suites/test_error_reporting")
 
 TestFramework.printSummary()
