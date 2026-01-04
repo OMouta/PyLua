@@ -385,7 +385,11 @@ local function createPrimaryModule(deps: PrimaryDeps)
 			end
 		end
 
-		state:raise("Unexpected token in expression: " .. current.type)
+		if current.type == "ERRORTOKEN" then
+			state:raise("Syntax error: " .. (current.value or "unknown error"))
+		else
+			state:raise("Unexpected token in expression: " .. current.type)
+		end
 		return {
 			type = "Constant",
 			value = nil,

@@ -276,6 +276,9 @@ local function parseSuiteAfterColon(state: any): { Stmt }
 	if state.current and state.current.type == "NEWLINE" then
 		-- Multi-line suite
 		state:advance()
+
+		skipEmptyLines()
+
 		if state.current and state.current.type == "INDENT" then
 			state:advance()
 		end
