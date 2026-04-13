@@ -2,6 +2,9 @@
 
 > For v0.2 docs, see [docs/0.2/README.md](docs/0.2/README.md).
 
+> [!NOTE]  
+> Check out [stackfox-labs/luumen](https://github.com/stackfox-labs/luumen) for a way to control your roblox stack!
+
 Run Python inside Luau (e.g., Roblox). PyLua is a compact, CPython‑inspired interpreter you can embed in Luau projects.
 
 ## Quick Start
