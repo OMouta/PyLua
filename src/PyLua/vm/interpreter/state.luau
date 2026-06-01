@@ -14,12 +14,14 @@ export type VMState = {
 	max_instructions: number?,
 	deadline: number?,
 	max_call_depth: number?,
+	preserve_globals: boolean?,
 }
 
 export type VMOptions = {
 	maxInstructions: number?,
 	deadline: number?,
 	maxCallDepth: number?,
+	preserveGlobals: boolean?,
 }
 
 function State.newState(globals: { [string]: any }?, builtins: { [string]: any }?, options: VMOptions?): VMState
@@ -33,6 +35,7 @@ function State.newState(globals: { [string]: any }?, builtins: { [string]: any }
 		max_instructions = options and options.maxInstructions or nil,
 		deadline = options and options.deadline or nil,
 		max_call_depth = options and options.maxCallDepth or nil,
+		preserve_globals = options and options.preserveGlobals or false,
 	}
 end
 

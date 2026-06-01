@@ -7,9 +7,11 @@ type PyObject = base.PyObject
 type PyType = base.PyType
 export type PyList = PyObject & { __type: "list", __value: { PyObject } }
 export type PyTuple = PyObject & { __type: "tuple", __value: { PyObject } }
-export type PyDict = PyObject & { __type: "dict", __value: { [string]: { key: PyObject, value: PyObject } } }
+export type PyDict = PyObject & { __type: "dict", __value: { [string]: any } }
 export type PySet = PyObject & { __type: "set", __value: { [string]: { value: PyObject } } }
 type MethodMap = { [string]: (PyObject, { PyObject }?) -> PyObject }
+type DictEntry = { key: PyObject, value: PyObject }
+local dictOrders = setmetatable({}, { __mode = "k" }) :: { [any]: { string } }
 
 -- Helper utilities
 
@@ -40,6 +42,42 @@ local function hashKey(obj: PyObject): string
 	hashCache[obj] = hash
 
 	return hash
+end
+
+local function getDictOrder(storage: { [string]: any }): { string }
+	local order = dictOrders[storage]
+	if type(order) ~= "table" then
+		order = {}
+		dictOrders[storage] = order
+	end
+	return order :: { string }
+end
+
+local function dictSet(storage: { [string]: any }, keyObj: PyObject, valueObj: PyObject)
+	local keyHash = hashKey(keyObj)
+	if storage[keyHash] == nil then
+		local order = getDictOrder(storage)
+		order[#order + 1] = keyHash
+	end
+	storage[keyHash] = { key = keyObj, value = valueObj }
+end
+
+local function dictEntries(storage: { [string]: any }): { DictEntry }
+	local entries: { DictEntry } = {}
+	local seen: { [string]: boolean } = {}
+	for _, keyHash in ipairs(getDictOrder(storage)) do
+		local entry = storage[keyHash]
+		if type(entry) == "table" and entry.key ~= nil then
+			entries[#entries + 1] = entry
+			seen[keyHash] = true
+		end
+	end
+	for keyHash, entry in pairs(storage) do
+		if not seen[keyHash] and type(entry) == "table" and entry.key ~= nil then
+			entries[#entries + 1] = entry
+		end
+	end
+	return entries
 end
 
 local function ensureIntIndex(value: PyObject, caller: string): number
@@ -385,12 +423,12 @@ end
 -- Dict implementation
 
 function Collections.newDict(entries: { { PyObject } }?): PyDict
-	local storage: { [string]: { key: PyObject, value: PyObject } } = {}
+	local storage: { [string]: any } = {}
 	if entries then
 		for _, pair in ipairs(entries) do
 			local keyObj = base.ensurePyObject(pair[1])
 			local valueObj = base.ensurePyObject(pair[2])
-			storage[hashKey(keyObj)] = { key = keyObj, value = valueObj }
+			dictSet(storage, keyObj, valueObj)
 		end
 	end
 	return base.newPyObject("dict", storage) :: PyDict
@@ -406,8 +444,8 @@ do
 		end
 		local key = base.ensurePyObject((args :: any)[1])
 		local value = base.ensurePyObject((args :: any)[2])
-		local store = selfObj.__value :: { [string]: { key: PyObject, value: PyObject } }
-		store[hashKey(key)] = { key = key, value = value }
+		local store = selfObj.__value :: { [string]: any }
+		dictSet(store, key, value)
 		return builtins.None()
 	end
 
@@ -427,11 +465,7 @@ do
 	end
 
 	dictMethods["__len__"] = function(selfObj: PyObject)
-		local count = 0
-		for _ in pairs(selfObj.__value) do
-			count += 1
-		end
-		return base.newInt(count)
+		return base.newInt(#dictEntries(selfObj.__value :: { [string]: any }))
 	end
 
 	dictMethods["__getitem__"] = function(selfObj: PyObject, args: { PyObject }?)
@@ -452,8 +486,8 @@ do
 		end
 		local key = base.ensurePyObject(args[1])
 		local value = base.ensurePyObject(args[2])
-		local store = selfObj.__value :: { [string]: { key: PyObject, value: PyObject } }
-		store[hashKey(key)] = { key = key, value = value }
+		local store = selfObj.__value :: { [string]: any }
+		dictSet(store, key, value)
 		return builtins.None()
 	end
 
@@ -468,7 +502,7 @@ do
 
 	dictMethods["keys"] = function(selfObj: PyObject)
 		local values: { PyObject } = {}
-		for _, entry in pairs(selfObj.__value) do
+		for _, entry in ipairs(dictEntries(selfObj.__value :: { [string]: any })) do
 			values[#values + 1] = entry.key
 		end
 		return Collections.newList(values)
@@ -476,7 +510,7 @@ do
 
 	dictMethods["values"] = function(selfObj: PyObject)
 		local values: { PyObject } = {}
-		for _, entry in pairs(selfObj.__value) do
+		for _, entry in ipairs(dictEntries(selfObj.__value :: { [string]: any })) do
 			values[#values + 1] = entry.value
 		end
 		return Collections.newList(values)
@@ -484,7 +518,7 @@ do
 
 	dictMethods["items"] = function(selfObj: PyObject)
 		local pairsList: { PyObject } = {}
-		for _, entry in pairs(selfObj.__value) do
+		for _, entry in ipairs(dictEntries(selfObj.__value :: { [string]: any })) do
 			pairsList[#pairsList + 1] = Collections.newTuple({ entry.key, entry.value })
 		end
 		return Collections.newList(pairsList)
@@ -565,5 +599,9 @@ Collections.list = Collections.newList
 Collections.tuple = Collections.newTuple
 Collections.dict = Collections.newDict
 Collections.set = Collections.newSet
+Collections.dictEntries = function(dictObj: PyObject): { DictEntry }
+	return dictEntries(dictObj.__value :: { [string]: any })
+end
+Collections.hashKey = hashKey
 
 return Collections

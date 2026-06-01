@@ -352,11 +352,15 @@ return function(deps: StatementDeps)
 			State.emit(st, "POP_TOP", nil, node.lineno)
 		elseif node.type == "Assign" then
 			compileExpr(st, node.value)
-			local target = node.targets[1]
-			if not target then
+			if not node.targets or #node.targets == 0 then
 				error("Assign without target")
 			end
-			compileStoreTarget(st, target)
+			for index, target in ipairs(node.targets) do
+				if index < #node.targets then
+					State.emit(st, "DUP_TOP", nil, node.lineno)
+				end
+				compileStoreTarget(st, target)
+			end
 		elseif node.type == "AugAssign" then
 			local target = node.target
 			compileLoadTarget(st, target)

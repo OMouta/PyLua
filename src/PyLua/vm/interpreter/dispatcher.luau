@@ -48,6 +48,19 @@ local function toPyObject(value: any): any
 	return if isPyObject(value) then value else Base.ensurePyObject(value)
 end
 
+local function binaryOperate(frame: FrameModule.Frame, op: string)
+	local b = FrameModule.pop(frame)
+	local a = FrameModule.pop(frame)
+	local left = toPyObject(a)
+	local right = toPyObject(b)
+	FrameModule.push(frame, Base.operate(op, left :: any, right :: any))
+end
+
+local function unaryOperate(frame: FrameModule.Frame, op: string)
+	local value = toPyObject(FrameModule.pop(frame))
+	FrameModule.push(frame, Base.unary(op, value :: any))
+end
+
 local function instantiateClass(classObj: PyObject, args: { PyObject }): PyObject
 	local info = classObj.__value
 	if type(info) ~= "table" then
@@ -103,11 +116,13 @@ function Dispatcher.dispatchInstruction(
 		if constants and value ~= nil then
 			local resolved = value
 			if typeof(resolved) == "table" and resolved.__nil then
-				resolved = nil
+				resolved = Base.newNone()
 			elseif typeof(resolved) == "table" and (resolved :: any).__bytes_literal then
 				resolved = ObjBuiltins.Bytes((resolved :: any).value)
 			elseif typeof(resolved) == "boolean" then
 				resolved = if resolved then ObjBuiltins.True() else ObjBuiltins.False()
+			elseif typeof(resolved) == "number" or typeof(resolved) == "string" then
+				resolved = Base.ensurePyObject(resolved)
 			end
 			FrameModule.push(frame, resolved)
 		else
@@ -192,79 +207,41 @@ function Dispatcher.dispatchInstruction(
 		local setter = Base.getattr(pyContainer, "__setitem__")
 		Base.call(setter, { pyIndex, pyValue })
 	elseif opcode == "BINARY_ADD" then
-		local b = FrameModule.pop(frame)
-		local a = FrameModule.pop(frame)
-		local left = toPyObject(a)
-		local right = toPyObject(b)
-		FrameModule.push(frame, Base.operate("add", left :: any, right :: any))
+		binaryOperate(frame, "add")
 	elseif opcode == "BINARY_SUBTRACT" then
-		local b = FrameModule.pop(frame)
-		local a = FrameModule.pop(frame)
-		local aVal = (type(a) == "table" and a.__value ~= nil) and a.__value or a
-		local bVal = (type(b) == "table" and b.__value ~= nil) and b.__value or b
-		FrameModule.push(frame, Base.ensurePyObject(aVal - bVal))
+		binaryOperate(frame, "sub")
 	elseif opcode == "BINARY_MULTIPLY" then
-		local b = FrameModule.pop(frame)
-		local a = FrameModule.pop(frame)
-		local aVal = (type(a) == "table" and a.__value ~= nil) and a.__value or a
-		local bVal = (type(b) == "table" and b.__value ~= nil) and b.__value or b
-		FrameModule.push(frame, Base.ensurePyObject(aVal * bVal))
+		binaryOperate(frame, "mul")
 	elseif opcode == "BINARY_DIVIDE" then
-		local b = FrameModule.pop(frame)
-		local a = FrameModule.pop(frame)
-		local aVal = (type(a) == "table" and a.__value ~= nil) and a.__value or a
-		local bVal = (type(b) == "table" and b.__value ~= nil) and b.__value or b
-		if bVal == 0 then
-			error("ZeroDivisionError: division by zero", 2)
-		end
-		FrameModule.push(frame, Base.ensurePyObject(aVal / bVal))
+		binaryOperate(frame, "truediv")
 	elseif opcode == "BINARY_MODULO" then
-		local b = FrameModule.pop(frame)
-		local a = FrameModule.pop(frame)
-		local aVal = (type(a) == "table" and a.__value ~= nil) and a.__value or a
-		local bVal = (type(b) == "table" and b.__value ~= nil) and b.__value or b
-		if bVal == 0 then
-			error("ZeroDivisionError: integer division or modulo by zero", 2)
-		end
-		FrameModule.push(frame, Base.ensurePyObject(aVal % bVal))
+		binaryOperate(frame, "mod")
 	elseif opcode == "BINARY_POWER" then
-		local b = FrameModule.pop(frame)
-		local a = FrameModule.pop(frame)
-		local aVal = (type(a) == "table" and a.__value ~= nil) and a.__value or a
-		local bVal = (type(b) == "table" and b.__value ~= nil) and b.__value or b
-		FrameModule.push(frame, Base.ensurePyObject(aVal ^ bVal))
+		binaryOperate(frame, "pow")
+	elseif opcode == "BINARY_LSHIFT" then
+		binaryOperate(frame, "lshift")
+	elseif opcode == "BINARY_RSHIFT" then
+		binaryOperate(frame, "rshift")
+	elseif opcode == "BINARY_OR" then
+		binaryOperate(frame, "bitor")
+	elseif opcode == "BINARY_XOR" then
+		binaryOperate(frame, "bitxor")
+	elseif opcode == "BINARY_AND" then
+		binaryOperate(frame, "bitand")
 	elseif opcode == "BINARY_FLOOR_DIVIDE" then
-		local b = FrameModule.pop(frame)
-		local a = FrameModule.pop(frame)
-		local left = toPyObject(a)
-		local right = toPyObject(b)
-		FrameModule.push(frame, Base.operate("floordiv", left :: any, right :: any))
+		binaryOperate(frame, "floordiv")
 	elseif opcode == "BINARY_MATRIX_MULTIPLY" then
-		local b = FrameModule.pop(frame)
-		local a = FrameModule.pop(frame)
-		local left = toPyObject(a)
-		local right = toPyObject(b)
-		FrameModule.push(frame, Base.operate("matmul", left :: any, right :: any))
+		binaryOperate(frame, "matmul")
 	elseif opcode == "UNARY_POSITIVE" then
-		local a = FrameModule.pop(frame)
-		local aVal = (type(a) == "table" and a.__value ~= nil) and a.__value or a
-		FrameModule.push(frame, Base.ensurePyObject(aVal))
+		unaryOperate(frame, "pos")
 	elseif opcode == "UNARY_NEGATIVE" then
-		local a = FrameModule.pop(frame)
-		local aVal = (type(a) == "table" and a.__value ~= nil) and a.__value or a
-		FrameModule.push(frame, Base.ensurePyObject(-aVal))
+		unaryOperate(frame, "neg")
 	elseif opcode == "UNARY_NOT" then
-		local a = FrameModule.pop(frame)
-		local aVal = (type(a) == "table" and a.__value ~= nil) and a.__value or a
-		FrameModule.push(frame, Base.ensurePyObject(not aVal))
+		local value = FrameModule.pop(frame)
+		local pyValue = toPyObject(value)
+		FrameModule.push(frame, Base.newBool(not Base.truthy(pyValue :: any)))
 	elseif opcode == "UNARY_INVERT" then
-		local a = FrameModule.pop(frame)
-		local aVal = (type(a) == "table" and a.__value ~= nil) and a.__value or a
-		if type(aVal) == "number" and aVal == math.floor(aVal) then
-			FrameModule.push(frame, Base.ensurePyObject(bit32.bnot(aVal)))
-		else
-			error("TypeError: bad operand type for unary ~", 2)
-		end
+		unaryOperate(frame, "invert")
 	elseif opcode == "COMPARE_OP" then
 		assert(arg ~= nil, "COMPARE_OP requires argument")
 		local rawRight = FrameModule.pop(frame)
@@ -526,9 +503,9 @@ function Dispatcher.dispatchInstruction(
 		assert(arg ~= nil, "BUILD_MAP requires argument")
 		local popped = Stack.popN(frame.stack, arg * 2)
 		local entries = {}
-		for i = 1, #popped, 2 do
-			local value = Base.ensurePyObject(popped[i])
-			local key = Base.ensurePyObject(popped[i + 1])
+		for i = #popped, 2, -2 do
+			local key = Base.ensurePyObject(popped[i])
+			local value = Base.ensurePyObject(popped[i - 1])
 			entries[#entries + 1] = { key, value }
 		end
 		local dict = Collections.newDict(entries)
@@ -555,11 +532,8 @@ function Dispatcher.dispatchInstruction(
 			if pyDict.__type ~= "dict" then
 				error(string.format("Argument to ** unpacking must be a mapping, not %s", pyDict.__type), 2)
 			end
-			local storage = pyDict.__value :: any
-			if storage then
-				for _, entry in pairs(storage) do
-					setMethod(merged, { entry.key, entry.value })
-				end
+			for _, entry in ipairs((Collections :: any).dictEntries(pyDict)) do
+				setMethod(merged, { entry.key, entry.value })
 			end
 		end
 		FrameModule.push(frame, merged)

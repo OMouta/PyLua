@@ -343,6 +343,23 @@ return function(deps: { compileStmt: (CompilerState, any) -> () })
 				error("Unsupported binary op: " .. tostring(node.op))
 			end
 			State.emit(st, (op :: any) :: opcodes.Opcode, nil, node.lineno)
+		elseif t == "BoolOp" then
+			if not node.values or #node.values == 0 then
+				error("Invalid boolean operation")
+			end
+			compileExpr(st, node.values[1])
+			for index = 2, #node.values do
+				local jumpAddr = State.getCurrentAddress(st)
+				if node.op == "And" then
+					State.emit(st, "JUMP_IF_FALSE_OR_POP", 0, node.lineno)
+				elseif node.op == "Or" then
+					State.emit(st, "JUMP_IF_TRUE_OR_POP", 0, node.lineno)
+				else
+					error("Unsupported boolean op: " .. tostring(node.op))
+				end
+				compileExpr(st, node.values[index])
+				State.patchJump(st, jumpAddr, State.getCurrentAddress(st))
+			end
 		elseif t == "UnaryOp" then
 			compileExpr(st, node.operand)
 			if node.op == "UAdd" then

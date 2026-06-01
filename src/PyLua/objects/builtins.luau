@@ -243,16 +243,93 @@ local function attachPrimitiveMethods()
 			return base.newInt(floored)
 		end
 
+		local numMod = function(selfObj: PyObject, args: { PyObject }?)
+			local other = args and args[1] or base.ensurePyObject(1)
+			if other.__type ~= "int" and other.__type ~= "float" then
+				error("TypeError: unsupported operand type(s) for %", 2)
+			end
+			if other.__value == 0 then
+				error("ZeroDivisionError: integer division or modulo by zero", 2)
+			end
+			return wrapNum(selfObj.__value % other.__value, selfObj, other)
+		end
+
+		local numPow = function(selfObj: PyObject, args: { PyObject }?)
+			local other = args and args[1] or base.ensurePyObject(1)
+			if other.__type ~= "int" and other.__type ~= "float" then
+				error("TypeError: unsupported operand type(s) for **", 2)
+			end
+			return wrapNum(selfObj.__value ^ other.__value, selfObj, other)
+		end
+
+		local function ensureIntegral(obj: PyObject, op: string): number
+			if obj.__type ~= "int" then
+				error("TypeError: unsupported operand type(s) for " .. op, 2)
+			end
+			return obj.__value
+		end
+
+		local bitLshift = function(selfObj: PyObject, args: { PyObject }?)
+			local other = args and args[1] or base.ensurePyObject(0)
+			return base.newInt(bit32.lshift(ensureIntegral(selfObj, "<<"), ensureIntegral(other, "<<")))
+		end
+
+		local bitRshift = function(selfObj: PyObject, args: { PyObject }?)
+			local other = args and args[1] or base.ensurePyObject(0)
+			return base.newInt(bit32.rshift(ensureIntegral(selfObj, ">>"), ensureIntegral(other, ">>")))
+		end
+
+		local bitOr = function(selfObj: PyObject, args: { PyObject }?)
+			local other = args and args[1] or base.ensurePyObject(0)
+			return base.newInt(bit32.bor(ensureIntegral(selfObj, "|"), ensureIntegral(other, "|")))
+		end
+
+		local bitXor = function(selfObj: PyObject, args: { PyObject }?)
+			local other = args and args[1] or base.ensurePyObject(0)
+			return base.newInt(bit32.bxor(ensureIntegral(selfObj, "^"), ensureIntegral(other, "^")))
+		end
+
+		local bitAnd = function(selfObj: PyObject, args: { PyObject }?)
+			local other = args and args[1] or base.ensurePyObject(0)
+			return base.newInt(bit32.band(ensureIntegral(selfObj, "&"), ensureIntegral(other, "&")))
+		end
+
+		local numPos = function(selfObj: PyObject)
+			return selfObj
+		end
+
+		local numNeg = function(selfObj: PyObject)
+			return wrapNum(-selfObj.__value, selfObj, nil)
+		end
+
+		local bitInvert = function(selfObj: PyObject)
+			return base.newInt(bit32.bnot(ensureIntegral(selfObj, "~")))
+		end
+
 		intMethods["__add__"] = numAdd
 		intMethods["__sub__"] = numSub
 		intMethods["__mul__"] = numMul
 		intMethods["__truediv__"] = numTrueDiv
 		intMethods["__floordiv__"] = numFloorDiv
+		intMethods["__mod__"] = numMod
+		intMethods["__pow__"] = numPow
+		intMethods["__lshift__"] = bitLshift
+		intMethods["__rshift__"] = bitRshift
+		intMethods["__or__"] = bitOr
+		intMethods["__xor__"] = bitXor
+		intMethods["__and__"] = bitAnd
+		intMethods["__pos__"] = numPos
+		intMethods["__neg__"] = numNeg
+		intMethods["__invert__"] = bitInvert
 		floatMethods["__add__"] = numAdd
 		floatMethods["__sub__"] = numSub
 		floatMethods["__mul__"] = numMul
 		floatMethods["__truediv__"] = numTrueDiv
 		floatMethods["__floordiv__"] = numFloorDiv
+		floatMethods["__mod__"] = numMod
+		floatMethods["__pow__"] = numPow
+		floatMethods["__pos__"] = numPos
+		floatMethods["__neg__"] = numNeg
 
 		-- String concatenation & repetition minimal subset
 		strMethods["__add__"] = function(selfObj: PyObject, args: { PyObject }?)

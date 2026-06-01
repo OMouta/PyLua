@@ -1,6 +1,7 @@
 local Functions = {}
 
 local base = require("../objects/base")
+local collections = require("../objects/collections")
 local obj_builtins = require("../objects/builtins")
 local exceptions = require("./exceptions")
 
@@ -203,9 +204,8 @@ objectRepr = function(obj: PyObject?): string
 		if repr then
 			return repr
 		end
-		local entries = obj.__value :: { [string]: { key: PyObject, value: PyObject } }
 		local parts: { string } = {}
-		for _, entry in pairs(entries) do
+		for _, entry in ipairs((collections :: any).dictEntries(obj)) do
 			local keyStr = objectRepr(entry.key)
 			local valueStr = objectRepr(entry.value)
 			parts[#parts + 1] = keyStr .. ": " .. valueStr
@@ -449,7 +449,7 @@ local function collectIterable(obj: PyObject, caller: string): { PyObject }
 		return values
 	elseif t == "dict" then
 		local keys = {}
-		for _, entry in pairs(obj.__value) do
+		for _, entry in ipairs((collections :: any).dictEntries(obj)) do
 			keys[#keys + 1] = entry.key
 		end
 		return keys

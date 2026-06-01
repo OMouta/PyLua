@@ -1,4 +1,5 @@
 local Base = require("../../objects/base")
+local Collections = require("../../objects/collections")
 
 local Iteration = {}
 
@@ -48,7 +49,7 @@ function Iteration.createIterator(iterable: any): any
 		}
 	elseif objType == "dict" then
 		local keys = {}
-		for _, entry in pairs(obj.__value) do
+		for _, entry in ipairs((Collections :: any).dictEntries(obj)) do
 			keys[#keys + 1] = entry.key
 		end
 		return {

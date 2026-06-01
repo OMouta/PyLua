@@ -9,8 +9,6 @@ type PyType = Base.PyType
 type VisitedPy = { [PyObject]: any }
 type VisitedLuau = { [any]: PyObject }
 
-type HashEntry = { key: PyObject, value: PyObject }
-
 type LuauFunctionRecord = { func: (...any) -> any }
 
 type ClassBindingOptionsInternal = {
@@ -104,16 +102,6 @@ local function hasMetatableClass(tbl: any): string?
 		return mt.__pylua_class
 	end
 	return nil
-end
-
-local function hashKey(obj: PyObject): string
-	local t = obj.__type
-	if t == "int" or t == "float" or t == "bool" or t == "str" then
-		return t .. ":" .. tostring(obj.__value)
-	elseif t == "NoneType" then
-		return "None"
-	end
-	return tostring(obj)
 end
 
 local function bindingMatches(binding: ClassBinding, value: any): boolean
@@ -423,11 +411,12 @@ local function luauToPyInternal(value: any, visited: VisitedLuau): PyObject
 
 	local dict = Collections.newDict({})
 	visited[value] = dict
-	local storage = dict.__value :: { [string]: HashEntry }
+	local storage = dict.__value :: { [string]: any }
 	for key, entryValue in pairs(value) do
 		local pyKey = luauToPyInternal(key, visited)
 		local pyValue = luauToPyInternal(entryValue, visited)
-		storage[hashKey(pyKey)] = { key = pyKey, value = pyValue }
+		local setMethod = Base.getattr(dict, "set")
+		Base.call(setMethod, { pyKey, pyValue })
 	end
 	return dict
 end
@@ -461,8 +450,7 @@ local function pyToLuauInternal(obj: PyObject, visited: VisitedPy): any
 	elseif typeName == "dict" then
 		local tbl: { [any]: any } = {}
 		visited[obj] = tbl
-		local storage = obj.__value :: { [string]: HashEntry }
-		for _, entry in pairs(storage) do
+		for _, entry in ipairs((Collections :: any).dictEntries(obj)) do
 			local keyValue = pyToLuauInternal(entry.key, visited)
 			local keyType = type(keyValue)
 			if keyType ~= "string" and keyType ~= "number" and keyType ~= "boolean" then

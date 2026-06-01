@@ -226,14 +226,27 @@ function statements.parseSimple(state: any): Stmt
 		local afterTarget = state.current
 		if afterTarget and afterTarget.type == "EQUAL" then
 			state:advance()
+			local targets = { assignmentTarget(targetCandidate) }
+			while true do
+				local chainedSavePos = state.pos
+				local chainedSaveCurrent = state.current
+				local chainedTarget = expressions.parsePrimaryForTarget(state)
+				if chainedTarget and state.current and state.current.type == "EQUAL" then
+					targets[#targets + 1] = assignmentTarget(chainedTarget)
+					state:advance()
+				else
+					state.pos = chainedSavePos
+					state.current = chainedSaveCurrent
+					break
+				end
+			end
 			local value = expressions.parse(state)
-			local target = assignmentTarget(targetCandidate)
 			return {
 				type = "Assign",
-				targets = { target },
+				targets = targets,
 				value = value,
-				lineno = target.lineno,
-				col_offset = target.col_offset,
+				lineno = targets[1].lineno,
+				col_offset = targets[1].col_offset,
 			}
 		elseif afterTarget then
 			local opTok = afterTarget

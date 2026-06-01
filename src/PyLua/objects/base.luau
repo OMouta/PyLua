@@ -259,7 +259,6 @@ function Base.newClass(name: string, bases: { PyType }, attributes: { [string]: 
 		attributes = attrCopy,
 		isUserDefined = true,
 	}
-	typeRegistry[name] = pyType
 	local typeType = typeRegistry["type"] or Base.registerType("type", {})
 	for _, value in pairs(attrCopy) do
 		if type(value) == "table" and value.__type == "function" then
@@ -490,8 +489,14 @@ local opNameMap: { [string]: string } = {
 	floordiv = "__floordiv__",
 	mod = "__mod__",
 	pow = "__pow__",
+	lshift = "__lshift__",
+	rshift = "__rshift__",
+	bitor = "__or__",
+	bitxor = "__xor__",
+	bitand = "__and__",
 	neg = "__neg__",
 	pos = "__pos__",
+	invert = "__invert__",
 	matmul = "__matmul__",
 }
 
@@ -551,8 +556,10 @@ function Base.truthy(obj: PyObject): boolean
 	elseif t == "list" or t == "tuple" then
 		return #(obj.__value :: { PyObject }) > 0
 	elseif t == "dict" or t == "set" then
-		for _ in pairs(obj.__value) do
-			return true
+		for _, entry in pairs(obj.__value) do
+			if type(entry) == "table" then
+				return true
+			end
 		end
 		return false
 	end

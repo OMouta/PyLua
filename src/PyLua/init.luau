@@ -64,8 +64,8 @@ export type Runtime = {
 	_importer: any,
 }
 
-local function makeExecuteOptions(opts: RuntimeOptions): vm.ExecuteOptions?
-	local hasOptions = opts.timeout ~= nil or opts.maxInstructions ~= nil or opts.maxRecursion ~= nil
+local function makeExecuteOptions(opts: RuntimeOptions, preserveGlobals: boolean?): vm.ExecuteOptions?
+	local hasOptions = preserveGlobals or opts.timeout ~= nil or opts.maxInstructions ~= nil or opts.maxRecursion ~= nil
 	if not hasOptions then
 		return nil
 	end
@@ -73,6 +73,7 @@ local function makeExecuteOptions(opts: RuntimeOptions): vm.ExecuteOptions?
 		deadline = if opts.timeout and opts.timeout > 0 then os.clock() + opts.timeout else nil,
 		maxInstructions = opts.maxInstructions,
 		maxCallDepth = opts.maxRecursion,
+		preserveGlobals = preserveGlobals,
 	}
 end
 
@@ -166,7 +167,7 @@ function PyLua.new(options: RuntimeOptions?): Runtime
 		local bytecode = compiler.compile(ast)
 
 		-- 4. VM: execute bytecode
-		vm.execute(bytecode.bytecode, modGlobals, runtime._builtins, bytecode.constants, bytecode.names, makeExecuteOptions(opts))
+		vm.execute(bytecode.bytecode, modGlobals, runtime._builtins, bytecode.constants, bytecode.names, makeExecuteOptions(opts, true))
 	end)
 
 	-- Add __import__ to builtins
@@ -239,7 +240,7 @@ function Runtime:execute(code: string)
 	local bytecode = compiler.compile(ast)
 
 	-- 4. VM: execute bytecode
-	vm.execute(bytecode.bytecode, self._globals, self._builtins, bytecode.constants, bytecode.names, makeExecuteOptions(self._options))
+	vm.execute(bytecode.bytecode, self._globals, self._builtins, bytecode.constants, bytecode.names, makeExecuteOptions(self._options, true))
 end
 
 -- Evaluate Python expression and return the result
@@ -259,7 +260,7 @@ function Runtime:eval(code: string): any
 
 	-- 4. VM: execute bytecode
 	local result =
-		vm.execute(bytecode.bytecode, self._globals, self._builtins, bytecode.constants, bytecode.names, makeExecuteOptions(self._options))
+		vm.execute(bytecode.bytecode, self._globals, self._builtins, bytecode.constants, bytecode.names, makeExecuteOptions(self._options, true))
 
 	return result
 end
@@ -288,7 +289,7 @@ function Runtime:runBytecode(bytecode: any): any
 		error("Runtime.runBytecode() requires a bytecode table", 2)
 	end
 
-	return vm.execute(bytecode.bytecode, self._globals, self._builtins, bytecode.constants, bytecode.names, makeExecuteOptions(self._options))
+	return vm.execute(bytecode.bytecode, self._globals, self._builtins, bytecode.constants, bytecode.names, makeExecuteOptions(self._options, true))
 end
 
 -- Access the global environment

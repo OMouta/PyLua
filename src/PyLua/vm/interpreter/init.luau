@@ -56,8 +56,10 @@ function Interpreter.execute(
 		end
 
 		local ret = Helpers.unwrapPrimitive(vm.return_value)
-		for key, value in pairs(vm.globals) do
-			vm.globals[key] = Helpers.unwrapPrimitive(value)
+		if not vm.preserve_globals then
+			for key, value in pairs(vm.globals) do
+				vm.globals[key] = Helpers.unwrapPrimitive(value)
+			end
 		end
 		return ret
 	end
