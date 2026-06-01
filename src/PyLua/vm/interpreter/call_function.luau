@@ -169,8 +169,17 @@ function CallFunction.new(executeInstruction: (
 				builtins = vm.builtins,
 				locals = locals,
 				executeInstruction = executeInstruction,
+				vmOptions = {
+					maxInstructions = vm.max_instructions,
+					deadline = vm.deadline,
+					maxCallDepth = vm.max_call_depth,
+				},
 			}),
 				nil
+		end
+
+		if vm.max_call_depth and #vm.call_stack >= vm.max_call_depth then
+			error("RecursionError: maximum recursion depth exceeded", 2)
 		end
 
 		local funcFrame = FrameModule.new(code.bytecode, funcGlobals, vm.builtins, locals, code.name)
@@ -181,6 +190,7 @@ function CallFunction.new(executeInstruction: (
 		table.insert(vm.call_stack, funcFrame)
 
 		while FrameModule.hasNext(funcFrame) do
+			State.step(vm)
 			local instruction = FrameModule.getCurrentInstruction(funcFrame)
 			if not instruction then
 				break

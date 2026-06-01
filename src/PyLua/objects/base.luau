@@ -54,6 +54,7 @@ type PythonCallHelper = (vm: any, func: any, args: { PyObject }?, kwargs: { [str
 
 local pythonCallHelper: PythonCallHelper? = nil
 local activeVM: any? = nil
+local activeVMStack: { any } = {}
 
 -- Primitive singletons (mirrors CPython behavior for None/bool)
 local noneSingleton: PyObject?
@@ -82,7 +83,13 @@ function Base.setPythonCallHelper(helper: PythonCallHelper)
 end
 
 function Base.setActiveVM(vm: any?)
-	activeVM = vm
+	if vm ~= nil then
+		table.insert(activeVMStack, vm)
+		activeVM = vm
+		return
+	end
+	table.remove(activeVMStack)
+	activeVM = activeVMStack[#activeVMStack]
 end
 
 local function requirePythonCallContext(): (PythonCallHelper, any)

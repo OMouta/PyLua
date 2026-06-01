@@ -48,6 +48,15 @@ local function handleException(vm: VMState, frame: Frame, err: any): (boolean, P
 	end
 end
 
+local function needsProtectedDispatch(frame: Frame): boolean
+	for _, block in ipairs(frame.block_stack) do
+		if block.type == "except" or block.type == "finally" then
+			return true
+		end
+	end
+	return false
+end
+
 function Executor.new(dispatchInstruction: DispatchFunction): DispatchFunction
 	local function executeInstruction(
 		vm: VMState,
@@ -56,6 +65,10 @@ function Executor.new(dispatchInstruction: DispatchFunction): DispatchFunction
 		constants: { any }?,
 		names: { string }?
 	): boolean
+		if not needsProtectedDispatch(frame) then
+			return dispatchInstruction(vm, frame, instruction, constants, names)
+		end
+
 		local ok, result = pcall(dispatchInstruction, vm, frame, instruction, constants, names)
 		if ok then
 			return result

@@ -22,10 +22,17 @@ function errors.raise(msg: string, loc: Location?)
 	end
 end
 
--- Placeholder synchronization (future): skip until one of NEWLINE/DEDENT/ENDMARKER
 function errors.synchronize(tokens: { any }, startPos: number): number
-	-- Not implemented yet; returns original position
-	return startPos
+	local pos = math.max(startPos, 1)
+	while pos <= #tokens do
+		local token = tokens[pos]
+		local tokenType = token and token.type
+		if tokenType == "NEWLINE" or tokenType == "DEDENT" or tokenType == "ENDMARKER" then
+			return pos
+		end
+		pos += 1
+	end
+	return #tokens
 end
 
 return errors

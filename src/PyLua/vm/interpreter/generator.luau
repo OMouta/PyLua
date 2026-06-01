@@ -21,6 +21,7 @@ export type GeneratorParams = {
 	builtins: { [string]: any },
 	locals: { [string]: any },
 	executeInstruction: ResumeFunction,
+	vmOptions: State.VMOptions?,
 }
 
 export type GeneratorInfo = {
@@ -103,6 +104,7 @@ local function runGenerator(info: GeneratorInfo, sendValue: PyObject?): PyObject
 			info.hasResumeValue = false
 		end
 		while FrameModule.hasNext(frame) do
+			State.step(vm)
 			local instruction = FrameModule.getCurrentInstruction(frame)
 			if not instruction then
 				break
@@ -143,7 +145,7 @@ local function runGenerator(info: GeneratorInfo, sendValue: PyObject?): PyObject
 end
 
 function Generator.new(params: GeneratorParams): PyObject
-	local generatorVm = State.newState(params.globals, params.builtins)
+	local generatorVm = State.newState(params.globals, params.builtins, params.vmOptions)
 	local frame =
 		FrameModule.new(params.code.bytecode, params.globals, params.builtins, params.locals, params.code.name)
 	local frameAny = frame :: any

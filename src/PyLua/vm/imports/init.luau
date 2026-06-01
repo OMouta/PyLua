@@ -21,6 +21,7 @@ export type ImportSystem = {
 	builtins: { [string]: Base.PyObject },
 	finders: { Finders.Finder },
 	executor: ((code: string, filename: string, globals: { [string]: Base.PyObject }) -> ())?,
+	policy: Policy?,
 
 	importModule: (
 		self: ImportSystem,
@@ -51,6 +52,7 @@ function ImportSystem.new(config: ImportSystemConfig): ImportSystem
 	self.builtins = config.builtins
 	self.executor = nil
 	self.finders = {} :: { Finders.Finder }
+	self.policy = config.policy
 
 	-- Create sys.path
 	local paths: { Base.PyObject } = {}
@@ -145,6 +147,22 @@ local function resolveRelativeImport(name: string, packageName: string?, level: 
 	end
 end
 
+local function enforcePolicy(policy: Policy?, fullname: string)
+	if not policy then
+		return
+	end
+	local topLevel = string.match(fullname, "^([^.]+)")
+	if policy.deny and (policy.deny[fullname] or (topLevel and policy.deny[topLevel])) then
+		error("ImportError: import denied by policy: '" .. fullname .. "'", 0)
+	end
+	if policy.allow and not policy.allow["*"] then
+		local allowed = policy.allow[fullname] or (topLevel and policy.allow[topLevel])
+		if not allowed then
+			error("ImportError: import denied by policy: '" .. fullname .. "'", 0)
+		end
+	end
+end
+
 function ImportSystem:importModule(
 	name: string,
 	globals: any?,
@@ -166,6 +184,8 @@ function ImportSystem:importModule(
 		end
 		actualName = resolveRelativeImport(name, packageName, importLevel)
 	end
+
+	enforcePolicy(self.policy, actualName)
 
 	-- Parse name into parts for parent package handling
 	local parts = {}
@@ -208,8 +228,9 @@ function ImportSystem:importModule(
 	local getMethod = Base.getattr(modulesDict, "get")
 	local nameObj = Base.newPyObject("str", actualName)
 	local existing = Base.call(getMethod, { nameObj })
+	local hadExistingModule = existing.__type ~= "NoneType"
 
-	if existing.__type ~= "NoneType" then
+	if hadExistingModule then
 		-- Module is already loaded, but we need to return the right module
 		-- based on fromlist
 		if not hasFromlist and #parts > 1 then
@@ -284,7 +305,18 @@ function ImportSystem:importModule(
 
 	-- Execute the module
 	if spec.loader and spec.loader.exec_module then
-		spec.loader.exec_module(spec, mod)
+		local ok, err = pcall(function()
+			spec.loader.exec_module(spec, mod)
+		end)
+		if not ok then
+			if not hadExistingModule then
+				local store = (modulesDict :: any).__value
+				if type(store) == "table" then
+					store[nameObj.__type .. ":" .. tostring(nameObj.__value)] = nil
+				end
+			end
+			error(err, 0)
+		end
 	end
 
 	-- Bind submodule to parent package

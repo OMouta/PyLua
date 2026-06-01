@@ -18,14 +18,17 @@ function Interpreter.newState(globals: { [string]: any }?, builtins: { [string]:
 	return State.newState(globals, builtins)
 end
 
+export type ExecuteOptions = State.VMOptions
+
 function Interpreter.execute(
 	code: { any },
 	globals: { [string]: any }?,
 	builtins: { [string]: any }?,
 	constants: { any }?,
-	names: { string }?
+	names: { string }?,
+	options: ExecuteOptions?
 ): any
-	local vm = Interpreter.newState(globals, builtins)
+	local vm = State.newState(globals, builtins, options)
 	local frame = FrameModule.new(code, vm.globals, vm.builtins)
 
 	vm.current_frame = frame
@@ -34,6 +37,7 @@ function Interpreter.execute(
 	local function run()
 		Base.setActiveVM(vm)
 		while FrameModule.hasNext(frame) do
+			State.step(vm)
 			local instruction = FrameModule.getCurrentInstruction(frame)
 			if not instruction then
 				break
@@ -74,7 +78,13 @@ function Interpreter.executeWithTimeout(
 	names: { string }?,
 	timeout: number?
 ): any
-	return Interpreter.execute(code, globals, builtins, constants, names)
+	local options: ExecuteOptions? = nil
+	if timeout and timeout > 0 then
+		options = {
+			deadline = os.clock() + timeout,
+		}
+	end
+	return Interpreter.execute(code, globals, builtins, constants, names, options)
 end
 
 return Interpreter
