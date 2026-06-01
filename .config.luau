@@ -11,7 +11,8 @@ return {
     tasks = {
         build = "rojo build default.project.json --output build/pylua.rbxm",
         format = "stylua src",
-        lint = "selene src",
+        lint = "lute lint",
+        typecheck = "lute check",
         test = "lute tests/run_tests.luau",
     },
     luu = {
