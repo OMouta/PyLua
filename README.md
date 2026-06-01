@@ -61,7 +61,7 @@ print(result) -- 6
 
 ## Status
 
-- Version: `0.3.1`
+- Version: `0.3.2`
 - Target: Python 3.12 and below (3.13+ out of scope)
 - Roadmap: `internalDocs/ROADMAP.md`
 
